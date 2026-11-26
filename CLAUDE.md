@@ -112,6 +112,12 @@ In the table, `...` means the county server base: `https://giswww.westchestergov
 
 The page needs an internet connection. Both servers allowed requests from a page opened as a local file.
 
+## Answers to open items
+
+- **Open item 1, hose loads (Alex, 2026-11-25):** each YHFD engine carries 1,500 ft of 5 inch supply hose.
+- The page default is still 1,000 ft. Set "Supply hose on each engine (ft)" to 1500 in the page for now.
+- A change of the default to 1,500 needs Alex's approval. It changes `src/calculator.html`, 3 page checks in `tests/test_ui.py`, and the SHA-256.
+
 ## Open items and history
 
 Open items and history are in `docs/handoff-2026-11-24.md`. Read that file before you plan new work.
