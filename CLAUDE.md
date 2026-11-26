@@ -115,8 +115,12 @@ The page needs an internet connection. Both servers allowed requests from a page
 ## Answers to open items
 
 - **Open item 1, hose loads (Alex, 2026-11-25):** each YHFD engine carries 1,500 ft of 5 inch supply hose.
-- The page default is still 1,000 ft. Set "Supply hose on each engine (ft)" to 1500 in the page for now.
-- A change of the default to 1,500 needs Alex's approval. It changes `src/calculator.html`, 3 page checks in `tests/test_ui.py`, and the SHA-256.
+- **Open item 2, relay pressure policy (Alex, 2026-11-26):** the department maximum PDP for relays is 200 PSI.
+- The page defaults are still 1,000 ft and 150 PSI. For now, set both values by hand in the page settings.
+- Set "Supply hose on each engine (ft)" to 1500.
+- Set "Maximum PDP" to 200 PSI.
+- Do not change the defaults without Alex's approval. The change touches `src/calculator.html`, the tests, and the SHA-256.
+- The page hint calls the hose load a placeholder. Update that hint with the default change.
 
 ## Open items and history
 
