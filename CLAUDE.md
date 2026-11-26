@@ -3,7 +3,8 @@
 This repo is one HTML page that plans a long supply line lay for Yorktown Heights Fire District (YHFD). A repo is a project folder that Git tracks. Git saves each version of the files.
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
-Status: pilot v0.2. Alex tested it and approved the direction. No field check is done yet.
+Status: pilot v0.3. Alex approved the v0.2 direction. No field check is done yet.
+v0.3 adds a fire district picker for 60 Westchester districts and a road draft. The hydraulic rules are still the YHFD rules.
 The GitHub repo is private. Its name is yhfd-relay-calculator.
 
 ## Files
@@ -12,13 +13,15 @@ The GitHub repo is private. Its name is yhfd-relay-calculator.
 |---|---|
 | `src/calculator.html` | The page source. Markup, styles, and two scripts: `core` (hydraulics) and `appjs` (map and screen). |
 | `build.py` | Puts Leaflet, the district boundary, and the hydrant list into one HTML file. |
-| `data/yhfd-district.geojson` | YHFD boundary. One polygon, 28.7 square miles. |
-| `data/hydrants.json` | 2,035 hydrants in and near the district. 823 have the YHFD code `YKTWN`. |
+| `data/fire-districts.geojson` | 60 named Westchester fire district boundaries. Yorktown Hgts FD is id 253. |
+| `data/hydrants.json` | 22,499 hydrants, all of Westchester County. 823 have the YHFD code `YKTWN`. |
 | `scripts/fetch_hydrants.py` | Gets the hydrant list again from the county. |
-| `tests/test_core.js` | 36 math checks against the chauffeur chart. Runs in Node. |
-| `tests/test_ui.py` | 21 page checks in Chrome through Playwright. No internet needed. |
-| `package.json` | Version 0.2.0. It holds the `build`, `test`, and `test:ui` commands. |
+| `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
+| `tests/test_core.js` | 47 math checks: 36 against the chauffeur chart and 11 for the road draft. Runs in Node. |
+| `tests/test_ui.py` | 34 page checks in Chrome through Playwright. No internet needed. |
+| `package.json` | Version 0.3.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
+| `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
 | `dist/` | Build output. Git ignores it. |
 | `out/` | Test output. Git ignores it. |
 | `node_modules/` | Leaflet 1.9.4, the map library. Git ignores it. |
@@ -40,11 +43,11 @@ No Playwright browser download is necessary. The page test uses the installed Go
 | Command | Result |
 |---|---|
 | `python3 build.py` | Writes `dist/YHFD Relay Pumping Calculator.html`. |
-| `npm test` | Builds, then runs the 36 math checks. |
-| `npm run test:ui` | Builds, then runs the 21 page checks. It calls `.venv/bin/python`. |
+| `npm test` | Builds, then runs the 47 math checks. |
+| `npm run test:ui` | Builds, then runs the 34 page checks. It calls `.venv/bin/python`. |
 
 Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-On 2026-11-25, 36 of 36 math checks and 21 of 21 page checks passed on macOS with Google Chrome 158.
+On 2026-11-26, 47 of 47 math checks and 34 of 34 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 
@@ -58,8 +61,9 @@ On 2026-11-25, 36 of 36 math checks and 21 of 21 page checks passed on macOS wit
 8. After a build, check the SHA-256. The SHA-256 is a fingerprint of a file. It must equal the recorded value below.
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
-Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `21e80ce837c58ff39c76c82a0030220d7f9b859dc50db28cb6cfe615406c2e09`
-A build of this kit is the same file, byte for byte, as the copy Alex uses. This was true on 2026-11-25.
+Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `1578de0c132e717478485b611000a093dc1717129a5399a8ef89bd293a08f761`
+This is the v0.3 build. The copy Alex uses in OneDrive is still v0.2 until Alex replaces it.
+The v0.2 value was `21e80ce837c58ff39c76c82a0030220d7f9b859dc50db28cb6cfe615406c2e09`.
 
 ## Hydraulic rules
 
@@ -95,6 +99,13 @@ The user can drag a relay engine. The page then shows the PDPs for that position
 
 The route points are always stored in water order: source first, attack engine last.
 
+Decisions for v0.3 (Alex, 2026-11-26):
+
+- Any Westchester district can be selected. YHFD is the default. The page keeps the YHFD chart and title.
+- After the address search, the page drafts a route from the nearest hydrant by road to the address. The user edits the draft.
+- The draft shows only when the route is empty. With no road or no hydrant in 1 mile, the user traces by hand.
+- The page holds all county hydrants. The picker lists the 60 named districts.
+
 ## Data sources
 
 In the table, `...` means the county server base: `https://giswww.westchestergov.com/arcgis/rest/services`
@@ -107,7 +118,9 @@ In the table, `...` means the county server base: `https://giswww.westchestergov
 | Aerial photo 2025 | `.../MappingWestchesterCounty_AerialPhoto2025/MapServer/export` | Image export. |
 | 2 ft contours | `.../2FtContours_WGS84/MapServer` | Tiles from zoom 18 only. |
 | Driveways and buildings | `.../DataHub_BasemapPlanimetrics/MapServer` layers 10 and 5 | Driveways are polygons. 10,140 in the district box. Useful for the Find part. |
-| Address search | `.../geocoding/GeocodeServer/findAddressCandidates` | County geocoder. |
+| Address search | `.../geocoding/GeocodeServer/findAddressCandidates` | County geocoder. The page sends the district box as `searchExtent` (JSON form). |
+| Fire districts | `.../Datahub_Boundaries/MapServer/153` | 64 records. The build keeps the 60 named districts. |
+| Roads | `.../MappingWestchesterCounty_Roads/MapServer/11` | Street centerlines. The page reads them live for the road draft. 1,000 records for each request. |
 | Topo map | `https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer` | Tiles to zoom 16. |
 
 The page needs an internet connection. Both servers allowed requests from a page opened as a local file.

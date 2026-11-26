@@ -66,4 +66,30 @@ r=SM(hill,1000,200,1000); ok('hose limit: example 1000gpm cap200 keeps 1 relay, 
 r=SM(big,500,200,1000); ok('hose limit drives the count: 4000ft at 500gpm -> 4+ sections, pressure still inside the cap', r.segs.length>=5&&!r.over&&r.segs.every(s=>s.hose<=1000.01)&&check(big,r,20), `sections ${segLens(r)} pdps ${r.segs.map(s=>s.pdp)}`);
 r=SM(flat(2500),500,150,1000,[8]); ok('hand placement that breaks the hose limit is flagged', r.overHose===true&&r.segs[1].overHose===true&&!r.segs[0].overHose, `sections ${segLens(r)}`);
 r=SM(flat(2500),500,150,600); ok('600 ft per engine -> every section <= 600', r.segs.every(s=>s.hose<=600.01)&&r.segs.length===5, `sections ${segLens(r)}`);
+// ---- v0.3 road draft: nearest road point, simplify, district polygon, draft route ----
+// ft east and north of a fixed corner near YHFD; 1 deg lat = 364,812 ft by the same sphere
+const KLAT=20902260*Math.PI/180, LAT0=41.27, LNG0=-73.79, KLNG=KLAT*Math.cos(LAT0*Math.PI/180);
+const P=(x,y)=>({lat:LAT0+y/KLAT,lng:LNG0+x/KLNG}), LL=(x,y)=>[LNG0+x/KLNG,LAT0+y/KLAT], HY=(x,y,n)=>[LNG0+x/KLNG,LAT0+y/KLAT,n,'YKTWN'];
+// nearest point on a path: 50 ft north of a segment that runs 1,000 ft east
+let nn=C.nearestOnPaths(P(400,50),[[LL(0,0),LL(1000,0)],[LL(0,500),LL(1000,500)]]);
+ok('nearestOnPaths: distance and position on a segment', nn&&nn.path===0&&nn.seg===0&&Math.abs(nn.ft-50)<1&&Math.abs(nn.t-0.4)<0.01&&C.distFt(nn,P(400,0))<1, JSON.stringify(nn));
+ok('nearestOnPaths: no paths gives null, a point past the end clamps to the end', C.nearestOnPaths(P(0,0),[])===null&&C.distFt(C.nearestOnPaths(P(1200,0),[[LL(0,0),LL(1000,0)]]),P(1000,0))<1);
+// simplify: collinear points go, a corner stays
+const sq=[P(0,0),P(0,100),P(0,200),P(0,203),P(100,203)], sp=C.simplify(sq,8);
+ok('simplify drops collinear points and keeps the corner', sp.length===3&&sp[0]===sq[0]&&sp[1]===sq[3]&&sp[2]===sq[4]&&C.simplify([sq[0],sq[4]],8).length===2, `kept ${sp.length}`);
+// point in polygon: a hole, and the second part of a MultiPolygon
+const ring=(a,b)=>[[a,a],[b,a],[b,b],[a,b],[a,a]], poly={type:'Polygon',coordinates:[ring(0,10),ring(4,6)]}, multi={type:'MultiPolygon',coordinates:[[ring(0,10),ring(4,6)],[ring(20,30)]]};
+ok('pointInPolygon: inside, outside, and inside a hole', C.pointInPolygon(2,2,poly)&&!C.pointInPolygon(15,5,poly)&&!C.pointInPolygon(5,5,poly));
+ok('pointInPolygon: second part of a MultiPolygon', C.pointInPolygon(25,25,multi)&&C.pointInPolygon(2,2,multi)&&!C.pointInPolygon(5,5,multi)&&!C.pointInPolygon(15,15,multi));
+// road grid: a narrow U. H1 is the nearest hydrant in a straight line (120 ft) but 800 ft by road. H2 is 200 ft by road.
+const roads=[{name:'Left Rd',path:[LL(500,400),LL(500,0)]},{name:'Bottom Rd',path:[LL(500,0),LL(600,0)]},{name:'Right Rd',path:[LL(600,0),LL(600,300)]},{name:'Island Rd',path:[LL(700,300),LL(700,200)]}];
+const AD=P(620,300), H1=HY(500,400,'H-1'), H2=HY(610,100,'H-2'), H3=HY(700,300,'H-3'), H5=HY(330,100,'H-5');
+let d=C.draftRoute(AD,[H1,H2,H3],roads,{});
+ok('draftRoute: picks the hydrant that is shortest by road, not by straight line', d&&d.hydrant[2]==='H-2'&&Math.abs(d.roadFt-200)<2, d&&`${d.hydrant[2]} roadFt ${d.roadFt.toFixed(1)}`);
+ok('  water order: first point is the hydrant, last point is the address', d&&d.points[0].lat===H2[1]&&d.points[0].lng===H2[0]&&d.points[d.points.length-1].lat===AD.lat&&d.points[d.points.length-1].lng===AD.lng&&d.points.length>=3, d&&`${d.points.length} points`);
+ok('  the hydrant on a disconnected road is not selected', d&&d.hydrant[2]!=='H-3'&&C.draftRoute(AD,[H3],roads,{})===null);
+ok('  a hydrant more than 150 ft from a road is ignored', C.draftRoute(AD,[H5],roads,{})===null&&C.draftRoute(AD,[H2,H5],roads,{}).hydrant[2]==='H-2'&&C.draftRoute(AD,[H5],roads,{hydMaxFt:200})!==null);
+ok('  an address more than 500 ft from a road gives null', C.draftRoute(P(620,1200),[H1,H2],roads,{})===null&&C.draftRoute(P(620,1200),[H1,H2],roads,{addrMaxFt:1000})!==null);
+d=C.draftRoute(AD,[H1],roads,{}); const want=C.routeFt([P(500,400),P(500,0),P(600,0),P(600,300)]);
+ok('  streets lists the road names used, longest run first', d&&d.hydrant[2]==='H-1'&&d.streets.join()==='Left Rd,Right Rd,Bottom Rd'&&Math.abs(d.roadFt-want)/want<0.01, d&&`${d.streets} roadFt ${d.roadFt.toFixed(1)} want ${want.toFixed(1)}`);
 console.log(fails?`\n${fails} FAILED`:'\nALL PASS'); process.exit(fails?1:0);

@@ -18,6 +18,11 @@ src, n_swap = re.subn(r'(id="hydrant-data">).*?(</script>)', lambda m: m.group(1
 assert n_swap == 1, 'hydrant data block not found in the built page'
 test_html = pathlib.Path('out/test.html'); test_html.write_text(src, encoding='utf-8')
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO88f7jfwAJHAPb0q7eVQAAAABJRU5ErkJggg==')
+# The old checks need the road query to fail, so no draft appears. The new phase turns the stand-in roads on.
+GATE = {'roads': False, 'addr': C}
+# One road, TEST HILL RD: west to east past T-101, north 0.003 degrees, then east to the address. T-102 is 100 ft off the road and is the nearest by road.
+ROAD = [[C[1], C[0]], [C[1]+0.00237, C[0]], [C[1]+0.00237, C[0]+0.003], [C[1]+0.0035, C[0]+0.003]]
+ADDR2 = (C[0]+0.0031, C[1]+0.0035)
 def handle(route):
     req = route.request; u = req.url
     if 'getSamples' in u:
@@ -25,7 +30,9 @@ def handle(route):
         samples = [{'location':{'x':x,'y':y},'locationId':i,'value':str(150 + (y-41.27)*8900 + (x+73.79)*1500),'rasterId':1,'resolution':1} for i,(x,y) in enumerate(pts)]
         route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin':'*'}, body=json.dumps({'samples':samples}))
     elif 'findAddressCandidates' in u:
-        route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin':'*'}, body=json.dumps({'candidates':[{'address':'100 TEST HILL RD, YORKTOWN HEIGHTS, NY, 10598','location':{'x':C[1],'y':C[0]},'score':100}]}))
+        route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin':'*'}, body=json.dumps({'candidates':[{'address':'100 TEST HILL RD, YORKTOWN HEIGHTS, NY, 10598','location':{'x':GATE['addr'][1],'y':GATE['addr'][0]},'score':100}]}))
+    elif 'MappingWestchesterCounty_Roads/MapServer/11/query' in u and GATE['roads']:
+        route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin':'*'}, body=json.dumps({'features':[{'attributes':{'ST_NM_PREF':' ','ST_NM_BASE':'TEST HILL','ST_NM_SUFF':' ','ST_TYP_AFT':'RD'},'geometry':{'paths':[ROAD]}}]}))
     elif '/tile/' in u or '/export' in u: route.fulfill(status=200, content_type='image/png', body=PNG)
     elif u.startswith('file:'): route.continue_()
     else: route.abort()
@@ -46,7 +53,12 @@ with sync_playwright() as p:
     pg.goto(test_html.resolve().as_uri()); pg.wait_for_timeout(700)
     ok('no default lay: Trace route is disabled at the start', pg.is_disabled('#btnDraw') and pg.evaluate('window.__relay.state.settings.lay')==None, pg.inner_text('#layHint'))
     pg.screenshot(path='out/v2_start.png')
+    opts = pg.evaluate("[...document.querySelectorAll('#setDistrict option')].map(o => o.textContent)")
+    ok('district picker: 60 options, default Yorktown Hgts FD (253), hint right', len(opts)==60 and pg.input_value('#setDistrict')=='253' and 'Yorktown Hgts FD' in pg.evaluate("document.querySelector('#setDistrict').selectedOptions[0].textContent") and pg.evaluate('window.__relay.state.settings.district')==253 and pg.inner_text('#distHint')=='60 county districts. Hydraulic rules: YHFD chauffeur chart.', pg.inner_text('#distHint'))
     pg.fill('#geoText', '100 Test Hill Rd'); pg.click('#geoForm button'); pg.wait_for_timeout(600)
+    try: pg.wait_for_function("document.getElementById('status').textContent.includes('No road draft')", timeout=5000)
+    except Exception: pass
+    ok('road query fails: no draft, the route stays empty and the status says so', pg.evaluate('window.__relay.state.points.length')==0 and not pg.evaluate('window.__relay.state.draft') and pg.inner_text('#status').startswith('Found: ') and 'No road draft is available here.' in pg.inner_text('#status'), pg.inner_text('#status'))
     pg.evaluate('window.__relay.map.setZoom(16,{animate:false})'); pg.wait_for_timeout(400)
     box = pg.locator('#map').bounding_box(); cx, cy = box['x']+box['width']/2, box['y']+box['height']/2
     # ---- reverse lay: attack engine first ----
@@ -97,6 +109,41 @@ with sync_playwright() as p:
     ok('forward trace gives the same route as the reverse trace', abs(f2['hose']-rev['hose'])<1 and f2['hyd']['num']=='T-101' and f2['res']==rev['res'], (round(f2['hose']), round(rev['hose'])))
     pg.select_option('#setCap', '200'); pg.fill('#setHosePer', '1500'); pg.dispatch_event('#setHosePer', 'change'); pg.wait_for_timeout(200)
     r3 = pg.evaluate(SNAP)['res']; ok('1,500 ft per engine and 200 PSI lowers the engine count', sum(len(x['secs']) for x in r3) < sum(len(x['secs']) for x in rev['res']), [x['secs'] for x in r3])
+    # ---- v0.3 phase: district picker, road draft, handles. It runs last so the old checks keep their state. ----
+    pg.click('#btnClear'); pg.wait_for_timeout(150)
+    CEN = 'JSON.stringify(window.__relay.map.getCenter())'
+    c0 = json.loads(pg.evaluate(CEN)); pg.select_option('#setDistrict', '226'); pg.wait_for_timeout(500); c1 = json.loads(pg.evaluate(CEN))
+    nm = pg.evaluate("document.querySelector('#setDistrict').selectedOptions[0].textContent")
+    ok('district change to ' + nm + ': map moves, placeholder, status, and layer label follow', abs(c1['lat']-c0['lat'])+abs(c1['lng']-c0['lng'])>0.01 and pg.get_attribute('#geoText','placeholder')=='Street address in '+nm and pg.inner_text('#status')=='District set to '+nm+'. Enter an address.' and (nm+' line') in pg.inner_text('.leaflet-control-layers-overlays'), (nm, c0, c1, pg.inner_text('#status')))
+    pg.select_option('#setDistrict', '253'); pg.wait_for_timeout(500)
+    ok('district set back to Yorktown Hgts FD (253)', pg.evaluate('window.__relay.state.settings.district')==253 and 'Yorktown Hgts FD' in pg.get_attribute('#geoText','placeholder'), pg.get_attribute('#geoText','placeholder'))
+    # road draft: T-102 is the expected hydrant (T-101 is 2,050 ft by road, T-102 is 1,130 ft; X-9 is far from any road)
+    GATE['roads'] = True; GATE['addr'] = ADDR2
+    pg.fill('#geoText', '100 Test Hill Rd'); pg.click('#geoForm button')
+    try: pg.wait_for_function('window.__relay.state.draft === true', timeout=8000); pg.wait_for_selector('#flowTable', timeout=8000); pg.wait_for_timeout(300)
+    except Exception: pass
+    dr = pg.evaluate("(() => { const s=window.__relay.state, st=document.getElementById('status'); return {draft:s.draft, n:s.points.length, first:s.points[0], last:s.points[s.points.length-1], hyd:s.sourceHydrant, cls:st.className, text:st.textContent}; })()")
+    print('DRAFT:', json.dumps(dr))
+    ok('road draft with an empty route (hydrant T-102 by road): draft set, source hydrant, status ok', dr['draft'] is True and dr['n']>=3 and dr['hyd'] and dr['hyd']['num']=='T-102' and dr['cls']=='ok' and dr['text'].startswith('Draft route: hydrant'), dr['text'])
+    ok('  first point is hydrant T-102 and last point is the address', dr['first'] and abs(dr['first']['lat']-(C[0]+0.001))<1e-9 and abs(dr['first']['lng']-(C[1]+0.002))<1e-9 and abs(dr['last']['lat']-ADDR2[0])<1e-9 and abs(dr['last']['lng']-ADDR2[1])<1e-9, (dr['first'], dr['last']))
+    ok('  the results table appears for the draft', pg.locator('#flowTable').count()==1 and pg.is_visible('#flowTable'))
+    pg.screenshot(path='out/v3_draft.png')
+    n0 = dr['n']; pg.locator('.mid').nth(2).click(); pg.wait_for_timeout(500)
+    a = pg.evaluate('({n:window.__relay.state.points.length, draft:window.__relay.state.draft})')
+    ok('click on a middle handle adds one point and clears the draft flag', a['n']==n0+1 and a['draft'] is False, a)
+    pg.locator('.vx').nth(2).click(button='right'); pg.wait_for_timeout(500)
+    ok('right-click on a middle point handle removes one point', pg.evaluate('window.__relay.state.points.length')==n0, pg.evaluate('window.__relay.state.points.length'))
+    pg.uncheck('#showHandles'); pg.wait_for_timeout(200); hid = (pg.locator('.vx').count(), pg.locator('.mid').count())
+    pg.check('#showHandles'); pg.wait_for_timeout(200); shw = (pg.locator('.vx').count(), pg.locator('.mid').count())
+    ok('Show handles off hides .vx and .mid, on shows them again', hid==(0,0) and shw==(n0, n0-1), (hid, shw))
+    while pg.evaluate('window.__relay.state.points.length')>2: pg.locator('.vx').nth(1).click(button='right'); pg.wait_for_timeout(400)
+    pg.locator('.vx').nth(0).dispatch_event('contextmenu'); pg.wait_for_timeout(400)  # the source engine icon covers this handle
+    ok('with 2 points left, right-click removes nothing', pg.evaluate('window.__relay.state.points.length')==2)
+    pg.select_option('#setDistrict', '226'); pg.wait_for_timeout(300); pg.reload(); pg.wait_for_timeout(1000)
+    ok('reload keeps the fire district in the saved plan', pg.evaluate('window.__relay.state.settings.district')==226 and pg.input_value('#setDistrict')=='226', (pg.evaluate('window.__relay.state.settings.district'), pg.input_value('#setDistrict')))
+    pg.select_option('#setDistrict', '253'); pg.wait_for_timeout(300)
+    bad = [e for e in errors if 'Failed to load resource' not in e]
+    ok('no console errors except the aborted requests', not bad, bad[:3])
     b.close()
 for f in ('out/card_forward.pdf','out/card_reverse.pdf'):
     n = len(re.findall(rb'/Type\s*/Page(?![a-zA-Z])', pathlib.Path(f).read_bytes()))

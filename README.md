@@ -1,10 +1,10 @@
 # YHFD Relay Pumping Calculator
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.2. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.3. No field check is done yet.
 
 ## What the tool does
 
-The tool is one HTML page, a web page in one file. It is for Yorktown Heights Fire District (YHFD).
+The tool is one HTML page, a web page in one file. It is for Yorktown Heights Fire District (YHFD). A user can select any of 60 Westchester fire districts, but the hydraulic rules are the YHFD rules.
 The problem: long driveways that climb hills. Hose length and elevation loss make relay pumping hard to plan.
 
 You trace a hose route on a map. The page reads the ground height along the route. It then shows these items:
@@ -49,19 +49,28 @@ The repo has two test sets. Each command builds the page first.
 
 | Command | Checks | Result |
 |---|---|---|
-| `npm test` | 36 math checks against the chauffeur chart. They include the chart Max Relay Distance values at 150 and 200 PSI. | 36 of 36 pass. |
-| `npm run test:ui` | 21 page checks in Chrome through Playwright. | 21 of 21 pass. |
+| `npm test` | 47 math checks. 36 are against the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI. 11 are for the road draft. | 47 of 47 pass. |
+| `npm run test:ui` | 34 page checks in Chrome through Playwright. | 34 of 34 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-The results above are from 2026-11-25 on macOS with Google Chrome 158.
+The results above are from 2026-11-26 on macOS with Google Chrome 158.
 
 ## How to use the built page
 
 1. Open `dist/YHFD Relay Pumping Calculator.html` in a browser.
-2. Pick reverse lay or forward lay. The page has no default. Pick one for each new route.
-3. Select **Trace route**.
-4. Click the route on the map. Reverse: click the attack engine first and the water source last. Forward: click in the opposite order.
+2. Select the fire district. Yorktown Hgts FD is the default.
+3. Enter the address and select **Go**.
+4. Look at the draft route. It goes from the nearest hydrant by road to the address.
+5. Drag a point to match the driveway. Click a middle handle or the line to add a point. Right-click a point to remove it.
+6. Select reverse lay or forward lay. The page has no default.
+
+With no road or no hydrant in 1 mile, the page makes no draft. Then trace by hand:
+
+1. Select reverse lay or forward lay.
+2. Select **Trace route**.
+3. Click the route on the map. Reverse: click the attack engine first and the water source last. Forward: click in the opposite order.
+4. Select **Finish**.
 
 The page needs an internet connection.
 The user can drag a relay engine. The page then shows the PDPs for that position and flags a limit that is broken.
@@ -74,12 +83,15 @@ The user can drag a relay engine. The page then shows the PDPs for that position
 - A forward lay needs one more engine at the water source. That engine lays no supply hose. The page says this in a note. It does not add it to an engine count.
 - The page stores the last plan in the browser. A saved plan file (JSON) is the durable copy.
 - No field check is done yet.
+- The draft follows the road centerline. The last leg to the address is a straight line to the tax parcel point. Edit it to match the driveway.
+- The draft uses hydrants only. It does not know draft sites.
 - The supply hose on each engine is a 1,000 ft placeholder. It now sets the engine count.
 
 ## Data sources
 
 - Ground height: USGS 3DEP, with `https://epqs.nationalmap.gov/v1/json` as the fallback.
-- Hydrants: Westchester County GIS, layer 147 of the DataHub_Infrastructure service. No flow values.
+- Hydrants: Westchester County GIS, layer 147 of the DataHub_Infrastructure service. 22,499 hydrants. No flow values.
+- Fire districts and roads: Westchester County GIS.
 - Street map, aerial photo 2025, 2 ft contours, driveways, buildings, and address search: Westchester County GIS.
 - Topo map: USGS, `https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer`
 

@@ -61,6 +61,7 @@ table.wrap td{white-space:normal}
 #status{font-size:13px;border-radius:6px;padding:8px 10px;margin:0 0 12px;background:#eef3f9;color:#1d3f66}
 #status.err{background:var(--red-soft);color:#7c1a14}
 #status.busy{background:var(--amber-soft);color:#6b4300}
+#status.ok{background:var(--green-soft);color:var(--green)}
 .facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
 .fact{background:var(--bg);border-radius:6px;padding:8px 10px}
 .fact span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
@@ -92,6 +93,7 @@ details ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:12.5px}
 .vx{width:12px;height:12px;border-radius:2px;background:#fff;border:2px solid #111;box-shadow:0 0 0 1px #fff}
 .em{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:15px;color:#fff;font:700 12px/1 -apple-system,"Segoe UI",Arial,sans-serif;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6)}
 .em.S{background:var(--blue)} .em.R{background:var(--amber);cursor:grab} .em.A{background:var(--red)}
+.mid{width:10px;height:10px;border-radius:5px;background:#fff;border:2px dashed #111;cursor:pointer}
 .hov{width:12px;height:12px;border-radius:6px;background:#fff;border:3px solid #111}
 .leaflet-container{font:12px/1.4 -apple-system,"Segoe UI",Arial,sans-serif}
 /* card view */
@@ -143,11 +145,17 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.2 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.3 &middot; Planning aid only. Verify on site.</p></div>
+
+    <div class="sec">
+      <h2>Fire district</h2>
+      <select id="setDistrict" aria-label="Fire district" style="width:100%;margin-bottom:6px"></select>
+      <p class="hint" id="distHint"></p>
+    </div>
 
     <div class="sec">
       <h2>1. Find the address</h2>
-      <form class="row" id="geoForm"><input type="text" id="geoText" placeholder="Street address, Yorktown Heights" aria-label="Address" style="flex:3"><button class="btn" type="submit">Go</button></form>
+      <form class="row" id="geoForm"><input type="text" id="geoText" placeholder="Street address" aria-label="Address" style="flex:3"><button class="btn" type="submit">Go</button></form>
       <label class="f">Plan name<input type="text" id="planName" placeholder="Example: 123 Hilltop Rd, long driveway"></label>
     </div>
 
@@ -157,6 +165,7 @@ body.card #profile{height:1.47in}
       <div class="seg" role="group" aria-label="Supply line lay"><button type="button" id="layRev">Reverse lay</button><button type="button" id="layFwd">Forward lay</button></div>
       <p class="hint" id="layHint" style="margin:0 0 10px"></p>
       <ol class="steps" id="steps"></ol>
+      <p class="hint">Drag a point to move it. Click a middle handle or the line to add a point. Right-click a point to remove it.</p>
       <div class="row">
         <button class="btn primary" id="btnDraw">Trace route</button>
         <button class="btn" id="btnUndo" disabled>Undo point</button>
@@ -165,6 +174,7 @@ body.card #profile{height:1.47in}
       </div>
       <div id="status">Find the address. Select the lay type. Then trace the hose route.</div>
       <label class="f">Water source type<select id="sourceType"><option>Hydrant</option><option>Draft site</option><option>Tanker dump site</option><option>Other</option></select></label>
+      <label class="hint" style="display:block;margin:0 0 10px"><input type="checkbox" id="showHandles" checked> Show edit handles</label>
     </div>
 
     <div class="sec">
@@ -356,7 +366,108 @@ var RelayCore = (function () {
       over: ev.over, overLdh: ev.overLdh, overHose: ev.overHose, peak: ev.peak, peakAt: ev.peakAt,
       frictionAll: q.fl * p.h[p.n - 1], climbAll: EP * (p.z[p.n - 1] - p.z[0]) };
   }
+
+  /* road draft: geometry and shortest path on the road lines */
+  var FT_DEG = R_FT * Math.PI / 180; // feet in one degree of latitude
+  // flat x, y in feet near latitude lat0; good for distances of a few miles
+  function xy(lng, lat, lat0) { return [lng * FT_DEG * Math.cos(lat0 * Math.PI / 180), lat * FT_DEG]; }
+  function segNear(p, a, b) {
+    var dx = b[0] - a[0], dy = b[1] - a[1], L2 = dx * dx + dy * dy, t = L2 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / L2)) : 0;
+    return { d: Math.sqrt(Math.pow(a[0] + t * dx - p[0], 2) + Math.pow(a[1] + t * dy - p[1], 2)), t: t };
+  }
+  // pt {lat,lng}; paths [[[lng,lat],...],...]; returns {ft, lat, lng, path, seg, t} for the nearest point on a path, or null
+  function nearestOnPaths(pt, paths) {
+    var p = xy(pt.lng, pt.lat, pt.lat), best = null;
+    for (var i = 0; i < paths.length; i++) for (var j = 1; j < paths[i].length; j++) {
+      var A = paths[i][j - 1], B = paths[i][j], n = segNear(p, xy(A[0], A[1], pt.lat), xy(B[0], B[1], pt.lat));
+      if (!best || n.d < best.ft) best = { ft: n.d, lat: A[1] + n.t * (B[1] - A[1]), lng: A[0] + n.t * (B[0] - A[0]), path: i, seg: j - 1, t: n.t };
+    }
+    return best;
+  }
+  // Douglas-Peucker: keep the points that are more than tolFt from the simplified line
+  function simplify(points, tolFt) {
+    if (points.length < 3) return points.slice();
+    var lat0 = points[0].lat, P = points.map(function (q) { return xy(q.lng, q.lat, lat0); }), keep = {}, stack = [[0, points.length - 1]];
+    keep[0] = keep[points.length - 1] = true;
+    while (stack.length) {
+      var s = stack.pop(), far = -1, fd = tolFt;
+      for (var i = s[0] + 1; i < s[1]; i++) { var d = segNear(P[i], P[s[0]], P[s[1]]).d; if (d > fd) { fd = d; far = i; } }
+      if (far > 0) { keep[far] = true; stack.push([s[0], far], [far, s[1]]); }
+    }
+    return points.filter(function (q, i) { return keep[i]; });
+  }
+  // GeoJSON Polygon or MultiPolygon; the even-odd rule handles holes
+  function pointInPolygon(lng, lat, g) {
+    var polys = g.type === 'MultiPolygon' ? g.coordinates : g.type === 'Polygon' ? [g.coordinates] : [];
+    return polys.some(function (rings) {
+      var inside = false;
+      rings.forEach(function (r) {
+        for (var i = 0, j = r.length - 1; i < r.length; j = i++)
+          if ((r[i][1] > lat) !== (r[j][1] > lat) && lng < (r[j][0] - r[i][0]) * (lat - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) inside = !inside;
+      });
+      return inside;
+    });
+  }
+  function hpush(h, x) { h.push(x); for (var i = h.length - 1; i > 0;) { var p = (i - 1) >> 1; if (h[p][0] <= h[i][0]) break; var t = h[p]; h[p] = h[i]; h[i] = t; i = p; } }
+  function hpop(h) {
+    var top = h[0], last = h.pop();
+    if (h.length) {
+      h[0] = last;
+      for (var i = 0; ;) {
+        var l = 2 * i + 1, r = l + 1, m = i;
+        if (l < h.length && h[l][0] < h[m][0]) m = l; if (r < h.length && h[r][0] < h[m][0]) m = r;
+        if (m === i) break; var t = h[m]; h[m] = h[i]; h[i] = t; i = m;
+      }
+    }
+    return top;
+  }
+  // addr {lat,lng}; hydrants [[lng,lat,num,code]]; roads [{name, path:[[lng,lat],...]}]; o {box:[w,s,e,n], addrMaxFt, hydMaxFt, tolFt}
+  // returns null or {points (water order), hydrant, roadFt, streets (most-used first)}
+  function draftRoute(addr, hydrants, roads, o) {
+    o = o || {};
+    var paths = roads.map(function (r) { return r.path; }), A = nearestOnPaths(addr, paths), bx = o.box;
+    if (!A || A.ft > (o.addrMaxFt || 500)) return null;
+    var cuts = [A], hyd = [];
+    hydrants.forEach(function (h) {
+      if (bx && (h[0] < bx[0] || h[1] < bx[1] || h[0] > bx[2] || h[1] > bx[3])) return;
+      var n = nearestOnPaths({ lat: h[1], lng: h[0] }, paths);
+      if (n && n.ft <= (o.hydMaxFt || 150)) { n.h = h; hyd.push(n); cuts.push(n); }
+    });
+    if (!hyd.length) return null;
+    // nodes are road points rounded to 1e-5 degrees, so roads join where they share a point
+    var coord = {}, adj = {}, bySeg = {};
+    function node(lng, lat) { var k = lng.toFixed(5) + ',' + lat.toFixed(5); if (!coord[k]) { coord[k] = { lat: lat, lng: lng }; adj[k] = []; } return k; }
+    function edge(a, b, name) { if (a === b) return; var w = distFt(coord[a], coord[b]); adj[a].push({ to: b, w: w, name: name }); adj[b].push({ to: a, w: w, name: name }); }
+    cuts.forEach(function (c) { c.key = node(c.lng, c.lat); (bySeg[c.path + ':' + c.seg] = bySeg[c.path + ':' + c.seg] || []).push(c); });
+    roads.forEach(function (r, i) {
+      for (var j = 1; j < r.path.length; j++) {
+        var prev = node(r.path[j - 1][0], r.path[j - 1][1]);
+        (bySeg[i + ':' + (j - 1)] || []).sort(function (x, y) { return x.t - y.t; }).forEach(function (c) { edge(prev, c.key, r.name); prev = c.key; });
+        edge(prev, node(r.path[j][0], r.path[j][1]), r.name);
+      }
+    });
+    var dist = {}, from = {}, heap = [[0, A.key]];
+    dist[A.key] = 0;
+    while (heap.length) {
+      var top = hpop(heap);
+      if (top[0] > dist[top[1]]) continue;
+      adj[top[1]].forEach(function (e) {
+        var nd = top[0] + e.w;
+        if (dist[e.to] === undefined || nd < dist[e.to]) { dist[e.to] = nd; from[e.to] = { k: top[1], e: e }; hpush(heap, [nd, e.to]); }
+      });
+    }
+    var best = null;
+    hyd.forEach(function (c) { var d = dist[c.key]; if (d !== undefined && (!best || d + c.ft < best.d + best.c.ft)) best = { c: c, d: d }; });
+    if (!best) return null;
+    // walk back from the hydrant road point to the address road point: this is water order
+    var road = [], used = {}, k = best.c.key;
+    while (k !== A.key) { road.push(coord[k]); var f = from[k]; used[f.e.name] = (used[f.e.name] || 0) + f.e.w; k = f.k; }
+    road.push(coord[A.key]);
+    var h = best.c.h, streets = Object.keys(used).filter(Boolean).sort(function (x, y) { return used[y] - used[x] || (x < y ? -1 : 1); });
+    return { points: [{ lat: h[1], lng: h[0] }].concat(simplify(road, o.tolFt || 8), [{ lat: addr.lat, lng: addr.lng }]), hydrant: h, roadFt: best.d, streets: streets };
+  }
   return { flPer100: flPer100, distFt: distFt, routeFt: routeFt, densify: densify, buildProfile: buildProfile, stats: stats, solve: solve,
+    nearestOnPaths: nearestOnPaths, simplify: simplify, pointInPolygon: pointInPolygon, draftRoute: draftRoute,
     EP: EP, LINE_MIN: LINE_MIN, LDH_MAX: LDH_MAX };
 })();
 if (typeof module !== 'undefined') module.exports = RelayCore;
@@ -370,7 +481,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   var USGS_SAMPLES = 'https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/getSamples';
   var EPQS = 'https://epqs.nationalmap.gov/v1/json';
   var FLOWS = [500, 750, 1000], M2FT = 3.280839895, STORE = 'yhfd-relay-pilot-v1';
-  var DEFAULTS = { hose: 5, basis: 'chart', cap: 150, residual: 20, slack: 10, hosePerEngine: 1000, lay: null };
+  var DEFAULTS = { hose: 5, basis: 'chart', cap: 150, residual: 20, slack: 10, hosePerEngine: 1000, lay: null, district: 253 };
   var LAY = {
     reverse: { name: 'Reverse lay', hint: 'Trace from the attack engine back to the water source.',
       steps: ['Select <b>Trace route</b>.', 'Click the attack engine position first.', 'Click along the hose path. Follow the driveway back to the road.', 'Click the water source last. A click near a hydrant snaps to it. Select <b>Finish</b>.'] },
@@ -378,8 +489,8 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
       steps: ['Select <b>Trace route</b>.', 'Click the water source first. A click near a hydrant snaps to it.', 'Click along the hose path. Follow the driveway.', 'Click the attack engine position last. Select <b>Finish</b>.'] }
   };
   var state = { name: '', notes: '', sourceType: 'Hydrant', points: [], drawing: false, flow: 750, samples: null, elevFt: null,
-    profile: null, results: {}, manual: {}, sourceHydrant: null, settings: Object.assign({}, DEFAULTS) };
-  var district = JSON.parse($('district-data').textContent);
+    profile: null, results: {}, manual: {}, sourceHydrant: null, draft: false, settings: Object.assign({}, DEFAULTS) };
+  var districts = JSON.parse($('district-data').textContent).features, district = null, hIn = []; // hIn[i]: is hydrant i inside the district
   var hydrants = JSON.parse($('hydrant-data').textContent); // [lng, lat, number, district]
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -407,17 +518,39 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   };
   var contours = L.tileLayer(COUNTY + '/2FtContours_WGS84/MapServer/tile/{z}/{y}/{x}', { minZoom: 18, maxZoom: 21, zoomOffset: -18, attribution: 'Westchester County GIS' });
   var plani = new ExportLayer(COUNTY + '/DataHub_BasemapPlanimetrics/MapServer/export', { format: 'png32', transparent: true, layers: 'show:10,5', tileSize: 512, minZoom: 15, maxZoom: 21, opacity: 0.75 });
-  var districtLayer = L.geoJSON(district, { style: { color: '#b3261e', weight: 3, fill: false, dashArray: '8 5' }, interactive: false });
-  var hydrantLayer = L.layerGroup();
-  hydrants.forEach(function (h) {
-    var own = h[3] === 'YKTWN';
-    L.circleMarker([h[1], h[0]], { radius: 4, weight: 1, color: '#fff', fillColor: own ? '#d0211c' : '#5b6b7b', fillOpacity: 0.95, interactive: false }).addTo(hydrantLayer);
-  });
+  var districtLayer = L.geoJSON(null, { style: { color: '#b3261e', weight: 3, fill: false, dashArray: '8 5' }, interactive: false });
+  var hydrantLayer = L.layerGroup(), ctl = null;
   bases['County street map'].addTo(map); districtLayer.addTo(map); hydrantLayer.addTo(map);
-  L.control.layers(bases, { 'YHFD district line': districtLayer, 'Hydrants (county data, 2015)': hydrantLayer,
-    'Contours, 2 ft (zoom in close)': contours, 'Driveways and buildings': plani }, { collapsed: false, position: 'topright' }).addTo(map);
+  // draw only the hydrants in view, at zoom 14 or closer
+  function drawHydrants() {
+    hydrantLayer.clearLayers();
+    if (map.getZoom() < 14) return;
+    var b = map.getBounds().pad(0.2);
+    hydrants.forEach(function (h, i) {
+      if (!b.contains([h[1], h[0]])) return;
+      L.circleMarker([h[1], h[0]], { radius: 4, weight: 1, color: '#fff', fillColor: hIn[i] ? '#d0211c' : '#5b6b7b', fillOpacity: 0.95, interactive: false }).addTo(hydrantLayer);
+    });
+  }
+  map.on('moveend', drawHydrants);
+  // user: true when the user changed the choice; fit: move the map to the district
+  function applyDistrict(id, user, fit) {
+    district = districts.filter(function (f) { return f.properties.id === +id; })[0] || districts.filter(function (f) { return f.properties.id === 253; })[0] || districts[0];
+    state.settings.district = district.properties.id;
+    districtLayer.clearLayers(); districtLayer.addData(district);
+    var bb = districtLayer.getBounds();
+    hIn = hydrants.map(function (h) { return bb.contains([h[1], h[0]]) && RelayCore.pointInPolygon(h[0], h[1], district.geometry); });
+    if (ctl) ctl.remove();
+    var ov = {}; ov[district.properties.name + ' line'] = districtLayer; ov['Hydrants (county data, 2015)'] = hydrantLayer; ov['Contours, 2 ft (zoom in close)'] = contours; ov['Driveways and buildings'] = plani;
+    ctl = L.control.layers(bases, ov, { collapsed: false, position: 'topright' }).addTo(map);
+    $('setDistrict').value = district.properties.id;
+    $('geoText').placeholder = 'Street address in ' + district.properties.name;
+    if (fit !== false) map.fitBounds(bb, { padding: [10, 10] });
+    drawHydrants();
+    if (user) { setStatus('District set to ' + district.properties.name + '. Enter an address.'); autosave(); }
+  }
+  $('setDistrict').innerHTML = districts.map(function (f) { return '<option value="' + f.properties.id + '">' + esc(f.properties.name) + '</option>'; }).join('');
+  $('distHint').textContent = districts.length + ' county districts. Hydraulic rules: YHFD chauffeur chart.';
   L.control.scale({ metric: false, maxWidth: 160 }).addTo(map);
-  map.fitBounds(districtLayer.getBounds(), { padding: [10, 10] });
 
   var routeGroup = L.layerGroup().addTo(map), engineGroup = L.layerGroup().addTo(map), vertexGroup = L.layerGroup().addTo(map);
   var hoverMarker = null, geoMarker = null;
@@ -464,7 +597,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     // points are kept in water order: source first, attack engine last
     if (rev) { state.points.unshift(p); state.sourceHydrant = null; }
     else { state.points.push(p); if (state.points.length === 1) snapSource(); }
-    state.manual = {};
+    state.manual = {}; state.draft = false;
     drawRoute(); drawStatus();
   }
   function drawStatus() {
@@ -484,21 +617,41 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     routeGroup.clearLayers(); vertexGroup.clearLayers();
     var ll = state.points.map(function (p) { return [p.lat, p.lng]; });
     if (ll.length > 1) {
-      L.polyline(ll, { color: '#111', weight: 8, opacity: 0.85, interactive: false }).addTo(routeGroup);
-      L.polyline(ll, { color: '#ffd21f', weight: 4, interactive: false }).addTo(routeGroup);
+      // the dark line takes the clicks that add a point when the user is not tracing
+      L.polyline(ll, { color: '#111', weight: 8, opacity: 0.85, interactive: !state.drawing, bubblingMouseEvents: false }).on('click', insertPoint).addTo(routeGroup);
+      // a draft shows its last leg, road to address, dashed until the user edits the route
+      L.polyline(state.draft ? ll.slice(0, -1) : ll, { color: '#ffd21f', weight: 4, interactive: false }).addTo(routeGroup);
+      if (state.draft) L.polyline(ll.slice(-2), { color: '#ffd21f', weight: 4, dashArray: '8 8', interactive: false }).addTo(routeGroup);
     }
-    state.points.forEach(function (p, i) {
+    var showH = state.drawing || $('showHandles').checked;
+    if (showH && !state.drawing) state.points.slice(1).forEach(function (q, i) { // a small handle in the middle of each section adds a point
+      var a = state.points[i], mid = { lat: (a.lat + q.lat) / 2, lng: (a.lng + q.lng) / 2 };
+      L.marker([mid.lat, mid.lng], { icon: L.divIcon({ className: '', html: '<div class="mid"></div>', iconSize: [10, 10], iconAnchor: [5, 5] }), title: 'Click to add a point' })
+        .on('click', function () { state.points.splice(i + 1, 0, mid); state.manual = {}; state.draft = false; drawRoute(); compute(); }).addTo(vertexGroup);
+    });
+    if (showH) state.points.forEach(function (p, i) {
       var m = L.marker([p.lat, p.lng], { draggable: true, icon: L.divIcon({ className: '', html: '<div class="vx"></div>', iconSize: [12, 12], iconAnchor: [6, 6] }), title: 'Drag to move this point' });
       m.on('dragend', function () {
         var q = m.getLatLng(); state.points[i] = { lat: q.lat, lng: q.lng };
         if (i === 0 && !(state.drawing && state.settings.lay === 'reverse')) snapSource();
-        state.manual = {}; drawRoute(); if (!state.drawing) compute();
+        state.manual = {}; state.draft = false; drawRoute(); if (!state.drawing) compute();
+      });
+      m.on('contextmenu', function (e) { // right-click removes the point, but a route keeps 2 points
+        L.DomEvent.preventDefault(e.originalEvent);
+        if (state.points.length <= 2) return;
+        state.points.splice(i, 1);
+        if (i === 0 && !(state.drawing && state.settings.lay === 'reverse')) snapSource();
+        state.manual = {}; state.draft = false; drawRoute(); if (!state.drawing) compute();
       });
       m.addTo(vertexGroup);
     });
     $('btnUndo').disabled = !state.drawing || state.points.length === 0;
     $('btnFinish').disabled = !state.drawing || state.points.length < 2;
     $('btnClear').disabled = state.points.length === 0;
+  }
+  function insertPoint(e) {
+    var n = RelayCore.nearestOnPaths(e.latlng, [state.points.map(function (p) { return [p.lng, p.lat]; })]);
+    state.points.splice(n.seg + 1, 0, { lat: n.lat, lng: n.lng }); state.manual = {}; state.draft = false; drawRoute(); compute();
   }
   function setDrawing(on) {
     state.drawing = on;
@@ -508,12 +661,13 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     drawRoute(); renderLay();
   }
   $('btnDraw').onclick = function () { if (state.drawing) return; if (!state.settings.lay) { setStatus('Select Reverse lay or Forward lay first.', 'err'); return; } setDrawing(true); drawStatus(); };
+  $('showHandles').onchange = drawRoute;
   $('layRev').onclick = function () { setLay('reverse'); };
   $('layFwd').onclick = function () { setLay('forward'); };
-  $('btnUndo').onclick = function () { if (state.settings.lay === 'reverse') state.points.shift(); else state.points.pop(); if (!state.points.length || state.settings.lay === 'reverse') state.sourceHydrant = null; state.manual = {}; drawRoute(); drawStatus(); };
+  $('btnUndo').onclick = function () { if (state.settings.lay === 'reverse') state.points.shift(); else state.points.pop(); if (!state.points.length || state.settings.lay === 'reverse') state.sourceHydrant = null; state.manual = {}; state.draft = false; drawRoute(); drawStatus(); };
   $('btnFinish').onclick = finish;
   $('btnClear').onclick = function () {
-    state.points = []; state.sourceHydrant = null; state.manual = {}; state.samples = state.elevFt = state.profile = null; state.results = {};
+    state.points = []; state.sourceHydrant = null; state.manual = {}; state.draft = false; state.samples = state.elevFt = state.profile = null; state.results = {};
     state.settings.lay = null; // no default lay: select it for each new route
     setDrawing(false); engineGroup.clearLayers(); render(); setStatus('Route cleared. Select Reverse lay or Forward lay to start again.'); autosave();
   };
@@ -563,7 +717,8 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     }
     return pts.map(function (p) { return elevCache.get(key(p)); });
   }
-  async function compute() {
+  // msg, cls: the status to show on success, for example the draft route message
+  async function compute(msg, cls) {
     if (state.points.length < 2) { state.profile = null; render(); return; }
     var token = ++computeToken;
     setStatus('Reading ground heights from USGS LiDAR...', 'busy');
@@ -573,7 +728,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
       if (token !== computeToken) return;
       state.samples = samples; state.elevFt = elev;
       recalc();
-      setStatus('Route calculated. Select a flow row to see its engine positions. Drag a relay engine to move it.');
+      setStatus(msg || 'Route calculated. Select a flow row to see its engine positions. Drag a relay engine to move it.', cls);
     } catch (err) {
       if (token !== computeToken) return;
       setStatus('The page could not read ground heights. Check the internet connection. Then select Finish or move a point to try again. (' + err.message + ')', 'err');
@@ -786,7 +941,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     if (!d || !Array.isArray(d.points)) throw new Error('This file is not a relay plan.');
     state.name = d.name || ''; state.notes = d.notes || ''; state.sourceType = d.sourceType || 'Hydrant'; state.sourceHydrant = d.sourceHydrant || null;
     state.points = d.points.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lng); }).map(function (p) { return { lat: +p.lat, lng: +p.lng }; });
-    state.flow = FLOWS.indexOf(d.flow) >= 0 ? d.flow : 750; state.settings = Object.assign({}, DEFAULTS, d.settings || {}); state.manual = d.manual || {};
+    state.flow = FLOWS.indexOf(d.flow) >= 0 ? d.flow : 750; state.settings = Object.assign({}, DEFAULTS, d.settings || {}); state.manual = d.manual || {}; state.draft = false;
     state.samples = state.elevFt = state.profile = null; state.results = {};
     syncInputs(); setDrawing(false);
     if (state.points.length > 1) { map.fitBounds(routeBounds(), { padding: [60, 60], maxZoom: 19 }); compute(); } else { render(); if (!quiet) setStatus('Plan opened. It has no route.'); }
@@ -806,11 +961,12 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   function syncInputs() {
     var s = state.settings;
     $('planName').value = state.name; $('planNotes').value = state.notes; $('sourceType').value = state.sourceType;
-    $('setHose').value = s.hose; $('setBasis').value = s.basis; $('setCap').value = s.cap; $('setRes').value = s.residual; $('setSlack').value = s.slack; $('setHosePer').value = s.hosePerEngine;
+    applyDistrict(s.district); $('setHose').value = s.hose; $('setBasis').value = s.basis; $('setCap').value = s.cap; $('setRes').value = s.residual; $('setSlack').value = s.slack; $('setHosePer').value = s.hosePerEngine;
   }
   function bind(id, fn) { $(id).addEventListener('change', fn); }
   $('planName').addEventListener('input', function () { state.name = this.value; autosave(); });
   $('planNotes').addEventListener('input', function () { state.notes = this.value; autosave(); });
+  bind('setDistrict', function () { applyDistrict(this.value, true); });
   bind('sourceType', function () { state.sourceType = this.value; autosave(); });
   bind('setHose', function () { state.settings.hose = +this.value; state.manual = {}; recalc(); });
   bind('setBasis', function () { state.settings.basis = this.value; state.manual = {}; recalc(); });
@@ -820,19 +976,65 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   bind('setHosePer', function () { var v = +this.value; state.settings.hosePerEngine = v >= 100 ? v : DEFAULTS.hosePerEngine; state.manual = {}; recalc(); });
 
   /* ---------- address search ---------- */
+  var geoToken = 0;
+  function titleCase(s) { return s.toLowerCase().replace(/\b[a-z]/g, function (c) { return c.toUpperCase(); }); }
+  async function roadsIn(box) {
+    var feats = [];
+    for (var page = 0; page < 10; page++) {
+      var r = await fetchT(COUNTY + '/MappingWestchesterCounty_Roads/MapServer/11/query?' + new URLSearchParams({ geometry: box.join(','), geometryType: 'esriGeometryEnvelope',
+        inSR: 4326, outSR: 4326, spatialRel: 'esriSpatialRelIntersects', outFields: 'ST_NM_PREF,ST_NM_BASE,ST_NM_SUFF,ST_TYP_AFT', returnGeometry: true, resultOffset: feats.length, f: 'json' }), null, 15000);
+      var d = await r.json();
+      if (!r.ok || !d.features) throw new Error('the road query failed');
+      feats = feats.concat(d.features);
+      if (!d.exceededTransferLimit || !d.features.length) break;
+    }
+    var roads = [];
+    feats.forEach(function (f) {
+      var a = f.attributes || {}, name = [a.ST_NM_PREF, a.ST_NM_BASE, a.ST_NM_SUFF, a.ST_TYP_AFT].map(function (v) { return v == null ? '' : String(v).trim(); }).filter(Boolean).join(' '); // the county pads names with spaces
+      ((f.geometry && f.geometry.paths) || []).forEach(function (p) { roads.push({ name: name, path: p }); });
+    });
+    return roads;
+  }
+  // draft a hose route along the roads from the nearest hydrant; any failure leaves the route empty
+  async function roadDraft(addr, label, token) {
+    var res = null;
+    try {
+      for (var mi = 1; mi <= 2 && !res; mi++) { // half a mile first, then one mile
+        var dLat = mi * 2640 / 364000, dLng = dLat / Math.cos(addr.lat * Math.PI / 180);
+        var box = [addr.lng - dLng, addr.lat - dLat, addr.lng + dLng, addr.lat + dLat], roads = await roadsIn(box);
+        if (token !== geoToken) return;
+        res = RelayCore.draftRoute(addr, hydrants, roads, { box: box });
+      }
+    } catch (err) { res = null; }
+    if (token !== geoToken || state.drawing || state.points.length) return;
+    if (!res) { setStatus('Found: ' + label + '. No road draft is available here. Switch to the aerial photo. Then select Trace route.'); return; }
+    var h = res.hydrant;
+    state.points = res.points; state.sourceHydrant = { num: h[2], code: h[3] }; $('sourceType').value = state.sourceType = 'Hydrant'; state.manual = {}; state.draft = true;
+    drawRoute(); map.fitBounds(routeBounds(), { padding: [60, 60], maxZoom: 19 });
+    compute('Draft route: hydrant ' + (h[2] || '(no number)') + ' to ' + label + '. It follows ' + (res.streets.length ? res.streets.slice(0, 2).map(titleCase).join(' and ') : 'an unnamed road') +
+      '. Drag a point to match the driveway. Click the line to add a point.', 'ok');
+  }
   $('geoForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     var text = $('geoText').value.trim(); if (!text) return;
+    var token = ++geoToken;
     setStatus('Looking for the address...', 'busy');
     try {
-      var r = await fetchT(COUNTY + '/geocoding/GeocodeServer/findAddressCandidates?SingleLine=' + encodeURIComponent(/yorktown|105\d\d|ny\b/i.test(text) ? text : text + ', Yorktown Heights, NY') + '&outSR=4326&maxLocations=1&f=json', null, 20000);
-      var d = await r.json(), c = d.candidates && d.candidates[0];
+      var q = /\bNY\b|\b\d{5}\b/i.test(text) ? text : text + ', NY', bb = districtLayer.getBounds(), url = COUNTY + '/geocoding/GeocodeServer/findAddressCandidates?SingleLine=' + encodeURIComponent(q) + '&outSR=4326&maxLocations=8&f=json';
+      var ext = JSON.stringify({ xmin: bb.getWest(), ymin: bb.getSouth(), xmax: bb.getEast(), ymax: bb.getNorth(), spatialReference: { wkid: 4326 } });
+      var d = await (await fetchT(url + '&searchExtent=' + encodeURIComponent(ext), null, 20000)).json(), c = d.candidates && d.candidates[0];
+      // the search box is a rectangle: prefer a good match that is inside the district line
+      if (c) c = d.candidates.filter(function (k) { return k.score >= c.score - 5 && RelayCore.pointInPolygon(k.location.x, k.location.y, district.geometry); })[0] || c;
+      if (!c) { d = await (await fetchT(url, null, 20000)).json(); c = d.candidates && d.candidates[0]; } // no match in the district box: try the whole county
       if (!c) { setStatus('No match for that address. Check the spelling, or move the map by hand.', 'err'); return; }
       if (geoMarker) map.removeLayer(geoMarker);
       geoMarker = L.circleMarker([c.location.y, c.location.x], { radius: 9, color: '#1f5fa8', weight: 3, fillOpacity: 0.15, interactive: false }).addTo(map);
       map.setView([c.location.y, c.location.x], 18);
-      if (!state.name) { state.name = c.address.replace(/, NY.*$/i, ''); $('planName').value = state.name; }
-      setStatus('Found: ' + c.address + '. Switch to the aerial photo to see the driveway. Then select Trace route.');
+      var label = c.address.replace(/, NY.*$/i, '');
+      if (!state.name) { state.name = label; $('planName').value = state.name; }
+      if (state.points.length || state.drawing) { setStatus('Found: ' + c.address + '. Switch to the aerial photo to see the driveway. Then select Trace route.'); return; }
+      setStatus('Found: ' + label + '. The page looks for a road route from the nearest hydrant.', 'busy');
+      roadDraft({ lat: c.location.y, lng: c.location.x }, label, token);
     } catch (err) { setStatus('The address search did not answer. Move the map by hand. (' + err.message + ')', 'err'); }
   });
 
