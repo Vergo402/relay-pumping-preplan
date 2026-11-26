@@ -19,7 +19,7 @@ The GitHub repo is private. Its name is yhfd-relay-calculator.
 | `scripts/fetch_hydrants.py` | Gets the hydrant list again from the county. |
 | `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
 | `tests/test_core.js` | 47 math checks: 36 against the chauffeur chart and 11 for the road draft. Runs in Node. |
-| `tests/test_ui.py` | 50 page checks in Chrome through Playwright. No internet needed. |
+| `tests/test_ui.py` | 51 page checks in Chrome through Playwright. No internet needed. |
 | `package.json` | Version 0.4.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
 | `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
@@ -45,10 +45,10 @@ No Playwright browser download is necessary. The page test uses the installed Go
 |---|---|
 | `python3 build.py` | Writes `dist/YHFD Relay Pumping Calculator.html`. |
 | `npm test` | Builds, then runs the 47 math checks. |
-| `npm run test:ui` | Builds, then runs the 50 page checks. It calls `.venv/bin/python`. |
+| `npm run test:ui` | Builds, then runs the 51 page checks. It calls `.venv/bin/python`. |
 
 Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-On 2026-11-26, 47 of 47 math checks and 50 of 50 page checks passed on macOS with Google Chrome 158.
+On 2026-11-26, 47 of 47 math checks and 51 of 51 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 

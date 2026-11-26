@@ -50,7 +50,7 @@ The repo has two test sets. Each command builds the page first.
 | Command | Checks | Result |
 |---|---|---|
 | `npm test` | 47 math checks. 36 are against the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI. 11 are for the road draft. | 47 of 47 pass. |
-| `npm run test:ui` | 50 page checks in Chrome through Playwright. | 50 of 50 pass. |
+| `npm run test:ui` | 51 page checks in Chrome through Playwright. | 51 of 51 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
