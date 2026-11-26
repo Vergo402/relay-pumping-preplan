@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YHFD Relay Pumping Calculator</title>
+<style>/*LEAFLET_CSS*/</style>
+<style>
+:root{
+  --ink:#1c2126; --muted:#5d6670; --line:#d9dee3; --bg:#f4f6f8; --panel:#ffffff;
+  --red:#b3261e; --red-soft:#fbeceb; --blue:#1f5fa8; --amber:#c97a00; --amber-soft:#fff5e0; --green:#22723a; --green-soft:#e8f5ec;
+  --hose:#ffd21f;
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+button,input,select{font:inherit;color:inherit}
+#app{display:grid;grid-template-columns:400px 1fr;height:100vh}
+#side{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;overflow-x:hidden;padding:0 0 24px}
+#right{display:flex;flex-direction:column;min-width:0;height:100vh}
+#main{display:grid;grid-template-rows:1fr 216px;flex:1;min-height:0}
+#map{min-height:0;background:#dfe5ea}
+#map.drawing{cursor:crosshair}
+#profileWrap{background:var(--panel);border-top:1px solid var(--line);padding:6px 10px 4px;position:relative;min-width:0}
+#profileHead{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted)}
+#profileHead b{color:var(--ink);font-size:13px}
+#profile{width:100%;height:178px}
+#profile svg{display:block;width:100%;height:100%}
+.brand{background:var(--ink);color:#fff;padding:14px 18px 12px}
+.brand h1{font-size:17px;margin:0;letter-spacing:.2px}
+.brand p{margin:2px 0 0;font-size:12px;color:#c5ccd3}
+.sec{padding:14px 18px 4px;border-bottom:1px solid var(--line)}
+.sec:last-child{border-bottom:0}
+.sec h2{font-size:11px;text-transform:uppercase;letter-spacing:.9px;color:var(--muted);margin:0 0 8px}
+.row{display:flex;gap:8px;margin-bottom:10px}
+.row>*{flex:1;min-width:0}
+label.f{display:block;font-size:12px;color:var(--muted);margin-bottom:10px}
+label.f>input,label.f>select{display:block;width:100%;margin-top:3px}
+input[type=text],input[type=number],select{border:1px solid #b9c1c9;border-radius:6px;padding:7px 9px;background:#fff;min-height:34px}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.btn{color:var(--ink);border:1px solid #aab3bc;background:#fff;border-radius:6px;padding:7px 11px;cursor:pointer;min-height:34px;font-weight:600;white-space:nowrap}
+.btn:hover{background:#eef1f4}
+.btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+.btn.primary:hover{background:#971f18}
+.btn.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn:disabled{opacity:.45;cursor:default}
+.btn.small{padding:4px 9px;min-height:28px;font-size:12.5px}
+.row>.btn{padding:7px 4px;font-size:13.5px}
+.seg{display:flex;margin-bottom:6px}
+.seg button{flex:1;border:1px solid #aab3bc;background:#fff;color:var(--ink);padding:8px 6px;font-weight:600;cursor:pointer;min-height:38px}
+.seg button:first-child{border-radius:6px 0 0 6px}
+.seg button:last-child{border-radius:0 6px 6px 0;border-left:0}
+.seg button:hover{background:#eef1f4}
+.seg button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.seg button:disabled{opacity:.55;cursor:default}
+.sub{font-size:12.5px;margin:14px 0 4px}
+table.wrap td{white-space:normal}
+.note{font-size:12.5px;color:var(--muted);margin:6px 0 10px}
+.steps{margin:0 0 10px;padding-left:20px;color:var(--ink)}
+.steps li{margin-bottom:3px}
+#status{font-size:13px;border-radius:6px;padding:8px 10px;margin:0 0 12px;background:#eef3f9;color:#1d3f66}
+#status.err{background:var(--red-soft);color:#7c1a14}
+#status.busy{background:var(--amber-soft);color:#6b4300}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.fact{background:var(--bg);border-radius:6px;padding:8px 10px}
+.fact span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.fact b{font-size:17px;font-variant-numeric:tabular-nums}
+.fact small{display:block;color:var(--muted);font-size:11.5px}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:6px 5px;white-space:nowrap;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600}
+td.n,th.n{text-align:right}
+#flowTable tbody tr{cursor:pointer}
+#flowTable tbody tr:hover{background:var(--bg)}
+#flowTable tbody tr.sel{background:#eaf1fa}
+#flowTable tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
+.pill{display:inline-block;border-radius:10px;padding:1px 8px;font-size:12px;font-weight:600}
+.pill.ok{background:var(--green-soft);color:var(--green)}
+.pill.relay{background:var(--amber-soft);color:#7a4a00}
+.pill.bad{background:var(--red-soft);color:var(--red)}
+.budget{font-size:13px;margin:10px 0;padding:8px 10px;background:var(--bg);border-radius:6px}
+.warn{font-size:13px;border-left:3px solid var(--amber);background:var(--amber-soft);padding:7px 10px;margin:8px 0;border-radius:0 6px 6px 0}
+.warn.bad{border-color:var(--red);background:var(--red-soft)}
+.eng{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:22px;padding:0 6px;border-radius:11px;color:#fff;font-size:12px;font-weight:700}
+.eng.S{background:var(--blue)} .eng.R{background:var(--amber)} .eng.A{background:var(--red)}
+details{margin-bottom:10px}
+details>summary{cursor:pointer;font-weight:600;padding:4px 0}
+details ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:12.5px}
+.hint{font-size:12px;color:var(--muted);margin:-4px 0 10px}
+.empty{color:var(--muted);font-size:13px;padding:4px 0 12px}
+/* map markers */
+.vx{width:12px;height:12px;border-radius:2px;background:#fff;border:2px solid #111;box-shadow:0 0 0 1px #fff}
+.em{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:15px;color:#fff;font:700 12px/1 -apple-system,"Segoe UI",Arial,sans-serif;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6)}
+.em.S{background:var(--blue)} .em.R{background:var(--amber);cursor:grab} .em.A{background:var(--red)}
+.hov{width:12px;height:12px;border-radius:6px;background:#fff;border:3px solid #111}
+.leaflet-container{font:12px/1.4 -apple-system,"Segoe UI",Arial,sans-serif}
+/* card view */
+#cardBar,#cardHead,#cardBody{display:none}
+body.card{background:#8a9199}
+body.card #app{display:block;height:auto}
+body.card #side{display:none}
+body.card #right{height:auto;width:7.5in;margin:56px auto 24px;background:#fff;padding:.3in;box-shadow:0 2px 14px rgba(0,0,0,.35)}
+body.card #cardBar{display:flex;gap:8px;position:fixed;top:0;left:0;right:0;background:var(--ink);padding:9px 14px;z-index:2000;align-items:center;color:#fff}
+body.card #cardBar span{flex:1;font-size:13px;color:#c5ccd3}
+body.card #cardHead,body.card #cardBody{display:block}
+body.card #main{display:block}
+body.card #map{height:3.15in;border:1px solid #333}
+body.card #profileWrap{border:1px solid #333;border-top:0;height:1.75in}
+body.card #profile{height:1.47in}
+#cardHead{border-bottom:3px solid var(--ink);margin-bottom:8px;padding-bottom:6px}
+#cardHead .t{display:flex;justify-content:space-between;align-items:flex-end;gap:12px}
+#cardHead h1{font-size:19px;margin:0}
+#cardHead .k{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+#cardHead .facts4{display:grid;grid-template-columns:1.25fr 1fr 1.15fr 1.25fr .8fr;gap:6px;margin-top:8px}
+#cardHead .facts4 div{border:1px solid var(--line);border-radius:4px;padding:4px 7px}
+#cardHead .facts4 span{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted)}
+#cardHead .facts4 b{font-size:13px}
+#cardBody{font-size:11.5px;margin-top:8px}
+#cardBody table th,#cardBody table td{padding:4px 6px;border:1px solid #9aa3ab;white-space:normal}
+#cardBody table th{background:#eef1f4;color:var(--ink)}
+#cardBody tr{break-inside:avoid}
+#cardBody table.tight{font-size:10px}
+#cardBody .foot{margin-top:7px;color:#444;font-size:10px;line-height:1.35}
+#cardBody .notes{border:1px solid #9aa3ab;border-top:0;padding:5px 7px;min-height:.45in}
+@media print{
+  @page{size:letter portrait;margin:.45in}
+  body.card{background:#fff}
+  body.card #cardBar{display:none}
+  body.card #right{margin:0;padding:0;box-shadow:none;width:100%}
+  .leaflet-control-zoom,.leaflet-control-layers{display:none!important}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media (max-width:900px){
+  #app{grid-template-columns:1fr;height:auto}
+  #right{height:auto}
+  #main{grid-template-rows:60vh 216px}
+  #side{border-right:0;border-bottom:1px solid var(--line)}
+}
+</style>
+</head>
+<body>
+<div id="cardBar"><b>Pre-plan card preview</b><span>Check the map view. Move or zoom the map if needed. Then print.</span>
+  <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
+<div id="app">
+  <aside id="side">
+    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.2 &middot; Planning aid only. Verify on site.</p></div>
+
+    <div class="sec">
+      <h2>1. Find the address</h2>
+      <form class="row" id="geoForm"><input type="text" id="geoText" placeholder="Street address, Yorktown Heights" aria-label="Address" style="flex:3"><button class="btn" type="submit">Go</button></form>
+      <label class="f">Plan name<input type="text" id="planName" placeholder="Example: 123 Hilltop Rd, long driveway"></label>
+    </div>
+
+    <div class="sec">
+      <h2>2. Trace the hose route</h2>
+      <div class="hint" style="margin:0 0 4px">Supply line lay</div>
+      <div class="seg" role="group" aria-label="Supply line lay"><button type="button" id="layRev">Reverse lay</button><button type="button" id="layFwd">Forward lay</button></div>
+      <p class="hint" id="layHint" style="margin:0 0 10px"></p>
+      <ol class="steps" id="steps"></ol>
+      <div class="row">
+        <button class="btn primary" id="btnDraw">Trace route</button>
+        <button class="btn" id="btnUndo" disabled>Undo point</button>
+        <button class="btn" id="btnFinish" disabled>Finish</button>
+        <button class="btn" id="btnClear" disabled>Clear</button>
+      </div>
+      <div id="status">Find the address. Select the lay type. Then trace the hose route.</div>
+      <label class="f">Water source type<select id="sourceType"><option>Hydrant</option><option>Draft site</option><option>Tanker dump site</option><option>Other</option></select></label>
+    </div>
+
+    <div class="sec">
+      <h2>3. Read the result</h2>
+      <div id="results"><div class="empty">No route yet.</div></div>
+    </div>
+
+    <div class="sec">
+      <h2>Settings</h2>
+      <div class="row">
+        <label class="f">Supply hose<select id="setHose"><option value="5">5 inch LDH</option><option value="4">4 inch LDH</option></select></label>
+        <label class="f">Friction loss values<select id="setBasis"><option value="chart">Chart table</option><option value="formula">Formula (C x Q&sup2; x L)</option></select></label>
+      </div>
+      <div class="row">
+        <label class="f">Maximum PDP<select id="setCap"><option value="150">150 PSI</option><option value="175">175 PSI</option><option value="200">200 PSI</option></select></label>
+        <label class="f">Intake pressure to hold<select id="setRes"><option value="20">20 PSI</option><option value="50">50 PSI</option></select></label>
+      </div>
+      <div class="row">
+        <label class="f">Hose slack allowance<select id="setSlack"><option value="0">0%</option><option value="5">5%</option><option value="10">10%</option><option value="15">15%</option></select></label>
+        <label class="f">Supply hose on each engine (ft)<input type="number" id="setHosePer" min="100" step="100"></label>
+      </div>
+      <p class="hint">One engine lays each hose section. The page keeps each section within this length. The value is a placeholder. Replace it with the YHFD hose load.</p>
+      <details><summary>Rules this page uses</summary>
+        <ul>
+          <li>Friction loss: the YHFD chauffeur chart. The chart table is the default. The formula option gives the chart Max Relay Distance values.</li>
+          <li>Climb: 0.5 PSI for each foot, as the chart shows.</li>
+          <li>The hose keeps a minimum of 10 PSI at each point on the route.</li>
+          <li>LDH limit: 200 PSI. The page warns when a downhill run goes above it.</li>
+          <li>Hose load: one engine lays each hose section. No section is longer than the supply hose on one engine.</li>
+          <li>Reverse lay: each engine starts at the attack end of its section and lays hose back to its pump position.</li>
+          <li>Forward lay: each engine starts at the source end of its section and lays hose to its position.</li>
+          <li>Ground heights: USGS 3DEP LiDAR, 1 metre grid, read every 25 ft.</li>
+          <li>Hydrants: Westchester County GIS, dated October 2015. The data has no flow values.</li>
+          <li>Not included: the flow the water source can give, appliance loss, and attack line pressures.</li>
+        </ul>
+      </details>
+    </div>
+
+    <div class="sec">
+      <h2>4. Keep the plan</h2>
+      <div class="row">
+        <button class="btn" id="btnCard" disabled>Make card</button>
+        <button class="btn" id="btnSave" disabled>Save plan file</button>
+        <button class="btn" id="btnOpen">Open plan file</button>
+      </div>
+      <input type="file" id="fileOpen" accept=".json,application/json" hidden>
+      <label class="f">Notes for the card<input type="text" id="planNotes" placeholder="Example: gate code, turnaround, low wires"></label>
+    </div>
+  </aside>
+
+  <div id="right">
+    <div id="cardHead"></div>
+    <div id="main">
+      <div id="map"></div>
+      <div id="profileWrap">
+        <div id="profileHead"><b>Route profile</b><span id="profileRead">Ground height and hose pressure along the route</span></div>
+        <div id="profile"></div>
+      </div>
+    </div>
+    <div id="cardBody"></div>
+  </div>
+</div>
+
+<script type="application/json" id="district-data">__DISTRICT__</script>
+<script type="application/json" id="hydrant-data">[]</script>
+<script>/*LEAFLET_JS*/</script>
+
+<script id="core">
+/* Relay hydraulics. Pure functions, no page or network access. */
+var RelayCore = (function () {
+  'use strict';
+  var CHART_FL = { 5: { 500: 2, 750: 5, 1000: 10 }, 4: { 500: 5, 750: 10, 1000: 20 } }; // PSI per 100 ft, YHFD chauffeur chart
+  var COEF = { 5: 0.08, 4: 0.2 };
+  var EP = 0.5;        // PSI per foot of climb (chart: 100 ft = 50 PSI)
+  var LINE_MIN = 10;   // minimum PSI in the hose at any point
+  var LDH_MAX = 200;   // LDH maximum pressure (chart)
+  var MIN_PDP = 50;    // a pump at idle
+  var R_FT = 20902260; // mean earth radius, feet
+
+  function flPer100(hose, gpm, basis) {
+    if (basis === 'chart' && CHART_FL[hose] && CHART_FL[hose][gpm] != null) return CHART_FL[hose][gpm];
+    return COEF[hose] * Math.pow(gpm / 100, 2);
+  }
+  function distFt(a, b) {
+    var k = Math.PI / 180, dLat = (b.lat - a.lat) * k, dLng = (b.lng - a.lng) * k;
+    var s = Math.pow(Math.sin(dLat / 2), 2) + Math.cos(a.lat * k) * Math.cos(b.lat * k) * Math.pow(Math.sin(dLng / 2), 2);
+    return 2 * R_FT * Math.asin(Math.sqrt(s));
+  }
+  function routeFt(pts) { var t = 0; for (var i = 1; i < pts.length; i++) t += distFt(pts[i - 1], pts[i]); return t; }
+  function densify(pts, spacing, maxN) {
+    var total = routeFt(pts);
+    var sp = Math.max(spacing, total / Math.max(1, maxN - pts.length));
+    var out = [{ lat: pts[0].lat, lng: pts[0].lng }];
+    for (var i = 1; i < pts.length; i++) {
+      var a = pts[i - 1], b = pts[i], d = distFt(a, b);
+      if (d < 0.5) continue;
+      var n = Math.max(1, Math.ceil(d / sp));
+      for (var j = 1; j <= n; j++) { var t = j / n; out.push({ lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t }); }
+    }
+    return out;
+  }
+  // samples: [{lat,lng}], elevFt: ground heights, slack: 0.10 = 10% extra hose
+  function buildProfile(samples, elevFt, slack) {
+    var n = samples.length, d = [0], h = [0], z = elevFt.slice();
+    for (var i = 1; i < n; i++) {
+      var dd = distFt(samples[i - 1], samples[i]), dz = z[i] - z[i - 1];
+      d.push(d[i - 1] + dd);
+      h.push(h[i - 1] + Math.sqrt(dd * dd + dz * dz) * (1 + slack));
+    }
+    return { n: n, d: d, h: h, z: z };
+  }
+  function stats(p) {
+    var hi = -Infinity, lo = Infinity, grade = 0, gradeAt = 0, j = 0;
+    for (var i = 0; i < p.n; i++) { if (p.z[i] > hi) hi = p.z[i]; if (p.z[i] < lo) lo = p.z[i]; }
+    for (i = 0; i < p.n; i++) {
+      while (j < p.n - 1 && p.d[j] - p.d[i] < 100) j++;
+      var run = p.d[j] - p.d[i];
+      if (run >= 50) { var g = (p.z[j] - p.z[i]) / run; if (Math.abs(g) > Math.abs(grade)) { grade = g; gradeAt = p.h[i]; } }
+    }
+    return { mapFt: p.d[p.n - 1], hoseFt: p.h[p.n - 1], startZ: p.z[0], endZ: p.z[p.n - 1], net: p.z[p.n - 1] - p.z[0],
+      highAbove: hi - p.z[0], lowBelow: p.z[0] - lo, grade: grade, gradeAt: gradeAt };
+  }
+  function need(p, a, t, q, atIntake) { return (atIntake ? q.residual : q.lineMin) + q.fl * (p.h[t] - p.h[a]) + q.ep * (p.z[t] - p.z[a]); }
+  // farthest point a pump at index a can feed with discharge pressure P
+  function reach(p, a, P, q) {
+    var best = a;
+    for (var t = a + 1; t < p.n; t++) {
+      if (q.maxSeg && p.h[t] - p.h[a] > q.maxSeg + 1e-6) break; // one engine lays each section
+      var pr = P - q.fl * (p.h[t] - p.h[a]) - q.ep * (p.z[t] - p.z[a]);
+      if (pr < q.lineMin) break;
+      if (pr >= q.residual) best = t;
+    }
+    return best;
+  }
+  function place(p, P, q) {
+    var pos = [], a = 0;
+    for (var guard = 0; guard < 60; guard++) {
+      var b = reach(p, a, P, q);
+      if (b === p.n - 1) return pos;
+      if (b === a) return null;
+      pos.push(b); a = b;
+    }
+    return null;
+  }
+  // fewest engines at the maximum PDP, then the lowest equal pressure that keeps that count
+  function autoPlace(p, q) {
+    var base = place(p, q.cap, q);
+    if (!base) return null;
+    var k = base.length, lo = 0, hi = q.cap, best = base;
+    for (var i = 0; i < 26; i++) {
+      var mid = (lo + hi) / 2, r = place(p, mid, q);
+      if (r && r.length === k) { hi = mid; best = r; } else lo = mid;
+    }
+    return best;
+  }
+  function evaluate(p, relays, q) {
+    var eng = [0].concat(relays), segs = [], line = [], maxPdp = 0, over = false, overLdh = false, overHose = false, peak = 0, peakAt = 0;
+    for (var s = 0; s < eng.length; s++) {
+      var a = eng[s], b = s + 1 < eng.length ? eng[s + 1] : p.n - 1, req = 0;
+      for (var t = a + 1; t <= b; t++) { var r = need(p, a, t, q, t === b); if (r > req) req = r; }
+      var pdp = Math.max(q.minPdp, Math.ceil((req - 1) / 5) * 5), segPeak = pdp; // nearest 5 PSI at or above the demand, 1 PSI tolerance
+      line.push([p.h[a], pdp]);
+      for (t = a + 1; t <= b; t++) {
+        var pr = pdp - q.fl * (p.h[t] - p.h[a]) - q.ep * (p.z[t] - p.z[a]);
+        line.push([p.h[t], pr]);
+        if (pr > segPeak) segPeak = pr;
+        if (pr > peak) { peak = pr; peakAt = p.h[t]; }
+      }
+      var intake = pdp - q.fl * (p.h[b] - p.h[a]) - q.ep * (p.z[b] - p.z[a]);
+      var segOver = req > q.cap + 1, segLdh = segPeak > q.ldhMax + 1;
+      var segHose = !!q.maxSeg && (p.h[b] - p.h[a]) > q.maxSeg + 1;
+      if (segOver) over = true; if (segLdh) overLdh = true; if (segHose) overHose = true; if (pdp > maxPdp) maxPdp = pdp;
+      segs.push({ from: a, to: b, at: p.h[a], z: p.z[a], hose: p.h[b] - p.h[a], climb: p.z[b] - p.z[a], req: req, pdp: pdp,
+        intake: intake, peak: segPeak, over: segOver, overLdh: segLdh, overHose: segHose, friction: q.fl * (p.h[b] - p.h[a]) });
+    }
+    return { segs: segs, line: line, maxPdp: maxPdp, over: over, overLdh: overLdh, overHose: overHose, peak: peak, peakAt: peakAt };
+  }
+  // o: {gpm, hose, basis, cap, residual, maxSeg}; maxSeg = longest hose section one engine can lay, 0 = no limit; manual: relay sample indexes set by hand, or undefined
+  function solve(p, o, manual) {
+    var fl100 = flPer100(o.hose, o.gpm, o.basis);
+    var q = { fl: fl100 / 100, ep: EP, cap: o.cap, residual: o.residual, lineMin: LINE_MIN, ldhMax: LDH_MAX, minPdp: MIN_PDP, maxSeg: o.maxSeg || 0 };
+    var relays, auto = true, placed = true;
+    if (Array.isArray(manual)) {
+      relays = manual.filter(function (i, k, arr) { return i > 0 && i < p.n - 1 && arr.indexOf(i) === k; }).sort(function (x, y) { return x - y; });
+      auto = false;
+    } else { relays = autoPlace(p, q); if (!relays) { relays = []; placed = false; } }
+    var ev = evaluate(p, relays, q);
+    return { gpm: o.gpm, fl100: fl100, relays: relays, auto: auto, placed: placed, segs: ev.segs, line: ev.line, maxPdp: ev.maxPdp,
+      over: ev.over, overLdh: ev.overLdh, overHose: ev.overHose, peak: ev.peak, peakAt: ev.peakAt,
+      frictionAll: q.fl * p.h[p.n - 1], climbAll: EP * (p.z[p.n - 1] - p.z[0]) };
+  }
+  return { flPer100: flPer100, distFt: distFt, routeFt: routeFt, densify: densify, buildProfile: buildProfile, stats: stats, solve: solve,
+    EP: EP, LINE_MIN: LINE_MIN, LDH_MAX: LDH_MAX };
+})();
+if (typeof module !== 'undefined') module.exports = RelayCore;
+</script>
+
+<script id="appjs">
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var COUNTY = 'https://giswww.westchestergov.com/arcgis/rest/services';
+  var USGS_SAMPLES = 'https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/getSamples';
+  var EPQS = 'https://epqs.nationalmap.gov/v1/json';
+  var FLOWS = [500, 750, 1000], M2FT = 3.280839895, STORE = 'yhfd-relay-pilot-v1';
+  var DEFAULTS = { hose: 5, basis: 'chart', cap: 150, residual: 20, slack: 10, hosePerEngine: 1000, lay: null };
+  var LAY = {
+    reverse: { name: 'Reverse lay', hint: 'Trace from the attack engine back to the water source.',
+      steps: ['Select <b>Trace route</b>.', 'Click the attack engine position first.', 'Click along the hose path. Follow the driveway back to the road.', 'Click the water source last. A click near a hydrant snaps to it. Select <b>Finish</b>.'] },
+    forward: { name: 'Forward lay', hint: 'Trace from the water source to the attack engine.',
+      steps: ['Select <b>Trace route</b>.', 'Click the water source first. A click near a hydrant snaps to it.', 'Click along the hose path. Follow the driveway.', 'Click the attack engine position last. Select <b>Finish</b>.'] }
+  };
+  var state = { name: '', notes: '', sourceType: 'Hydrant', points: [], drawing: false, flow: 750, samples: null, elevFt: null,
+    profile: null, results: {}, manual: {}, sourceHydrant: null, settings: Object.assign({}, DEFAULTS) };
+  var district = JSON.parse($('district-data').textContent);
+  var hydrants = JSON.parse($('hydrant-data').textContent); // [lng, lat, number, district]
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+  function sign(n) { var r = Math.round(n); return (r > 0 ? '+' : '') + r.toLocaleString('en-US'); }
+  function up100(n) { return Math.ceil((n - 0.5) / 100) * 100; }
+  function setStatus(msg, cls) { var s = $('status'); s.textContent = msg; s.className = cls || ''; }
+
+  /* ---------- map ---------- */
+  var map = L.map('map', { preferCanvas: true, maxZoom: 21, zoomSnap: 0.5 });
+  var ExportLayer = L.TileLayer.extend({
+    getTileUrl: function (c) {
+      var ts = this.getTileSize(), nw = L.point(c.x * ts.x, c.y * ts.y), se = nw.add(ts), crs = this._map.options.crs;
+      var a = crs.project(this._map.unproject(nw, c.z)), b = crs.project(this._map.unproject(se, c.z));
+      var u = this._url + '?bbox=' + [a.x, b.y, b.x, a.y].join(',') + '&bboxSR=3857&imageSR=3857&size=' + ts.x + ',' + ts.y +
+        '&format=' + this.options.format + '&transparent=' + (this.options.transparent ? 'true' : 'false') + '&f=image';
+      if (this.options.layers) u += '&layers=' + encodeURIComponent(this.options.layers);
+      return u;
+    }
+  });
+  var bases = {
+    'County street map': L.tileLayer(COUNTY + '/WestchesterCountyBasemap_WGS84/MapServer/tile/{z}/{y}/{x}', { maxZoom: 21, maxNativeZoom: 19, attribution: 'Westchester County GIS' }),
+    'Aerial photo 2025': new ExportLayer(COUNTY + '/MappingWestchesterCounty_AerialPhoto2025/MapServer/export', { format: 'jpg', tileSize: 512, maxZoom: 21, attribution: 'NYS ITS Geospatial Services, Westchester County GIS' }),
+    'USGS topo map': L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer/tile/{z}/{y}/{x}', { maxZoom: 21, maxNativeZoom: 16, attribution: 'USGS The National Map' })
+  };
+  var contours = L.tileLayer(COUNTY + '/2FtContours_WGS84/MapServer/tile/{z}/{y}/{x}', { minZoom: 18, maxZoom: 21, zoomOffset: -18, attribution: 'Westchester County GIS' });
+  var plani = new ExportLayer(COUNTY + '/DataHub_BasemapPlanimetrics/MapServer/export', { format: 'png32', transparent: true, layers: 'show:10,5', tileSize: 512, minZoom: 15, maxZoom: 21, opacity: 0.75 });
+  var districtLayer = L.geoJSON(district, { style: { color: '#b3261e', weight: 3, fill: false, dashArray: '8 5' }, interactive: false });
+  var hydrantLayer = L.layerGroup();
+  hydrants.forEach(function (h) {
+    var own = h[3] === 'YKTWN';
+    L.circleMarker([h[1], h[0]], { radius: 4, weight: 1, color: '#fff', fillColor: own ? '#d0211c' : '#5b6b7b', fillOpacity: 0.95, interactive: false }).addTo(hydrantLayer);
+  });
+  bases['County street map'].addTo(map); districtLayer.addTo(map); hydrantLayer.addTo(map);
+  L.control.layers(bases, { 'YHFD district line': districtLayer, 'Hydrants (county data, 2015)': hydrantLayer,
+    'Contours, 2 ft (zoom in close)': contours, 'Driveways and buildings': plani }, { collapsed: false, position: 'topright' }).addTo(map);
+  L.control.scale({ metric: false, maxWidth: 160 }).addTo(map);
+  map.fitBounds(districtLayer.getBounds(), { padding: [10, 10] });
+
+  var routeGroup = L.layerGroup().addTo(map), engineGroup = L.layerGroup().addTo(map), vertexGroup = L.layerGroup().addTo(map);
+  var hoverMarker = null, geoMarker = null;
+
+  function nearestHydrant(latlng, px, maxFt) {
+    var p = map.latLngToContainerPoint(latlng), best = null, bd = px;
+    for (var i = 0; i < hydrants.length; i++) {
+      var h = hydrants[i];
+      if (Math.abs(h[1] - latlng.lat) > 0.01 || Math.abs(h[0] - latlng.lng) > 0.01) continue;
+      var d = p.distanceTo(map.latLngToContainerPoint([h[1], h[0]]));
+      if (d <= bd && (!maxFt || RelayCore.distFt({ lat: h[1], lng: h[0] }, latlng) <= maxFt)) { bd = d; best = h; }
+    }
+    return best;
+  }
+  // the water source is always points[0]; snap it to a hydrant when one is close
+  function snapSource() {
+    if (!state.points.length) return;
+    var p0 = state.points[0], h = nearestHydrant(L.latLng(p0.lat, p0.lng), 16, 75);
+    if (h) { state.points[0] = { lat: h[1], lng: h[0] }; state.sourceHydrant = { num: h[2], code: h[3] }; $('sourceType').value = state.sourceType = 'Hydrant'; }
+    else state.sourceHydrant = null;
+  }
+  function renderLay() {
+    var lay = state.settings.lay;
+    $('layRev').classList.toggle('on', lay === 'reverse'); $('layFwd').classList.toggle('on', lay === 'forward');
+    $('layRev').disabled = $('layFwd').disabled = state.drawing;
+    $('layHint').textContent = lay ? LAY[lay].hint : 'Select a lay type first. It sets the click order.';
+    $('steps').innerHTML = (lay ? LAY[lay].steps : ['Select <b>Reverse lay</b> or <b>Forward lay</b>.', 'Select <b>Trace route</b>.', 'Click the hose path on the map.', 'Select <b>Finish</b>.']).map(function (t) { return '<li>' + t + '</li>'; }).join('');
+    $('btnDraw').disabled = !lay;
+  }
+  function setLay(v) {
+    if (state.drawing) return;
+    state.settings.lay = v; renderLay(); render(); autosave();
+    if (!state.points.length) setStatus(LAY[v].name + ' selected. Select Trace route. ' + (v === 'reverse' ? 'Click the attack engine position first.' : 'Click the water source first.'));
+  }
+  map.on('click', function (e) {
+    if (state.drawing) { addPoint(e.latlng); return; }
+    var h = nearestHydrant(e.latlng, 10);
+    if (h) L.popup().setLatLng([h[1], h[0]]).setContent('<b>Hydrant ' + esc(h[2] || '(no number)') + '</b><br>District code: ' + esc(h[3]) + '<br>County data, 2015. No flow value.').openOn(map);
+  });
+
+  /* ---------- route drawing ---------- */
+  function addPoint(latlng) {
+    var p = { lat: latlng.lat, lng: latlng.lng }, rev = state.settings.lay === 'reverse';
+    // points are kept in water order: source first, attack engine last
+    if (rev) { state.points.unshift(p); state.sourceHydrant = null; }
+    else { state.points.push(p); if (state.points.length === 1) snapSource(); }
+    state.manual = {};
+    drawRoute(); drawStatus();
+  }
+  function drawStatus() {
+    var n = state.points.length;
+    if (!state.drawing) return;
+    if (state.settings.lay === 'reverse') {
+      if (n === 0) setStatus('Reverse lay. Click the attack engine position on the map.');
+      else if (n === 1) setStatus('Attack engine position set. Now click along the hose path, back to the water source.');
+      else setStatus(n + ' points, ' + fmt(RelayCore.routeFt(state.points)) + ' ft on the map. Click the water source last. Then select Finish.');
+      return;
+    }
+    if (n === 0) setStatus('Forward lay. Click the water source on the map.');
+    else if (n === 1) setStatus((state.sourceHydrant ? 'Source set at hydrant ' + (state.sourceHydrant.num || '(no number)') + '. ' : 'Source set. ') + 'Now click along the hose path.');
+    else setStatus(n + ' points, ' + fmt(RelayCore.routeFt(state.points)) + ' ft on the map. Click the attack engine position last. Then select Finish.');
+  }
+  function drawRoute() {
+    routeGroup.clearLayers(); vertexGroup.clearLayers();
+    var ll = state.points.map(function (p) { return [p.lat, p.lng]; });
+    if (ll.length > 1) {
+      L.polyline(ll, { color: '#111', weight: 8, opacity: 0.85, interactive: false }).addTo(routeGroup);
+      L.polyline(ll, { color: '#ffd21f', weight: 4, interactive: false }).addTo(routeGroup);
+    }
+    state.points.forEach(function (p, i) {
+      var m = L.marker([p.lat, p.lng], { draggable: true, icon: L.divIcon({ className: '', html: '<div class="vx"></div>', iconSize: [12, 12], iconAnchor: [6, 6] }), title: 'Drag to move this point' });
+      m.on('dragend', function () {
+        var q = m.getLatLng(); state.points[i] = { lat: q.lat, lng: q.lng };
+        if (i === 0 && !(state.drawing && state.settings.lay === 'reverse')) snapSource();
+        state.manual = {}; drawRoute(); if (!state.drawing) compute();
+      });
+      m.addTo(vertexGroup);
+    });
+    $('btnUndo').disabled = !state.drawing || state.points.length === 0;
+    $('btnFinish').disabled = !state.drawing || state.points.length < 2;
+    $('btnClear').disabled = state.points.length === 0;
+  }
+  function setDrawing(on) {
+    state.drawing = on;
+    $('map').classList.toggle('drawing', on);
+    $('btnDraw').classList.toggle('on', on);
+    $('btnDraw').textContent = on ? 'Tracing...' : (state.points.length ? 'Add points' : 'Trace route');
+    drawRoute(); renderLay();
+  }
+  $('btnDraw').onclick = function () { if (state.drawing) return; if (!state.settings.lay) { setStatus('Select Reverse lay or Forward lay first.', 'err'); return; } setDrawing(true); drawStatus(); };
+  $('layRev').onclick = function () { setLay('reverse'); };
+  $('layFwd').onclick = function () { setLay('forward'); };
+  $('btnUndo').onclick = function () { if (state.settings.lay === 'reverse') state.points.shift(); else state.points.pop(); if (!state.points.length || state.settings.lay === 'reverse') state.sourceHydrant = null; state.manual = {}; drawRoute(); drawStatus(); };
+  $('btnFinish').onclick = finish;
+  $('btnClear').onclick = function () {
+    state.points = []; state.sourceHydrant = null; state.manual = {}; state.samples = state.elevFt = state.profile = null; state.results = {};
+    state.settings.lay = null; // no default lay: select it for each new route
+    setDrawing(false); engineGroup.clearLayers(); render(); setStatus('Route cleared. Select Reverse lay or Forward lay to start again.'); autosave();
+  };
+  document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && state.drawing && state.points.length > 1 && !/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) finish(); });
+  function finish() { if (state.points.length < 2) return; snapSource(); setDrawing(false); compute(); }
+
+  /* ---------- ground heights ---------- */
+  var elevCache = new Map(), computeToken = 0;
+  function key(p) { return p.lat.toFixed(6) + ',' + p.lng.toFixed(6); }
+  function fetchT(url, opts, ms) {
+    var ctl = new AbortController(), t = setTimeout(function () { ctl.abort(); }, ms);
+    return fetch(url, Object.assign({ signal: ctl.signal }, opts || {})).finally(function () { clearTimeout(t); });
+  }
+  async function samplesReq(chunk) {
+    var body = new URLSearchParams({ geometry: JSON.stringify({ points: chunk.map(function (p) { return [+p.lng.toFixed(7), +p.lat.toFixed(7)]; }), spatialReference: { wkid: 4326 } }),
+      geometryType: 'esriGeometryMultipoint', returnFirstValueOnly: 'true', f: 'json' });
+    var r = await fetchT(USGS_SAMPLES, { method: 'POST', body: body }, 30000);
+    if (!r.ok) throw new Error('USGS answered ' + r.status);
+    var d = await r.json();
+    if (!d.samples || d.samples.length !== chunk.length) throw new Error('USGS returned ' + (d.samples ? d.samples.length : 0) + ' of ' + chunk.length + ' points');
+    var out = new Array(chunk.length);
+    d.samples.forEach(function (s) { var v = parseFloat(s.value); if (!isFinite(v)) throw new Error('no LiDAR value at one point'); out[s.locationId] = v * M2FT; });
+    for (var i = 0; i < out.length; i++) if (out[i] === undefined) throw new Error('USGS skipped a point');
+    return out;
+  }
+  async function epqsReq(chunk) {
+    var out = new Array(chunk.length), next = 0;
+    async function worker() {
+      while (next < chunk.length) {
+        var i = next++, p = chunk[i];
+        var r = await fetchT(EPQS + '?x=' + p.lng.toFixed(7) + '&y=' + p.lat.toFixed(7) + '&wkid=4326&units=Feet&includeDate=false', null, 20000);
+        if (!r.ok) throw new Error('USGS point service answered ' + r.status);
+        var v = parseFloat((await r.json()).value); if (!isFinite(v)) throw new Error('no ground height at one point');
+        out[i] = v;
+      }
+    }
+    await Promise.all([worker(), worker(), worker(), worker(), worker()]);
+    return out;
+  }
+  async function getElevations(pts) {
+    var needPts = [], seen = {};
+    pts.forEach(function (p) { var k = key(p); if (!elevCache.has(k) && !seen[k]) { seen[k] = 1; needPts.push(p); } });
+    for (var i = 0; i < needPts.length; i += 150) {
+      var chunk = needPts.slice(i, i + 150), vals;
+      try { vals = await samplesReq(chunk); } catch (e1) { vals = await epqsReq(chunk); }
+      chunk.forEach(function (p, j) { elevCache.set(key(p), vals[j]); });
+    }
+    return pts.map(function (p) { return elevCache.get(key(p)); });
+  }
+  async function compute() {
+    if (state.points.length < 2) { state.profile = null; render(); return; }
+    var token = ++computeToken;
+    setStatus('Reading ground heights from USGS LiDAR...', 'busy');
+    try {
+      var samples = RelayCore.densify(state.points, 25, 400);
+      var elev = await getElevations(samples);
+      if (token !== computeToken) return;
+      state.samples = samples; state.elevFt = elev;
+      recalc();
+      setStatus('Route calculated. Select a flow row to see its engine positions. Drag a relay engine to move it.');
+    } catch (err) {
+      if (token !== computeToken) return;
+      setStatus('The page could not read ground heights. Check the internet connection. Then select Finish or move a point to try again. (' + err.message + ')', 'err');
+    }
+  }
+  function recalc() {
+    if (!state.elevFt || !state.samples) { render(); return; }
+    var s = state.settings;
+    state.profile = RelayCore.buildProfile(state.samples, state.elevFt, s.slack / 100);
+    state.results = {};
+    FLOWS.forEach(function (q) { state.results[q] = RelayCore.solve(state.profile, { gpm: q, hose: s.hose, basis: s.basis, cap: s.cap, residual: s.residual, maxSeg: s.hosePerEngine }, state.manual[q]); });
+    render(); autosave();
+  }
+
+  /* ---------- results ---------- */
+  function verdict(r) {
+    if (r.over || !r.placed) return '<span class="pill bad">Over the limit</span>';
+    if (r.relays.length === 0) return '<span class="pill ok">Source engine alone</span>';
+    return '<span class="pill relay">' + r.relays.length + ' relay engine' + (r.relays.length > 1 ? 's' : '') + '</span>';
+  }
+  function engName(i, total) { return i === 0 ? 'Source' : 'Relay ' + i; }
+  function engineRows(r) {
+    var rows = r.segs.map(function (g, i) {
+      return '<tr><td><span class="eng ' + (i === 0 ? 'S' : 'R') + '">' + (i === 0 ? 'S' : 'R' + i) + '</span> ' + engName(i) + '</td><td class="n">' + fmt(g.at) + ' ft</td><td class="n">' + sign(g.climb) + ' ft</td><td class="n">' +
+        fmt(up100(g.hose)) + ' ft</td><td class="n"><b' + (g.over ? ' style="color:var(--red)"' : '') + '>' + g.pdp + '</b></td></tr>';
+    }).join('');
+    var last = r.segs[r.segs.length - 1], total = state.profile.h[state.profile.n - 1];
+    rows += '<tr><td><span class="eng A">A</span> Attack</td><td class="n">' + fmt(total) + ' ft</td><td class="n" colspan="3">intake ' + Math.round(last.intake) + ' PSI</td></tr>';
+    return rows;
+  }
+  // the lays in the order the engines make them
+  function layPlan(r) {
+    var segs = r.segs, n = segs.length, lay = state.settings.lay, out = [], k;
+    function pos(i) { return i === 0 ? 'the water source' : (i === n ? 'the attack engine' : 'the Relay ' + i + ' position'); }
+    function cap1(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+    if (lay === 'reverse') for (k = n - 1; k >= 0; k--) out.push({ path: cap1(pos(k + 1)) + ' to ' + pos(k), ft: up100(segs[k].hose), then: 'Pumps as ' + (k === 0 ? 'Source' : 'Relay ' + k), over: segs[k].overHose });
+    else if (lay === 'forward') for (k = 0; k < n; k++) out.push({ path: cap1(pos(k)) + ' to ' + pos(k + 1), ft: up100(segs[k].hose), then: k === n - 1 ? 'Stops at the attack engine' : 'Pumps as Relay ' + (k + 1), over: segs[k].overHose });
+    return out;
+  }
+  function layBlock(r) {
+    var lay = state.settings.lay;
+    if (!lay) return '<h3 class="sub">Hose lay order</h3><p class="note">Select Reverse lay or Forward lay to see which engine lays each section.</p>';
+    var h = '<h3 class="sub">Hose lay order: ' + LAY[lay].name.toLowerCase() + ', ' + fmt(state.flow) + ' GPM</h3><table class="wrap"><thead><tr><th>Lay</th><th>Engine lays from</th><th class="n">Hose</th><th>Then</th></tr></thead><tbody>';
+    layPlan(r).forEach(function (x, i) { h += '<tr><td>' + (i + 1) + '</td><td>' + x.path + '</td><td class="n" style="white-space:nowrap"><b' + (x.over ? ' style="color:var(--red)"' : '') + '>' + fmt(x.ft) + ' ft</b></td><td>' + x.then + '</td></tr>'; });
+    h += '</tbody></table><p class="note">' + (lay === 'reverse'
+      ? 'Each engine starts at the attack end of its section. It lays hose back to its position and pumps there.'
+      : 'Each engine starts at the source end of its section. One more engine goes to the water source to pump. It lays no supply hose. The attack engine can make the last lay on its way in.') + '</p>';
+    return h;
+  }
+  function warnings(r, st) {
+    var w = [], s = state.settings;
+    if (r.over || !r.placed) w.push(['bad', 'This layout needs more than ' + s.cap + ' PSI. Add a relay engine, lower the flow, or raise the maximum PDP in Settings.']);
+    if (r.overLdh) w.push(['bad', 'Downhill run: hose pressure reaches ' + Math.round(r.peak) + ' PSI at ' + fmt(r.peakAt) + ' ft. This is above the 200 PSI LDH limit. Gate down or change the layout.']);
+    if (r.overHose) w.push(['bad', 'One hose section is longer than ' + fmt(s.hosePerEngine) + ' ft, the supply hose on one engine. Move the relay engine, or select Reset to automatic.']);
+    if (!r.auto) w.push(['', 'Relay positions for this flow were moved by hand. <button class="btn small" id="btnAuto">Reset to automatic</button>']);
+    if (Math.abs(st.grade) >= 0.10) w.push(['', 'Steepest grade is ' + Math.round(Math.abs(st.grade) * 100) + '% near ' + fmt(st.gradeAt) + ' ft. Check apparatus access, more so in snow and ice.']);
+    if (st.highAbove - Math.max(0, st.net) > 15) w.push(['', 'The route goes over a high point ' + fmt(st.highAbove) + ' ft above the source. The page includes it in each PDP.']);
+    return w.map(function (x) { return '<div class="warn ' + x[0] + '">' + x[1] + '</div>'; }).join('');
+  }
+  function sourceLabel() {
+    return state.sourceType + (state.sourceType === 'Hydrant' && state.sourceHydrant ? ' ' + (state.sourceHydrant.num || '(no number)') : '');
+  }
+  function renderResults() {
+    var el = $('results'), p = state.profile;
+    $('btnCard').disabled = $('btnSave').disabled = !p;
+    if (!p) { el.innerHTML = '<div class="empty">No route yet.</div>'; return; }
+    var st = RelayCore.stats(p), s = state.settings, r = state.results[state.flow], hoseLay = up100(st.hoseFt);
+    var h = '<div class="facts">' +
+      '<div class="fact"><span>Hose to lay</span><b>' + fmt(hoseLay) + ' ft</b><small>' + fmt(st.mapFt) + ' ft on the map, plus ' + s.slack + '% slack</small></div>' +
+      '<div class="fact"><span>Climb, source to attack</span><b>' + sign(st.net) + ' ft</b><small>' + fmt(st.startZ) + ' ft to ' + fmt(st.endZ) + ' ft</small></div>' +
+      '<div class="fact"><span>Steepest grade</span><b>' + Math.round(Math.abs(st.grade) * 100) + '%</b><small>over 100 ft, near ' + fmt(st.gradeAt) + ' ft</small></div>' +
+      '<div class="fact"><span>Supply line lay</span><b>' + (s.lay ? LAY[s.lay].name : 'Not selected') + '</b><small>' + (s.lay === 'reverse' ? 'attack engine back to the source' : s.lay === 'forward' ? 'source to the attack engine' : 'select it in step 2') + '</small></div></div>';
+    h += '<table id="flowTable"><thead><tr><th>Flow</th><th class="n">FL/100 ft</th><th>Layout</th><th class="n">Top PDP</th></tr></thead><tbody>';
+    FLOWS.forEach(function (q) {
+      var x = state.results[q];
+      h += '<tr data-q="' + q + '" class="' + (q === state.flow ? 'sel' : '') + '"><td><b>' + fmt(q) + '</b> GPM</td><td class="n">' + (Math.round(x.fl100 * 10) / 10) + ' PSI</td><td>' + verdict(x) + '</td><td class="n"><b>' + x.maxPdp + '</b></td></tr>';
+    });
+    h += '</tbody></table>';
+    h += '<div class="budget"><b>' + fmt(state.flow) + ' GPM pressure demand:</b> friction ' + Math.round(r.frictionAll) + ' + climb ' + Math.round(r.climbAll) + ' + intake ' + s.residual + ' = <b>' + Math.round(r.frictionAll + r.climbAll + s.residual) + ' PSI</b>. One engine gives ' + s.cap + ' PSI and lays a maximum of ' + fmt(s.hosePerEngine) + ' ft.</div>';
+    h += '<h3 class="sub">Engines at ' + fmt(state.flow) + ' GPM</h3><table><thead><tr><th>Engine</th><th class="n">Position</th><th class="n">Climb</th><th class="n">Hose out</th><th class="n">PDP</th></tr></thead><tbody>' + engineRows(r) + '</tbody></table>';
+    h += layBlock(r);
+    h += warnings(r, st);
+    el.innerHTML = h;
+    Array.prototype.forEach.call(el.querySelectorAll('#flowTable tbody tr'), function (tr) { tr.onclick = function () { state.flow = +tr.getAttribute('data-q'); render(); }; });
+    var ba = $('btnAuto'); if (ba) ba.onclick = function () { delete state.manual[state.flow]; recalc(); };
+  }
+  function nearestSample(latlng) {
+    var best = 0, bd = Infinity;
+    for (var i = 0; i < state.samples.length; i++) { var d = RelayCore.distFt(state.samples[i], latlng); if (d < bd) { bd = d; best = i; } }
+    return best;
+  }
+  function engIcon(cls, text) { return L.divIcon({ className: '', html: '<div class="em ' + cls + '">' + text + '</div>', iconSize: [30, 30], iconAnchor: [15, 15] }); }
+  function renderEngines() {
+    engineGroup.clearLayers();
+    var p = state.profile, r = state.results[state.flow];
+    if (!p || !r) return;
+    var n = p.n, relayMarkers = [];
+    L.marker(state.samples[0], { icon: engIcon('S', 'S'), interactive: true, title: 'Source engine, PDP ' + r.segs[0].pdp, zIndexOffset: 500 }).addTo(engineGroup);
+    r.relays.forEach(function (idx, k) {
+      var m = L.marker(state.samples[idx], { icon: engIcon('R', 'R' + (k + 1)), draggable: true, title: 'Relay ' + (k + 1) + ', PDP ' + r.segs[k + 1].pdp + '. Drag along the route to move it.', zIndexOffset: 600 });
+      m._idx = idx;
+      m.on('drag', function (e) { var i = nearestSample(e.latlng); m._idx = i; m.setLatLng(state.samples[i]); });
+      m.on('dragend', function () { state.manual[state.flow] = relayMarkers.map(function (x) { return Math.min(n - 2, Math.max(1, x._idx)); }); recalc(); });
+      relayMarkers.push(m); m.addTo(engineGroup);
+    });
+    L.marker(state.samples[n - 1], { icon: engIcon('A', 'A'), title: 'Attack engine', zIndexOffset: 500 }).addTo(engineGroup);
+  }
+
+  /* ---------- profile chart ---------- */
+  function niceStep(span, target) {
+    var raw = span / target, pow = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / pow;
+    return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * pow;
+  }
+  var chart = null;
+  function renderProfile() {
+    var box = $('profile'), p = state.profile, r = state.results[state.flow];
+    if (!p || !r) { box.innerHTML = ''; chart = null; $('profileRead').textContent = 'Ground height and hose pressure along the route'; return; }
+    var W = Math.max(320, box.clientWidth), H = Math.max(120, box.clientHeight), ml = 54, mr = 50, mt = 20, mb = 24;
+    var total = p.h[p.n - 1], zmin = Math.min.apply(null, p.z), zmax = Math.max.apply(null, p.z), zpad = Math.max(4, (zmax - zmin) * 0.12);
+    zmin -= zpad; zmax += zpad;
+    var pmax = Math.ceil(Math.max(state.settings.cap, r.peak, r.maxPdp, 100) / 50) * 50;
+    var X = function (h) { return ml + h / total * (W - ml - mr); }, Y = function (z) { return H - mb - (z - zmin) / (zmax - zmin) * (H - mt - mb); },
+      YP = function (v) { return H - mb - Math.max(0, v) / pmax * (H - mt - mb); };
+    var s = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system,Segoe UI,Arial,sans-serif" font-size="10.5">';
+    var zs = niceStep(zmax - zmin, 4), xs = niceStep(total, Math.max(4, Math.floor(W / 110)));
+    for (var z = Math.ceil(zmin / zs) * zs; z <= zmax; z += zs) s += '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + Y(z) + '" y2="' + Y(z) + '" stroke="#e3e7eb"/><text x="' + (ml - 5) + '" y="' + (Y(z) + 3.5) + '" text-anchor="end" fill="#5d6670">' + fmt(z) + ' ft</text>';
+    for (var x = 0; x <= total + 1; x += xs) s += '<line x1="' + X(x) + '" x2="' + X(x) + '" y1="' + (H - mb) + '" y2="' + (H - mb + 4) + '" stroke="#8a939c"/><text x="' + X(x) + '" y="' + (H - 7) + '" text-anchor="middle" fill="#5d6670">' + fmt(x) + ' ft</text>';
+    for (var v = 0; v <= pmax; v += pmax <= 200 ? 50 : 100) s += '<text x="' + (W - mr + 14) + '" y="' + (YP(v) + 3.5) + '" fill="#b3261e">' + v + '</text>';
+    var g = 'M' + X(0) + ',' + (H - mb);
+    for (var i = 0; i < p.n; i++) g += 'L' + X(p.h[i]).toFixed(1) + ',' + Y(p.z[i]).toFixed(1);
+    s += '<path d="' + g + 'L' + X(total) + ',' + (H - mb) + 'Z" fill="#cfd9c4"/>';
+    var gl = ''; for (i = 0; i < p.n; i++) gl += (i ? 'L' : 'M') + X(p.h[i]).toFixed(1) + ',' + Y(p.z[i]).toFixed(1);
+    s += '<path d="' + gl + '" fill="none" stroke="#3f5a2a" stroke-width="2"/>';
+    s += '<line x1="' + ml + '" x2="' + (W - mr) + '" y1="' + YP(state.settings.cap) + '" y2="' + YP(state.settings.cap) + '" stroke="#b3261e" stroke-dasharray="2 4" opacity=".55"/>';
+    var pl = ''; r.line.forEach(function (pt, k) { pl += (k ? 'L' : 'M') + X(pt[0]).toFixed(1) + ',' + YP(pt[1]).toFixed(1); });
+    s += '<path d="' + pl + '" fill="none" stroke="#b3261e" stroke-width="1.8"/>';
+    var marks = r.segs.map(function (sg, k) { return [sg.at, k === 0 ? 'S' : 'R' + k, k === 0 ? '#1f5fa8' : '#c97a00', 'PDP ' + sg.pdp]; });
+    marks.push([total, 'A', '#b3261e', 'in ' + Math.round(r.segs[r.segs.length - 1].intake)]);
+    marks.forEach(function (m, k) {
+      var mx = X(m[0]), anchor = k === marks.length - 1 ? 'end' : 'start', tx = k === marks.length - 1 ? mx - 14 : mx + 14;
+      s += '<line x1="' + mx + '" x2="' + mx + '" y1="' + mt + '" y2="' + (H - mb) + '" stroke="' + m[2] + '" stroke-dasharray="4 3"/><circle cx="' + mx + '" cy="' + (mt - 8) + '" r="9" fill="' + m[2] + '"/>' +
+        '<text x="' + mx + '" y="' + (mt - 4.5) + '" text-anchor="middle" fill="#fff" font-weight="700" font-size="9.5">' + m[1] + '</text><text x="' + tx + '" y="' + (mt - 4.5) + '" text-anchor="' + anchor + '" fill="#1c2126" font-weight="600">' + m[3] + '</text>';
+    });
+    s += '<line id="pcur" x1="0" x2="0" y1="' + mt + '" y2="' + (H - mb) + '" stroke="#111" opacity="0"/>';
+    s += '<text x="' + (W - 4) + '" y="' + (H - 7) + '" text-anchor="end" fill="#b3261e">PSI</text></svg>';
+    box.innerHTML = s;
+    chart = { W: W, ml: ml, mr: mr, total: total };
+    $('profileRead').textContent = fmt(state.flow) + ' GPM. Green: ground height. Red: hose pressure. Dotted: maximum PDP.';
+  }
+  $('profile').addEventListener('mousemove', function (e) {
+    if (!chart || !state.profile) return;
+    var rect = $('profile').getBoundingClientRect(), xv = (e.clientX - rect.left) / rect.width * chart.W;
+    var h = Math.min(chart.total, Math.max(0, (xv - chart.ml) / (chart.W - chart.ml - chart.mr) * chart.total)), p = state.profile, i = 0;
+    while (i < p.n - 1 && p.h[i + 1] < h) i++;
+    if (i < p.n - 1 && h - p.h[i] > p.h[i + 1] - h) i++;
+    var line = state.results[state.flow].line, pr = null, bestD = Infinity;
+    line.forEach(function (pt) { var d = Math.abs(pt[0] - p.h[i]); if (d <= bestD) { bestD = d; pr = pt[1]; } });
+    var cur = document.getElementById('pcur'); if (cur) { var cx = chart.ml + p.h[i] / chart.total * (chart.W - chart.ml - chart.mr); cur.setAttribute('x1', cx); cur.setAttribute('x2', cx); cur.setAttribute('opacity', '.5'); }
+    $('profileRead').textContent = fmt(p.h[i]) + ' ft of hose: ground ' + fmt(p.z[i]) + ' ft (' + sign(p.z[i] - p.z[0]) + ' ft from source), hose pressure ' + Math.round(pr) + ' PSI';
+    if (!hoverMarker) hoverMarker = L.marker(state.samples[i], { icon: L.divIcon({ className: '', html: '<div class="hov"></div>', iconSize: [12, 12], iconAnchor: [6, 6] }), interactive: false, zIndexOffset: 900 }).addTo(map);
+    else hoverMarker.setLatLng(state.samples[i]);
+  });
+  $('profile').addEventListener('mouseleave', function () { if (hoverMarker) { map.removeLayer(hoverMarker); hoverMarker = null; } var cur = document.getElementById('pcur'); if (cur) cur.setAttribute('opacity', '0'); });
+
+  /* ---------- card ---------- */
+  function renderCard() {
+    var p = state.profile; if (!p) { $('cardHead').innerHTML = $('cardBody').innerHTML = ''; return; }
+    var st = RelayCore.stats(p), s = state.settings, today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    $('cardHead').innerHTML = '<div class="t"><div><div class="k">YHFD relay pumping pre-plan</div><h1>' + esc(state.name || 'Unnamed location') + '</h1></div><div class="k" style="text-align:right">Pilot. Verify on site.<br>Made ' + today + '</div></div>' +
+      '<div class="facts4"><div><span>Water source</span><b>' + esc(sourceLabel()) + '</b></div><div><span>Supply line lay</span><b>' + (s.lay ? LAY[s.lay].name : 'Not selected') + '</b></div><div><span>Supply hose to lay</span><b>' + fmt(up100(st.hoseFt)) + ' ft of ' + s.hose + '"</b></div>' +
+      '<div><span>Climb, source to attack</span><b>' + sign(st.net) + ' ft</b></div><div><span>Steepest grade</span><b>' + Math.round(Math.abs(st.grade) * 100) + '%</b></div></div>';
+    var maxCols = 0; FLOWS.forEach(function (q) { maxCols = Math.max(maxCols, state.results[q].segs.length); });
+    var h = '<table' + (maxCols > 3 ? ' class="tight"' : '') + '><thead><tr><th>Flow</th><th>Source engine</th>';
+    for (var k = 1; k < maxCols; k++) h += '<th>Relay ' + k + '</th>';
+    h += '<th>Attack engine</th></tr></thead><tbody>';
+    FLOWS.forEach(function (q) {
+      var r = state.results[q];
+      h += '<tr><td><b>' + fmt(q) + ' GPM</b>' + (q === state.flow ? '<br>(on the map)' : '') + '</td>';
+      for (var k = 0; k < maxCols; k++) {
+        var g = r.segs[k], lays = '';
+        if (g && s.lay === 'reverse') lays = '<br><b>Lays ' + fmt(up100(g.hose)) + ' ft</b> back to here';
+        if (g && s.lay === 'forward') lays = k === 0 ? '<br>Lays no supply hose' : '<br><b>Lays ' + fmt(up100(r.segs[k - 1].hose)) + ' ft</b> to here';
+        h += g ? '<td><b>PDP ' + g.pdp + (g.over ? ' (over limit)' : '') + '</b> ' + (k === 0 ? 'at the source' : 'at ' + fmt(g.at) + ' ft') + '<br>' + fmt(up100(g.hose)) + ' ft out, ' + sign(g.climb) + ' ft climb' + lays + '</td>' : '<td>Not needed</td>';
+      }
+      h += '<td>Intake ' + Math.round(r.segs[r.segs.length - 1].intake) + ' PSI<br>at ' + fmt(p.h[p.n - 1]) + ' ft' +
+        (s.lay === 'forward' ? '<br><b>Last lay: ' + fmt(up100(r.segs[r.segs.length - 1].hose)) + ' ft</b>' : '') + '</td></tr>';
+    });
+    h += '</tbody></table><div class="notes"><b>Notes:</b> ' + esc(state.notes) + '</div>';
+    h += '<div class="foot">Rules: ' + s.hose + '" LDH, friction loss from the YHFD chauffeur chart (' + (s.basis === 'chart' ? 'chart table' : 'formula') + '), 0.5 PSI for each foot of climb, maximum PDP ' + s.cap + ' PSI, intake ' + s.residual + ' PSI, hose slack ' + s.slack + '%, one engine lays each section, maximum ' + fmt(s.hosePerEngine) + ' ft. ' +
+      (s.lay === 'reverse' ? 'Reverse lay: each engine starts at the attack end of its section, lays hose back to its position, and pumps there. ' : s.lay === 'forward' ? 'Forward lay: each engine starts at the source end of its section and lays hose to its position. One more engine pumps at the source. ' : '') +
+      'Ground heights: USGS 3DEP LiDAR. Hydrants: Westchester County GIS, 2015. This card does not show the flow the water source can give. Planning aid only. The pump operator sets pressures from the gauges on scene.</div>';
+    $('cardBody').innerHTML = h;
+  }
+  function routeBounds() { return L.latLngBounds(state.points.map(function (p) { return [p.lat, p.lng]; })); }
+  function setCard(on) {
+    document.body.classList.toggle('card', on);
+    if (on) { renderCard(); map.removeLayer(vertexGroup); } else vertexGroup.addTo(map);
+    setTimeout(function () { map.invalidateSize(); if (on && state.points.length > 1) map.fitBounds(routeBounds(), { padding: [45, 45], maxZoom: 19 }); renderProfile(); }, 60);
+  }
+  $('btnCard').onclick = function () { setCard(true); };
+  $('btnBack').onclick = function () { setCard(false); };
+  $('btnPrint').onclick = function () { window.print(); };
+
+  /* ---------- save, open, settings ---------- */
+  function planData() {
+    return { app: 'yhfd-relay-calculator', version: 1, savedAt: new Date().toISOString(), name: state.name, notes: state.notes, sourceType: state.sourceType,
+      sourceHydrant: state.sourceHydrant, points: state.points, flow: state.flow, settings: state.settings, manual: state.manual };
+  }
+  function loadPlan(d, quiet) {
+    if (!d || !Array.isArray(d.points)) throw new Error('This file is not a relay plan.');
+    state.name = d.name || ''; state.notes = d.notes || ''; state.sourceType = d.sourceType || 'Hydrant'; state.sourceHydrant = d.sourceHydrant || null;
+    state.points = d.points.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lng); }).map(function (p) { return { lat: +p.lat, lng: +p.lng }; });
+    state.flow = FLOWS.indexOf(d.flow) >= 0 ? d.flow : 750; state.settings = Object.assign({}, DEFAULTS, d.settings || {}); state.manual = d.manual || {};
+    state.samples = state.elevFt = state.profile = null; state.results = {};
+    syncInputs(); setDrawing(false);
+    if (state.points.length > 1) { map.fitBounds(routeBounds(), { padding: [60, 60], maxZoom: 19 }); compute(); } else { render(); if (!quiet) setStatus('Plan opened. It has no route.'); }
+  }
+  function autosave() { try { localStorage.setItem(STORE, JSON.stringify(planData())); } catch (e) { /* storage is optional */ } }
+  $('btnSave').onclick = function () {
+    var blob = new Blob([JSON.stringify(planData(), null, 1)], { type: 'application/json' }), a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'Relay Pre-Plan - ' + (state.name || 'unnamed').replace(/[\\/:*?"<>|]+/g, ' ').trim() + '.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  };
+  $('btnOpen').onclick = function () { $('fileOpen').click(); };
+  $('fileOpen').onchange = function () {
+    var f = this.files[0]; if (!f) return; var rd = new FileReader();
+    rd.onload = function () { try { loadPlan(JSON.parse(rd.result)); } catch (e) { setStatus('The page could not open that file. ' + e.message, 'err'); } };
+    rd.readAsText(f); this.value = '';
+  };
+  function syncInputs() {
+    var s = state.settings;
+    $('planName').value = state.name; $('planNotes').value = state.notes; $('sourceType').value = state.sourceType;
+    $('setHose').value = s.hose; $('setBasis').value = s.basis; $('setCap').value = s.cap; $('setRes').value = s.residual; $('setSlack').value = s.slack; $('setHosePer').value = s.hosePerEngine;
+  }
+  function bind(id, fn) { $(id).addEventListener('change', fn); }
+  $('planName').addEventListener('input', function () { state.name = this.value; autosave(); });
+  $('planNotes').addEventListener('input', function () { state.notes = this.value; autosave(); });
+  bind('sourceType', function () { state.sourceType = this.value; autosave(); });
+  bind('setHose', function () { state.settings.hose = +this.value; state.manual = {}; recalc(); });
+  bind('setBasis', function () { state.settings.basis = this.value; state.manual = {}; recalc(); });
+  bind('setCap', function () { state.settings.cap = +this.value; state.manual = {}; recalc(); });
+  bind('setRes', function () { state.settings.residual = +this.value; state.manual = {}; recalc(); });
+  bind('setSlack', function () { state.settings.slack = +this.value; state.manual = {}; recalc(); });
+  bind('setHosePer', function () { var v = +this.value; state.settings.hosePerEngine = v >= 100 ? v : DEFAULTS.hosePerEngine; state.manual = {}; recalc(); });
+
+  /* ---------- address search ---------- */
+  $('geoForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var text = $('geoText').value.trim(); if (!text) return;
+    setStatus('Looking for the address...', 'busy');
+    try {
+      var r = await fetchT(COUNTY + '/geocoding/GeocodeServer/findAddressCandidates?SingleLine=' + encodeURIComponent(/yorktown|105\d\d|ny\b/i.test(text) ? text : text + ', Yorktown Heights, NY') + '&outSR=4326&maxLocations=1&f=json', null, 20000);
+      var d = await r.json(), c = d.candidates && d.candidates[0];
+      if (!c) { setStatus('No match for that address. Check the spelling, or move the map by hand.', 'err'); return; }
+      if (geoMarker) map.removeLayer(geoMarker);
+      geoMarker = L.circleMarker([c.location.y, c.location.x], { radius: 9, color: '#1f5fa8', weight: 3, fillOpacity: 0.15, interactive: false }).addTo(map);
+      map.setView([c.location.y, c.location.x], 18);
+      if (!state.name) { state.name = c.address.replace(/, NY.*$/i, ''); $('planName').value = state.name; }
+      setStatus('Found: ' + c.address + '. Switch to the aerial photo to see the driveway. Then select Trace route.');
+    } catch (err) { setStatus('The address search did not answer. Move the map by hand. (' + err.message + ')', 'err'); }
+  });
+
+  function render() { renderResults(); renderEngines(); renderProfile(); if (document.body.classList.contains('card')) renderCard(); $('btnDraw').textContent = state.drawing ? 'Tracing...' : (state.points.length ? 'Add points' : 'Trace route'); renderLay(); }
+  var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(renderProfile, 150); });
+
+  syncInputs(); drawRoute(); render();
+  try { var saved = localStorage.getItem(STORE); if (saved) { var d = JSON.parse(saved); if (d && d.points && d.points.length > 1) loadPlan(d, true); else if (d) { state.settings = Object.assign({}, DEFAULTS, d.settings || {}, { lay: null }); syncInputs(); renderLay(); } } } catch (e) { /* storage is optional */ }
+  window.__relay = { state: state, map: map };
+})();
+</script>
+</body>
+</html>
