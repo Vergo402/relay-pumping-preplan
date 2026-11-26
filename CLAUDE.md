@@ -63,8 +63,8 @@ On 2026-11-26, 47 of 47 math checks and 50 of 50 page checks passed on macOS wit
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
 Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `bc20308410d7842a70e7d4f1246dee7f77da2314918be2c45611566eb6a97c15`
-This is the v0.4 build. On 2026-11-26 the copy Alex uses in OneDrive is the v0.3 build (`1578de0c132e717478485b611000a093dc1717129a5399a8ef89bd293a08f761`).
-Claude replaced that copy one time, on a direct request from Alex. Rule 3 still applies.
+This is the v0.4 build. On 2026-11-26 the copy Alex uses in OneDrive is the same file, byte for byte.
+Claude replaced that copy two times (v0.3 and v0.4), each on a direct request from Alex. Rule 3 still applies.
 The v0.2 value was `21e80ce837c58ff39c76c82a0030220d7f9b859dc50db28cb6cfe615406c2e09`.
 
 ## Hydraulic rules
