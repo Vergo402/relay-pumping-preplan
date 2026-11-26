@@ -145,7 +145,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.3 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.4 &middot; Planning aid only. Verify on site.</p></div>
 
     <div class="sec">
       <h2>Fire district</h2>
@@ -189,14 +189,14 @@ body.card #profile{height:1.47in}
         <label class="f">Friction loss values<select id="setBasis"><option value="chart">Chart table</option><option value="formula">Formula (C x Q&sup2; x L)</option></select></label>
       </div>
       <div class="row">
-        <label class="f">Maximum PDP<select id="setCap"><option value="150">150 PSI</option><option value="175">175 PSI</option><option value="200">200 PSI</option></select></label>
+        <label class="f">Maximum PDP<select id="setCap"><option value="150">150 PSI</option><option value="175">175 PSI</option><option value="185">185 PSI</option><option value="200">200 PSI</option></select></label>
         <label class="f">Intake pressure to hold<select id="setRes"><option value="20">20 PSI</option><option value="50">50 PSI</option></select></label>
       </div>
       <div class="row">
         <label class="f">Hose slack allowance<select id="setSlack"><option value="0">0%</option><option value="5">5%</option><option value="10">10%</option><option value="15">15%</option></select></label>
         <label class="f">Supply hose on each engine (ft)<input type="number" id="setHosePer" min="100" step="100"></label>
       </div>
-      <p class="hint">One engine lays each hose section. The page keeps each section within this length. The value is a placeholder. Replace it with the YHFD hose load.</p>
+      <p class="hint">One engine lays each hose section. The page keeps each section within this length. Set the supply hose load of your engines.</p>
       <details><summary>Rules this page uses</summary>
         <ul>
           <li>Friction loss: the YHFD chauffeur chart. The chart table is the default. The formula option gives the chart Max Relay Distance values.</li>
@@ -211,6 +211,13 @@ body.card #profile{height:1.47in}
           <li>Not included: the flow the water source can give, appliance loss, and attack line pressures.</li>
         </ul>
       </details>
+      <div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:10px 0 14px">
+        <b>My defaults</b>
+        <p class="hint" style="margin:2px 0 8px">A new route starts with these values and your fire district.</p>
+        <div class="row"><button class="btn" id="btnSaveDefaults">Save as my defaults</button><button class="btn" id="btnResetDefaults">Reset to YHFD defaults</button></div>
+        <button class="btn" id="btnCopyDefaults" style="width:100%">Save a copy of this page with my defaults</button>
+        <p class="hint" id="defaultsStatus" style="margin:8px 0 0"></p>
+      </div>
     </div>
 
     <div class="sec">
@@ -240,6 +247,7 @@ body.card #profile{height:1.47in}
 
 <script type="application/json" id="district-data">__DISTRICT__</script>
 <script type="application/json" id="hydrant-data">[]</script>
+<script type="application/json" id="user-defaults">null</script>
 <script>/*LEAFLET_JS*/</script>
 
 <script id="core">
@@ -476,12 +484,14 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
 <script id="appjs">
 (function () {
   'use strict';
+  // The page text before any code changes it. A saved copy starts from this text. No earlier script changes the page.
+  var PRISTINE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
   var $ = function (id) { return document.getElementById(id); };
   var COUNTY = 'https://giswww.westchestergov.com/arcgis/rest/services';
   var USGS_SAMPLES = 'https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/getSamples';
   var EPQS = 'https://epqs.nationalmap.gov/v1/json';
   var FLOWS = [500, 750, 1000], M2FT = 3.280839895, STORE = 'yhfd-relay-pilot-v1';
-  var DEFAULTS = { hose: 5, basis: 'chart', cap: 150, residual: 20, slack: 10, hosePerEngine: 1000, lay: null, district: 253 };
+  var DEFAULTS = { hose: 5, basis: 'chart', cap: 185, residual: 20, slack: 10, hosePerEngine: 1000, lay: null, district: 253 };
   var LAY = {
     reverse: { name: 'Reverse lay', hint: 'Trace from the attack engine back to the water source.',
       steps: ['Select <b>Trace route</b>.', 'Click the attack engine position first.', 'Click along the hose path. Follow the driveway back to the road.', 'Click the water source last. A click near a hydrant snaps to it. Select <b>Finish</b>.'] },
@@ -492,6 +502,33 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     profile: null, results: {}, manual: {}, sourceHydrant: null, draft: false, settings: Object.assign({}, DEFAULTS) };
   var districts = JSON.parse($('district-data').textContent).features, district = null, hIn = []; // hIn[i]: is hydrant i inside the district
   var hydrants = JSON.parse($('hydrant-data').textContent); // [lng, lat, number, district]
+
+  /* ---------- defaults: built-in (YHFD), then the file block, then this browser. A later layer wins. ---------- */
+  var DKEY = 'yhfd-relay-defaults-v1', DKEYS = ['district', 'hose', 'basis', 'cap', 'residual', 'slack', 'hosePerEngine'];
+  var fileDefaults = null;
+  try { fileDefaults = JSON.parse($('user-defaults').textContent); } catch (e) { /* no file defaults */ }
+  function inList(id, v) { return [].some.call($(id).options, function (o) { return +o.value === v; }); }
+  var VALID = {
+    district: function (v) { return districts.some(function (f) { return f.properties.id === v; }); },
+    hose: function (v) { return v === 5 || v === 4; },
+    basis: function (v) { return v === 'chart' || v === 'formula'; },
+    cap: function (v) { return inList('setCap', v); },
+    residual: function (v) { return v === 20 || v === 50; },
+    slack: function (v) { return inList('setSlack', v); },
+    hosePerEngine: function (v) { return typeof v === 'number' && isFinite(v) && v >= 100; }
+  };
+  function layer(o) { var r = {}; DKEYS.forEach(function (k) { if (o && VALID[k](o[k])) r[k] = o[k]; }); return r; }
+  function has(o) { return Object.keys(layer(o)).length > 0; }
+  // a saved copy keeps its own browser storage, so the storage of the first page does not replace the file defaults
+  if (has(fileDefaults)) { var ns = '-' + JSON.stringify(layer(fileDefaults)); STORE += ns; DKEY += ns; }
+  function browserDefaults() { try { return JSON.parse(localStorage.getItem(DKEY)); } catch (e) { return null; } }
+  function effDefaults() { return Object.assign({}, DEFAULTS, layer(fileDefaults), layer(browserDefaults())); }
+  function summary(d) {
+    var f = districts.filter(function (x) { return x.properties.id === d.district; })[0] || districts[0];
+    return f.properties.name + ', ' + d.hose + ' inch, ' + d.basis + ', ' + d.cap + ' PSI, ' + d.residual + ' PSI, ' + d.slack + '%, ' + fmt(d.hosePerEngine) + ' ft';
+  }
+  function current() { var d = {}; DKEYS.forEach(function (k) { d[k] = state.settings[k]; }); return d; }
+  state.settings = effDefaults();
 
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
@@ -669,6 +706,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   $('btnClear').onclick = function () {
     state.points = []; state.sourceHydrant = null; state.manual = {}; state.draft = false; state.samples = state.elevFt = state.profile = null; state.results = {};
     state.settings.lay = null; // no default lay: select it for each new route
+    useDefaults(); // a new route starts with the defaults
     setDrawing(false); engineGroup.clearLayers(); render(); setStatus('Route cleared. Select Reverse lay or Forward lay to start again.'); autosave();
   };
   document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && state.drawing && state.points.length > 1 && !/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) finish(); });
@@ -941,7 +979,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     if (!d || !Array.isArray(d.points)) throw new Error('This file is not a relay plan.');
     state.name = d.name || ''; state.notes = d.notes || ''; state.sourceType = d.sourceType || 'Hydrant'; state.sourceHydrant = d.sourceHydrant || null;
     state.points = d.points.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lng); }).map(function (p) { return { lat: +p.lat, lng: +p.lng }; });
-    state.flow = FLOWS.indexOf(d.flow) >= 0 ? d.flow : 750; state.settings = Object.assign({}, DEFAULTS, d.settings || {}); state.manual = d.manual || {}; state.draft = false;
+    state.flow = FLOWS.indexOf(d.flow) >= 0 ? d.flow : 750; state.settings = Object.assign({}, effDefaults(), d.settings || {}); state.manual = d.manual || {}; state.draft = false;
     state.samples = state.elevFt = state.profile = null; state.results = {};
     syncInputs(); setDrawing(false);
     if (state.points.length > 1) { map.fitBounds(routeBounds(), { padding: [60, 60], maxZoom: 19 }); compute(); } else { render(); if (!quiet) setStatus('Plan opened. It has no route.'); }
@@ -958,11 +996,37 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     rd.onload = function () { try { loadPlan(JSON.parse(rd.result)); } catch (e) { setStatus('The page could not open that file. ' + e.message, 'err'); } };
     rd.readAsText(f); this.value = '';
   };
-  function syncInputs() {
+  function syncInputs(keepMap) {
     var s = state.settings;
     $('planName').value = state.name; $('planNotes').value = state.notes; $('sourceType').value = state.sourceType;
-    applyDistrict(s.district); $('setHose').value = s.hose; $('setBasis').value = s.basis; $('setCap').value = s.cap; $('setRes').value = s.residual; $('setSlack').value = s.slack; $('setHosePer').value = s.hosePerEngine;
+    applyDistrict(s.district, false, !keepMap); $('setHose').value = s.hose; $('setBasis').value = s.basis; $('setCap').value = s.cap; $('setRes').value = s.residual; $('setSlack').value = s.slack; $('setHosePer').value = s.hosePerEngine;
   }
+  // set the 7 default settings from the effective defaults; the map stays when the district is the same
+  function useDefaults() {
+    var d = effDefaults(), same = d.district === state.settings.district;
+    DKEYS.forEach(function (k) { state.settings[k] = d[k]; });
+    syncInputs(same);
+  }
+  function showDefaults(prefix) {
+    $('defaultsStatus').textContent = (prefix || '') + 'Defaults in use: ' + (has(browserDefaults()) ? 'yours' : has(fileDefaults) ? 'this file' : 'YHFD') + ' (' + summary(effDefaults()) + ').';
+  }
+  $('btnSaveDefaults').onclick = function () {
+    try { localStorage.setItem(DKEY, JSON.stringify(current())); } catch (e) { $('defaultsStatus').textContent = 'This browser did not allow the save.'; return; }
+    showDefaults('Saved in this browser. ');
+  };
+  $('btnResetDefaults').onclick = function () {
+    try { localStorage.removeItem(DKEY); } catch (e) { /* storage is optional */ }
+    useDefaults(); state.manual = {}; recalc(); autosave(); showDefaults();
+  };
+  $('btnCopyDefaults').onclick = function () {
+    var d = current(), name = 'Relay Pumping Calculator (my defaults).html', a = document.createElement('a');
+    // function form of replace: the JSON is never read as a replacement pattern
+    var html = PRISTINE.replace(/(id="user-defaults">)[\s\S]*?(<\/script>)/, function (m, x, y) { return x + JSON.stringify(d).replace(/</g, '\\u003c') + y; });
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' })); a.download = name;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+    $('defaultsStatus').textContent = 'Saved "' + name + '". Look in your Downloads folder. That copy starts with: ' + summary(d) + '.';
+  };
+  if (has(fileDefaults)) $('btnResetDefaults').textContent = 'Reset to the file defaults';
   function bind(id, fn) { $(id).addEventListener('change', fn); }
   $('planName').addEventListener('input', function () { state.name = this.value; autosave(); });
   $('planNotes').addEventListener('input', function () { state.notes = this.value; autosave(); });
@@ -973,7 +1037,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   bind('setCap', function () { state.settings.cap = +this.value; state.manual = {}; recalc(); });
   bind('setRes', function () { state.settings.residual = +this.value; state.manual = {}; recalc(); });
   bind('setSlack', function () { state.settings.slack = +this.value; state.manual = {}; recalc(); });
-  bind('setHosePer', function () { var v = +this.value; state.settings.hosePerEngine = v >= 100 ? v : DEFAULTS.hosePerEngine; state.manual = {}; recalc(); });
+  bind('setHosePer', function () { var v = +this.value; state.settings.hosePerEngine = v >= 100 ? v : effDefaults().hosePerEngine; state.manual = {}; recalc(); });
 
   /* ---------- address search ---------- */
   var geoToken = 0;
@@ -1042,7 +1106,8 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(renderProfile, 150); });
 
   syncInputs(); drawRoute(); render();
-  try { var saved = localStorage.getItem(STORE); if (saved) { var d = JSON.parse(saved); if (d && d.points && d.points.length > 1) loadPlan(d, true); else if (d) { state.settings = Object.assign({}, DEFAULTS, d.settings || {}, { lay: null }); syncInputs(); renderLay(); } } } catch (e) { /* storage is optional */ }
+  try { var saved = localStorage.getItem(STORE); if (saved) { var d = JSON.parse(saved); if (d && d.points && d.points.length > 1) loadPlan(d, true); else if (d) { state.settings = Object.assign({}, effDefaults(), d.settings || {}, { lay: null }); syncInputs(); renderLay(); } } } catch (e) { /* storage is optional */ }
+  showDefaults();
   window.__relay = { state: state, map: map };
 })();
 </script>

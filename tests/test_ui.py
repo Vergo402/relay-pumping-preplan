@@ -142,6 +142,56 @@ with sync_playwright() as p:
     pg.select_option('#setDistrict', '226'); pg.wait_for_timeout(300); pg.reload(); pg.wait_for_timeout(1000)
     ok('reload keeps the fire district in the saved plan', pg.evaluate('window.__relay.state.settings.district')==226 and pg.input_value('#setDistrict')=='226', (pg.evaluate('window.__relay.state.settings.district'), pg.input_value('#setDistrict')))
     pg.select_option('#setDistrict', '253'); pg.wait_for_timeout(300)
+    # ---- v0.4 phase: Maximum PDP 185, and "My defaults". Each part uses a new browser context, so storage starts empty. ----
+    e0 = len(errors)
+    def fresh():
+        q = b.new_context(viewport={'width':1440,'height':900}).new_page()
+        q.on('console', lambda m: errors.append(m.text) if m.type=='error' else None)
+        q.on('pageerror', lambda e: errors.append('PAGEERROR '+str(e)))
+        q.route('**/*', handle); return q
+    LS = "k => localStorage.getItem(k)"
+    VALS = {'district':226, 'hose':4, 'basis':'formula', 'cap':200, 'residual':50, 'slack':5, 'hosePerEngine':1500}
+    VSUM = 'Mohegan FD, 4 inch, formula, 200 PSI, 50 PSI, 5%, 1,500 ft'
+    def setall(q):
+        for sel, v in (('#setDistrict','226'),('#setHose','4'),('#setBasis','formula'),('#setCap','200'),('#setRes','50'),('#setSlack','5')): q.select_option(sel, v)
+        q.fill('#setHosePer', '1500'); q.dispatch_event('#setHosePer', 'change'); q.wait_for_timeout(300)
+    def inputs(q): return q.evaluate("['#setDistrict','#setHose','#setBasis','#setCap','#setRes','#setSlack','#setHosePer'].map(s => document.querySelector(s).value)")
+    q = fresh(); q.goto(test_html.resolve().as_uri()); q.wait_for_timeout(700)
+    caps = q.evaluate("[...document.querySelectorAll('#setCap option')].map(o => o.value)")
+    ok('Maximum PDP list is 150, 175, 185, 200', caps==['150','175','185','200'], caps)
+    st = q.evaluate('window.__relay.state.settings')
+    ok('a fresh page starts at 185 PSI and 1,000 ft', st['cap']==185 and st['hosePerEngine']==1000 and q.input_value('#setCap')=='185' and q.input_value('#setHosePer')=='1000', (st['cap'], st['hosePerEngine']))
+    ok('status reads Defaults in use: YHFD, with the summary', q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, chart, 185 PSI, 20 PSI, 10%, 1,000 ft).', q.inner_text('#defaultsStatus'))
+    ok('the hose hint has no placeholder wording', 'placeholder' not in q.inner_text('#side').lower() and 'Set the supply hose load of your engines.' in q.inner_text('#side'))
+    setall(q); q.click('#btnSaveDefaults')
+    ok('Save as my defaults: status says yours with the new summary', q.inner_text('#defaultsStatus')=='Saved in this browser. Defaults in use: yours ('+VSUM+').', q.inner_text('#defaultsStatus'))
+    q.evaluate("localStorage.removeItem('yhfd-relay-pilot-v1')"); q.reload(); q.wait_for_timeout(900)  # no autosave: only the saved defaults can give these values
+    ok('reload: the saved defaults give 200 PSI and 1,500 ft, and the status says yours', inputs(q)==['226','4','formula','200','50','5','1500'] and q.inner_text('#defaultsStatus')=='Defaults in use: yours ('+VSUM+').', (inputs(q), q.inner_text('#defaultsStatus')))
+    GATE['roads'] = True; GATE['addr'] = ADDR2
+    q.fill('#geoText', '100 Test Hill Rd'); q.click('#geoForm button')
+    try: q.wait_for_function('window.__relay.state.draft === true', timeout=8000); q.wait_for_selector('#flowTable', timeout=8000)
+    except Exception: pass
+    q.select_option('#setCap', '150'); q.wait_for_timeout(200); q.click('#btnClear'); q.wait_for_timeout(300)
+    ok('Clear after a changed setting returns the settings to the saved defaults', inputs(q)==['226','4','formula','200','50','5','1500'] and q.evaluate('window.__relay.state.settings.cap')==200 and q.evaluate('window.__relay.state.settings.lay')==None, inputs(q))
+    q.fill('#geoText', '100 Test Hill Rd'); q.click('#geoForm button')  # a live route, so the copy check proves the route is left out
+    try: q.wait_for_function('window.__relay.state.draft === true', timeout=8000)
+    except Exception: pass
+    with q.expect_download() as dl: q.click('#btnCopyDefaults')
+    dl.value.save_as('out/copy.html'); cp = pathlib.Path('out/copy.html').read_text(encoding='utf-8')
+    ok('Save a copy: file name and status', dl.value.suggested_filename=='Relay Pumping Calculator (my defaults).html' and q.inner_text('#defaultsStatus')=='Saved "Relay Pumping Calculator (my defaults).html". Look in your Downloads folder. That copy starts with: '+VSUM+'.', q.inner_text('#defaultsStatus'))
+    blk = lambda t, i: re.search(r'id="' + i + r'">(.*?)</script>', t, re.S).group(1)
+    ok('the copy holds the 7 chosen values in the user-defaults block', json.loads(blk(cp, 'user-defaults'))==VALS, blk(cp, 'user-defaults')[:120])
+    ok('the copy keeps the hydrant-data and district-data blocks byte for byte', blk(cp, 'hydrant-data')==blk(src, 'hydrant-data') and blk(cp, 'district-data')==blk(src, 'district-data') and len(blk(cp, 'district-data'))>1000)
+    ok('the copy has no map, route, or result markup', not re.search(r'class="[^"]*leaflet-container', cp) and '<div id="map"></div>' in cp and '<div id="results"><div class="empty">No route yet.</div></div>' in cp and q.evaluate('window.__relay.state.points.length')>1)
+    q2 = fresh(); q2.goto(pathlib.Path('out/copy.html').resolve().as_uri()); q2.wait_for_timeout(900)
+    ok('the copy opens in a new browser with the copied values and says this file', inputs(q2)==['226','4','formula','200','50','5','1500'] and q2.inner_text('#defaultsStatus')=='Defaults in use: this file ('+VSUM+').', (inputs(q2), q2.inner_text('#defaultsStatus')))
+    ok('in the copy, the Reset button reads Reset to the file defaults', q2.inner_text('#btnResetDefaults')=='Reset to the file defaults', q2.inner_text('#btnResetDefaults'))
+    with q2.expect_download() as dl2: q2.click('#btnCopyDefaults')
+    dl2.value.save_as('out/copy2.html')
+    ok('the copy can make a further copy with the same values', json.loads(blk(pathlib.Path('out/copy2.html').read_text(encoding='utf-8'), 'user-defaults'))==VALS)
+    q.click('#btnResetDefaults'); q.wait_for_timeout(400)
+    ok('Reset removes the browser key, returns 185 PSI and 1,000 ft, and the status says YHFD', q.evaluate(LS, 'yhfd-relay-defaults-v1') is None and inputs(q)==['253','5','chart','185','20','10','1000'] and q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, chart, 185 PSI, 20 PSI, 10%, 1,000 ft).', (inputs(q), q.inner_text('#defaultsStatus')))
+    ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])
     bad = [e for e in errors if 'Failed to load resource' not in e]
     ok('no console errors except the aborted requests', not bad, bad[:3])
     b.close()

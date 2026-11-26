@@ -1,6 +1,6 @@
 # YHFD Relay Pumping Calculator
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.3. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.4. No field check is done yet.
 
 ## What the tool does
 
@@ -50,7 +50,7 @@ The repo has two test sets. Each command builds the page first.
 | Command | Checks | Result |
 |---|---|---|
 | `npm test` | 47 math checks. 36 are against the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI. 11 are for the road draft. | 47 of 47 pass. |
-| `npm run test:ui` | 34 page checks in Chrome through Playwright. | 34 of 34 pass. |
+| `npm run test:ui` | 50 page checks in Chrome through Playwright. | 50 of 50 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
@@ -73,6 +73,14 @@ With no road or no hydrant in 1 mile, the page makes no draft. Then trace by han
 4. Select **Finish**.
 
 The page needs an internet connection.
+
+To keep your own start values:
+
+1. Set the fire district and the values in **Settings**.
+2. Select **Save as my defaults** to keep them in this browser.
+3. Select **Save a copy of this page with my defaults** to get a file that starts with them on any device.
+
+The built-in start values are the YHFD values: 5 inch hose, 185 PSI maximum PDP, and 1,000 ft of hose on each engine.
 The user can drag a relay engine. The page then shows the PDPs for that position and flags a limit that is broken.
 
 ## Limits

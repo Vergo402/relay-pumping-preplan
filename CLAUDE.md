@@ -3,8 +3,9 @@
 This repo is one HTML page that plans a long supply line lay for Yorktown Heights Fire District (YHFD). A repo is a project folder that Git tracks. Git saves each version of the files.
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
-Status: pilot v0.3. Alex approved the v0.2 direction. No field check is done yet.
+Status: pilot v0.4. Alex approved the v0.2 direction. No field check is done yet.
 v0.3 adds a fire district picker for 60 Westchester districts and a road draft. The hydraulic rules are still the YHFD rules.
+v0.4 adds 185 PSI as the default maximum PDP and a "My defaults" box. A user can keep their own start values in the browser or in a saved copy of the page.
 The GitHub repo is private. Its name is yhfd-relay-calculator.
 
 ## Files
@@ -18,8 +19,8 @@ The GitHub repo is private. Its name is yhfd-relay-calculator.
 | `scripts/fetch_hydrants.py` | Gets the hydrant list again from the county. |
 | `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
 | `tests/test_core.js` | 47 math checks: 36 against the chauffeur chart and 11 for the road draft. Runs in Node. |
-| `tests/test_ui.py` | 34 page checks in Chrome through Playwright. No internet needed. |
-| `package.json` | Version 0.3.0. It holds the `build`, `test`, and `test:ui` commands. |
+| `tests/test_ui.py` | 50 page checks in Chrome through Playwright. No internet needed. |
+| `package.json` | Version 0.4.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
 | `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
 | `dist/` | Build output. Git ignores it. |
@@ -44,10 +45,10 @@ No Playwright browser download is necessary. The page test uses the installed Go
 |---|---|
 | `python3 build.py` | Writes `dist/YHFD Relay Pumping Calculator.html`. |
 | `npm test` | Builds, then runs the 47 math checks. |
-| `npm run test:ui` | Builds, then runs the 34 page checks. It calls `.venv/bin/python`. |
+| `npm run test:ui` | Builds, then runs the 50 page checks. It calls `.venv/bin/python`. |
 
 Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-On 2026-11-26, 47 of 47 math checks and 34 of 34 page checks passed on macOS with Google Chrome 158.
+On 2026-11-26, 47 of 47 math checks and 50 of 50 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 
@@ -61,8 +62,8 @@ On 2026-11-26, 47 of 47 math checks and 34 of 34 page checks passed on macOS wit
 8. After a build, check the SHA-256. The SHA-256 is a fingerprint of a file. It must equal the recorded value below.
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
-Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `1578de0c132e717478485b611000a093dc1717129a5399a8ef89bd293a08f761`
-This is the v0.3 build. On 2026-11-26 the copy Alex uses in OneDrive is the same file, byte for byte.
+Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `bc20308410d7842a70e7d4f1246dee7f77da2314918be2c45611566eb6a97c15`
+This is the v0.4 build. On 2026-11-26 the copy Alex uses in OneDrive is the v0.3 build (`1578de0c132e717478485b611000a093dc1717129a5399a8ef89bd293a08f761`).
 Claude replaced that copy one time, on a direct request from Alex. Rule 3 still applies.
 The v0.2 value was `21e80ce837c58ff39c76c82a0030220d7f9b859dc50db28cb6cfe615406c2e09`.
 
@@ -77,7 +78,7 @@ All values come from the YHFD chauffeur reference chart (PDF).
 - Maximum LDH pressure: 200 PSI. The page warns when a downhill run goes above it.
 - Minimum pressure in the hose at each point: 10 PSI.
 - Intake pressure to hold at each engine: 20 PSI (setting: 20 or 50).
-- Maximum PDP: 150 PSI (setting: 150, 175, or 200).
+- Maximum PDP: 185 PSI (setting: 150, 175, 185, or 200). The chart has Max Relay Distance values for 150 and 200 PSI only.
 - Minimum PDP: 50 PSI, a pump at idle.
 - PDP rounds to the nearest 5 PSI at or above the demand, with a 1 PSI tolerance.
 - Hose length: map distance and slope, plus a slack allowance (setting, 10% default).
@@ -107,6 +108,14 @@ Decisions for v0.3 (Alex, 2026-11-26):
 - The draft shows only when the route is empty. With no road or no hydrant in 1 mile, the user traces by hand.
 - The page holds all county hydrants. The picker lists the 60 named districts.
 
+Decisions for v0.4 (Alex, 2026-11-26):
+
+- A user can save the page to a device and set their own defaults.
+- The 7 defaults are: fire district, hose size, friction basis, maximum PDP, intake pressure, slack, and hose on each engine. The lay is never a default.
+- Three layers, and a later layer wins: the built-in YHFD values, the values in a saved copy of the page, and the values saved in the browser.
+- Clear sets the settings back to the defaults. A plan file keeps its own settings.
+- A saved copy uses its own browser storage keys.
+
 ## Data sources
 
 In the table, `...` means the county server base: `https://giswww.westchestergov.com/arcgis/rest/services`
@@ -130,11 +139,8 @@ The page needs an internet connection. Both servers allowed requests from a page
 
 - **Open item 1, hose loads (Alex, 2026-11-25):** each YHFD engine carries 1,500 ft of 5 inch supply hose.
 - **Open item 2, relay pressure policy (Alex, 2026-11-26):** the department maximum PDP for relays is 200 PSI.
-- The page defaults are still 1,000 ft and 150 PSI. For now, set both values by hand in the page settings.
-- Set "Supply hose on each engine (ft)" to 1500.
-- Set "Maximum PDP" to 200 PSI.
-- Do not change the defaults without Alex's approval. The change touches `src/calculator.html`, the tests, and the SHA-256.
-- The page hint calls the hose load a placeholder. Update that hint with the default change.
+- **Page defaults (Alex, 2026-11-26):** the page plans with 1,000 ft on each engine and 185 PSI maximum PDP. Alex said that these values and the two facts above are all true.
+- Do not change the built-in defaults without Alex's approval.
 
 ## Open items and history
 

@@ -1,6 +1,6 @@
 {
   "name": "yhfd-relay-calculator",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "YHFD relay pumping calculator: one HTML page that plans a long supply line lay with relay engines.",
   "scripts": {
