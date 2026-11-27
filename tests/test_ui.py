@@ -46,6 +46,7 @@ def to_set(q):  # v0.17: show the Settings view (My defaults, the rules list). S
     if not q.evaluate("document.getElementById('side').classList.contains('set')"): q.click('#btnSettings')
 def to_plan(q):  # v0.17: go back to the planner view. Safe to call twice.
     if q.evaluate("document.getElementById('side').classList.contains('set')"): q.click('#btnSettingsBack')
+ROWS20 = "[...document.querySelectorAll('#side .sec[data-k] .su')].map(b => [b.className.split(' ').slice(1).sort().join(' '), getComputedStyle(b).backgroundColor, getComputedStyle(b).color, getComputedStyle(b, '::before').width])"  # v0.20: the state of each setup row
 def open_sec(q, key):  # v0.16: one setup section is open at a time. Click its line (if closed) before a check uses a control inside.
     to_plan(q)
     q.evaluate("k => { const s=document.querySelector('#side .sec[data-k=' + k + ']'); if (!s.querySelector('.bd').classList.contains('op')) s.firstElementChild.click(); }", key)
@@ -234,6 +235,8 @@ with sync_playwright() as p:
     except Exception: pass
     dr = pg.evaluate("(() => { const s=window.__relay.state, st=document.getElementById('status'); return {draft:s.draft, n:s.points.length, first:s.points[0], last:s.points[s.points.length-1], hyd:s.sourceHydrant, cls:st.className, text:st.textContent}; })()")
     print('DRAFT:', json.dumps(dr))
+    r20 = pg.evaluate(ROWS20)
+    ok('v0.20: with a route, all four setup rows are done and no row is the next step', pg.evaluate('window.__relay.state.points.length') > 1 and [x[0] for x in r20]==['ok','ok','ok','ok'] and all(x[1]=='rgba(0, 0, 0, 0)' for x in r20), r20)
     ok('road draft with an empty route (hydrant T-102 by road): draft set, source hydrant, status ok', dr['draft'] is True and dr['n']>=3 and dr['hyd'] and dr['hyd']['num']=='T-102' and dr['cls']=='ok' and dr['text'].startswith('Draft route: hydrant'), dr['text'])
     ok('  first point is hydrant T-102 and last point is the address', dr['first'] and abs(dr['first']['lat']-(C[0]+0.001))<1e-9 and abs(dr['first']['lng']-(C[1]+0.002))<1e-9 and abs(dr['last']['lat']-ADDR2[0])<1e-9 and abs(dr['last']['lng']-ADDR2[1])<1e-9, (dr['first'], dr['last']))
     ok('  the results table appears for the draft', pg.locator('#flowTable').count()==1 and pg.is_visible('#flowTable'))
@@ -480,7 +483,7 @@ with sync_playwright() as p:
     e10 = len(errors)
     GATE['roads'] = False; GATE['addr'] = C
     t10 = fresh(); load(t10)
-    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.19' in t10.inner_text('.brand'))
+    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.20' in t10.inner_text('.brand'))
     ok('v0.19: the name is Relay Pumping Pre-plan in the tab and the header, and the page text does not say YHFD', t10.title()=='Relay Pumping Pre-plan' and t10.inner_text('.brand h1')=='Relay Pumping Pre-plan' and 'YHFD' not in t10.evaluate("document.getElementById('side').textContent + document.getElementById('cardHead').textContent"), t10.title())
     ok('v0.16: the status line lists five values (no district)', t10.inner_text('#defaultsStatus')=='Defaults in use: built-in (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==5, t10.inner_text('#defaultsStatus'))
     to_set(t10); rules = t10.inner_text('#setView ul')
@@ -809,6 +812,13 @@ with sync_playwright() as p:
     ok('no page errors in the v0.16 Undo phase', not [e for e in errors[e16u:] if 'Failed to load resource' not in e], errors[e16u:][:3])
     ok('no page errors in the v0.16 phase', not [e for e in errors[e16:] if 'Failed to load resource' not in e], errors[e16:][:3])
     ok('no page errors in the v0.15 phase', not [e for e in errors[e15:] if 'Failed to load resource' not in e], errors[e15:][:3])
+    # ---- v0.20 phase: each setup row shows done, next, or required ----
+    v20 = fresh(); v20.goto(test_html.resolve().as_uri()); v20.wait_for_timeout(700); r20 = v20.evaluate(ROWS20)
+    ok('v0.20: a new page: District is required and red, not blue; Lay is required; no row is done', [x[0] for x in r20]==['nx req','','req',''] and r20[0][1]=='rgb(251, 236, 235)' and r20[2][1]=='rgb(251, 236, 235)', r20)
+    pick(v20); r20 = v20.evaluate(ROWS20)
+    ok('v0.20: with a district: District is done, Address is the next step in solid blue with white text, Lay is red', [x[0] for x in r20]==['ok','nx','req',''] and r20[1][1]=='rgb(31, 95, 168)' and r20[1][2]=='rgb(255, 255, 255)' and r20[2][1]=='rgb(251, 236, 235)', r20)
+    ok('v0.20: each setup row starts with a 16 px mark', all(x[3]=='16px' for x in r20), r20)
+    ok('v0.20: the action word of the next step is a white button with blue text', v20.evaluate("(() => { const c = getComputedStyle(document.querySelector('#side .su.nx u')); return [c.backgroundColor, c.color]; })()")==['rgb(255, 255, 255)','rgb(31, 95, 168)'])
     ok('no page errors in the v0.14 phase', not [e for e in errors[e14:] if 'Failed to load resource' not in e], errors[e14:][:3])
     ok('no page errors in the v0.13 phase', not [e for e in errors[e13:] if 'Failed to load resource' not in e], errors[e13:][:3])
     ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])

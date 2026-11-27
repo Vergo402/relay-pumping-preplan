@@ -1,6 +1,6 @@
 # Relay Pumping Pre-plan
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.19. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.20. No field check is done yet.
 
 Live page: https://vergo402.github.io/relay-pumping-preplan/
 
@@ -54,7 +54,7 @@ The repo has two test sets. Each command builds the page first.
 | Command | Checks | Result |
 |---|---|---|
 | `npm test` | 70 math checks. They cover the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI, the road draft, and dual 3 inch lines. | 70 of 70 pass. |
-| `npm run test:ui` | 233 page checks in Chrome through Playwright. | 233 of 233 pass. |
+| `npm run test:ui` | 238 page checks in Chrome through Playwright. | 238 of 238 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.

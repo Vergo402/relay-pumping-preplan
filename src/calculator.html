@@ -84,6 +84,22 @@ table.lay1 td{white-space:nowrap}
 .su u{text-decoration:none;color:var(--blue);font-size:12.5px;font-weight:600}
 .su.req{background:var(--red-soft)}
 .su.req span,.su.req u{color:var(--red);font-weight:600}
+/* v0.20: a circle or a check at the start of each row. The next step is a solid blue row. */
+.su{grid-template-columns:18px 74px minmax(0,1fr) auto;padding:10px 18px;transition:background 160ms,color 160ms}
+.su:hover{background:var(--bg)}
+.su::before{content:"";width:16px;height:16px;box-sizing:border-box;border-radius:50%;border:2px solid #aab3bc}
+.su.ok::before{border:0;background:var(--green);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='%23000' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;border-radius:0}
+.su.ok span{color:var(--muted)}
+.su.req,.su.req:hover{background:var(--red-soft)}
+.su.req::before{border-color:var(--red)}
+.su.nx:not(.req),.su.nx:not(.req):hover{background:var(--blue);color:#fff}
+.su.nx:not(.req) i{color:#dbe8f6}
+.su.nx:not(.req) span{font-weight:600}
+.su.nx:not(.req)::before{border-color:#fff}
+.su.nx:not(.req) u{color:var(--blue);background:#fff;border-radius:999px;padding:3px 10px}
+.su.nx:not(.req):focus-visible{outline-color:var(--ink)}
+.su.req u{color:#fff;background:var(--red);border-radius:999px;padding:3px 10px}
+@media (prefers-reduced-motion:reduce){.su{transition:none}}
 .sec[data-k]{padding:0 18px}
 /* a required choice that is missing */
 select.req,.seg.req button{border-color:var(--red)}
@@ -215,7 +231,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><div><h1>Relay Pumping Pre-plan</h1><p>Pilot v0.19 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><div><h1>Relay Pumping Pre-plan</h1><p>Pilot v0.20 &middot; Planning aid only. Verify on site.</p></div>
       <button type="button" id="btnSettings" aria-label="Settings" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div id="setView">
       <div class="bk"><button type="button" id="btnSettingsBack">&larr; Back to the plan</button><span>Settings</span></div>
@@ -1369,9 +1385,12 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     }
     fold.had = has;
     var cur = state.drawing ? 'route' : fold.open; // tracing keeps section 3 open
+    var done = { dist: !noD, addr: !!(state.name || found), lay: !(noS || noL), route: route }, nxt = ['dist', 'addr', 'lay', 'route'].filter(function (x) { return !done[x]; })[0];
     Array.prototype.forEach.call(document.querySelectorAll('#side .sec[data-k]'), function (sec) {
-      var k = sec.getAttribute('data-k'), b = sec.firstElementChild, open = cur === k;
-      sec.querySelector('.bd').classList.toggle('op', open); b.classList.toggle('req', req[k]);
+      var k = sec.getAttribute('data-k'), open = cur === k;
+      sec.querySelector('.bd').classList.toggle('op', open);
+      var b = sec.firstElementChild;
+      b.classList.toggle('req', req[k]); b.classList.toggle('ok', done[k]); b.classList.toggle('nx', nxt === k); // ok: step done. nx: the first step that is not done.
       b.children[1].textContent = txt[k]; b.children[2].textContent = open ? 'Close' : req[k] ? 'Select' : verb[k]; b.setAttribute('aria-expanded', String(open));
       b.onclick = function () { fold.open = open ? null : k; renderFold(); };
     });
