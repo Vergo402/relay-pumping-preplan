@@ -1,6 +1,6 @@
 # YHFD Relay Pumping Calculator
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.9. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.10. No field check is done yet.
 
 ## What the tool does
 
@@ -49,8 +49,8 @@ The repo has two test sets. Each command builds the page first.
 
 | Command | Checks | Result |
 |---|---|---|
-| `npm test` | 68 math checks. They cover the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI, the road draft, and dual 3 inch lines. | 68 of 68 pass. |
-| `npm run test:ui` | 113 page checks in Chrome through Playwright. | 113 of 113 pass. |
+| `npm test` | 70 math checks. They cover the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI, the road draft, and dual 3 inch lines. | 70 of 70 pass. |
+| `npm run test:ui` | 135 page checks in Chrome through Playwright. | 135 of 135 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
@@ -62,7 +62,7 @@ The results above are from 2026-11-27 on macOS with Google Chrome 158.
 2. Select the fire district. Yorktown Hgts FD is the default.
 3. Enter the address and select **Go**. The page finds the address. It makes no route.
 4. In step 2 on the page, select the water source type and reverse lay or forward lay. The page has no default for these two.
-5. Check the six settings in step 2. They show your defaults.
+5. Check the five settings in step 2. They show your defaults.
 6. Select **Draft route by road**. For a hydrant, the draft goes from the nearest hydrant by road to the address. For a different source type, click the water source on the map.
 7. Drag a point to match the driveway. Click a middle handle or the line to add a point. Right-click a point to remove it.
 

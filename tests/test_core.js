@@ -10,36 +10,37 @@ let fails=0; const ok=(name,cond,info)=>{ console.log((cond?'PASS ':'FAIL ')+nam
 function route(lenFt, zf, step=25){ const n=Math.round(lenFt/step); const s=[],z=[]; const dLat=step/(20902260*Math.PI/180);
   for(let i=0;i<=n;i++){ s.push({lat:41.26+i*dLat,lng:-73.80}); z.push(zf(i*step)); } return C.buildProfile(s,z,0); }
 const flat=L=>route(L,()=>500);
-const S=(p,gpm,cap,basis='chart',res=20,hose=5,man)=>C.solve(p,{gpm,hose,basis,cap,residual:res},man);
-ok('FL chart 5in', C.flPer100(5,500,'chart')===2&&C.flPer100(5,750,'chart')===5&&C.flPer100(5,1000,'chart')===10);
-ok('FL formula 5in', Math.abs(C.flPer100(5,750,'formula')-4.5)<1e-9&&Math.abs(C.flPer100(5,1000,'formula')-8)<1e-9&&Math.abs(C.flPer100(5,500,'formula')-2)<1e-9);
-// dual 3 inch lines: 6, 11.25, 20 on the chart; the formula gives 0.8 x (half flow / 100)^2, so 5, 11.25, 20
-ok('FL dual 3in chart', C.flPer100(3,500,'chart')===6&&C.flPer100(3,750,'chart')===11.25&&C.flPer100(3,1000,'chart')===20);
-ok('FL dual 3in formula', Math.abs(C.flPer100(3,500,'formula')-5)<1e-9&&Math.abs(C.flPer100(3,750,'formula')-11.25)<1e-9&&Math.abs(C.flPer100(3,1000,'formula')-20)<1e-9&&Math.abs(C.flPer100(3,750,'formula')-0.8*Math.pow(750/2/100,2))<1e-9);
-ok('FL 4in', C.flPer100(4,1000,'chart')===20&&Math.abs(C.flPer100(4,750,'formula')-11.25)<1e-9);
-// 1,500 and 2,000 GPM: chart rows, and the formula on both bases. Hose 4 at 1,500 GPM is the formula value 45 (owner decision, no chart row).
-ok('FL chart 1500 and 2000 GPM', C.flPer100(5,1500,'chart')===20&&C.flPer100(5,2000,'chart')===30&&C.flPer100(4,1500,'chart')===45&&C.flPer100(4,2000,'chart')===80&&C.flPer100(3,1500,'chart')===44&&C.flPer100(3,2000,'chart')===80);
-ok('FL formula 1500 and 2000 GPM', Math.abs(C.flPer100(5,1500,'formula')-18)<1e-9&&Math.abs(C.flPer100(5,2000,'formula')-32)<1e-9&&Math.abs(C.flPer100(4,1500,'formula')-45)<1e-9&&Math.abs(C.flPer100(4,2000,'formula')-80)<1e-9&&Math.abs(C.flPer100(3,1500,'formula')-45)<1e-9&&Math.abs(C.flPer100(3,2000,'formula')-80)<1e-9);
-// 1,250 GPM has no chart row, so the chart basis uses the formula too.
-ok('FL 1250 GPM: 12.5, 31.25, 31.25 on both bases', ['chart','formula'].every(b=>Math.abs(C.flPer100(5,1250,b)-12.5)<1e-9&&Math.abs(C.flPer100(4,1250,b)-31.25)<1e-9&&Math.abs(C.flPer100(3,1250,b)-31.25)<1e-9));
+const S=(p,gpm,cap,res=20,hose=5,man)=>C.solve(p,{gpm,hose,cap,residual:res},man);
+// friction loss is one formula for all flows: C x (GPM/100)^2 for each 100 ft. C is 0.08 (5 inch), 0.2 (4 inch), 0.2 on the total flow (dual 3 inch, 0.8 on half of the flow)
+const FLOWS=[500,750,1000,1250,1500,2000], FL={5:[2,4.5,8,12.5,18,32],4:[5,11.25,20,31.25,45,80],3:[5,11.25,20,31.25,45,80]};
+for(const h of [5,4,3]) ok(`FL formula hose ${h}: all six flows`, FLOWS.every((q,i)=>Math.abs(C.flPer100(h,q)-FL[h][i])<1e-9), FLOWS.map(q=>C.flPer100(h,q)).join(' '));
+ok('FL dual 3in is 0.8 on half of the flow in one line', FLOWS.every(q=>Math.abs(C.flPer100(3,q)-0.8*Math.pow(q/2/100,2))<1e-9));
+ok('FL ignores a third argument (old saved basis)', C.flPer100(5,750,'chart')===4.5&&C.flPer100(5,750,'formula')===4.5);
+// PDP rounds up to the next 5 PSI. Flat 500 GPM, 5 inch: demand = 20 + 0.02 x ft. The minimum PDP is 50, so the checks sit at 50 and above.
+{ const pd=ft=>{ const r=S(flat(ft),500,150); return [r.segs[0].req,r.maxPdp]; };
+  let [rq,pp]=pd(1500); ok('PDP round up: demand 50.0 gives 50', Math.abs(rq-50)<1e-6&&pp===50, `req ${rq} pdp ${pp}`);
+  [rq,pp]=pd(1525); ok('PDP round up: demand 50.5 gives 55', Math.abs(rq-50.5)<1e-6&&pp===55, `req ${rq} pdp ${pp}`);
+  [rq,pp]=pd(1550); ok('PDP round up: demand 51 gives 55 (old 1 PSI tolerance gave 50)', Math.abs(rq-51)<1e-6&&pp===55, `req ${rq} pdp ${pp}`);
+  [rq,pp]=pd(1750); ok('PDP round up: demand 55 with float noise gives 55', Math.abs(rq-55)<1e-6&&pp===55, `req ${rq} pdp ${pp}`);
+  [rq,pp]=pd(1775); ok('PDP round up: demand 55.5 gives 60', Math.abs(rq-55.5)<1e-6&&pp===60, `req ${rq} pdp ${pp}`);
+  [rq,pp]=pd(500); ok('PDP minimum stays 50: demand 30 gives 50', Math.abs(rq-30)<1e-6&&pp===50, `req ${rq} pdp ${pp}`); }
 let p=flat(2600), r=S(p,750,150);
-ok('flat 2600ft 750gpm cap150 chart: no relay, PDP 150', r.relays.length===0&&r.maxPdp===150&&!r.over, `relays ${r.relays.length} pdp ${r.maxPdp} hose ${p.h[p.n-1].toFixed(1)}`);
-r=S(flat(2700),750,150); ok('flat 2700ft 750gpm cap150: 1 relay', r.relays.length===1&&!r.over, `pdps ${r.segs.map(s=>s.pdp)} at ${r.segs.map(s=>Math.round(s.at))}`);
-ok('  balanced: PDPs within 5 PSI', Math.abs(r.segs[0].pdp-r.segs[1].pdp)<=5, `${r.segs.map(s=>s.pdp)}`);
-// chart Max Relay Distance table (formula basis, 20 PSI intake)
+ok('flat 2600ft 750gpm cap150: no relay, PDP 140 (117 + 20 = 137)', r.relays.length===0&&r.maxPdp===140&&!r.over, `relays ${r.relays.length} pdp ${r.maxPdp} hose ${p.h[p.n-1].toFixed(1)}`);
+r=S(flat(3000),750,150); ok('flat 3000ft 750gpm cap150: 1 relay', r.relays.length===1&&!r.over, `pdps ${r.segs.map(s=>s.pdp)} at ${r.segs.map(s=>Math.round(s.at))}`);
+// chart Max Relay Distance table (20 PSI intake)
 const tbl={150:{500:6500,750:2850,1000:1625,1500:700,2000:400},200:{500:9000,750:4000,1000:2250,1500:1000,2000:550}};
 for(const cap of [150,200]) for(const q of [500,750,1000,1500,2000]){ const d=tbl[cap][q];
-  const a=S(flat(Math.floor(d*0.97/25)*25),q,cap,'formula'), b=S(flat(Math.ceil(d*1.04/25)*25),q,cap,'formula');
+  const a=S(flat(Math.floor(d*0.97/25)*25),q,cap), b=S(flat(Math.ceil(d*1.04/25)*25),q,cap);
   ok(`chart max relay ${q}gpm @${cap}: ${d}ft is the edge`, a.relays.length===0 && b.relays.length===1, `below ${a.relays.length} (pdp ${a.maxPdp}), above ${b.relays.length}`); }
 // worked example: 1500 ft, 120 ft climb
 const hill=route(1500,x=>500+120*x/1500);
 const hoseLen=hill.h[hill.n-1];
-r=S(hill,750,200); ok('example 750gpm cap200: PDP ~155, no relay', r.relays.length===0&&r.maxPdp===155, `pdp ${r.maxPdp} hose ${hoseLen.toFixed(1)} friction ${r.frictionAll.toFixed(1)} climb ${r.climbAll}`);
-r=S(hill,750,150); ok('example 750gpm cap150: 1 relay', r.relays.length===1&&!r.over, `pdps ${r.segs.map(s=>s.pdp)}`);
-r=S(hill,1000,200); ok('example 1000gpm cap200: 1 relay (230 needed)', r.relays.length===1&&!r.over, `pdps ${r.segs.map(s=>s.pdp)} demand ${(r.frictionAll+r.climbAll+20).toFixed(0)}`);
-r=S(hill,500,150); ok('example 500gpm cap150: no relay, PDP 110', r.relays.length===0&&r.maxPdp===110, `pdp ${r.maxPdp}`);
+r=S(hill,750,200); ok('example 750gpm cap200: PDP 150 (147.7 needed), no relay', r.relays.length===0&&r.maxPdp===150, `pdp ${r.maxPdp} hose ${hoseLen.toFixed(1)} friction ${r.frictionAll.toFixed(1)} climb ${r.climbAll}`);
+r=S(hill,750,150); ok('example 750gpm cap150: no relay, PDP 150 (147.7 needed)', r.relays.length===0&&r.maxPdp===150&&!r.over, `pdps ${r.segs.map(s=>s.pdp)}`);
+r=S(hill,1000,200); ok('example 1000gpm cap200: 1 relay (200.4 needed)', r.relays.length===1&&!r.over, `pdps ${r.segs.map(s=>s.pdp)} demand ${(r.frictionAll+r.climbAll+20).toFixed(0)}`);
+r=S(hill,500,150); ok('example 500gpm cap150: no relay, PDP 115 (110.1 needed, rounds up)', r.relays.length===0&&r.maxPdp===115, `pdp ${r.maxPdp}`);
 // hose pressure limit: 250 PSI for dual 3 inch, 200 for 5 inch. A downhill run with the pump at idle (50 PSI) builds hose pressure from the drop.
-{ const mid=route(1000,x=>900-0.45*x), steep=route(1000,x=>900-0.8*x), m3=S(mid,500,150,'chart',20,3), m5=S(mid,500,150,'chart',20,5), t3=S(steep,500,150,'chart',20,3);
+{ const mid=route(1000,x=>900-0.45*x), steep=route(1000,x=>900-0.8*x), m3=S(mid,500,150,20,3), m5=S(mid,500,150,20,5), t3=S(steep,500,150,20,3);
   ok('hose limits: 250 for hose 3, 200 for hose 5 and 4', C.hoseMax(3)===250&&C.hoseMax(5)===200&&C.hoseMax(4)===200&&C.LDH_MAX===200);
   ok('hose limit: a run between 200 and 250 PSI flags hose 5 but not hose 3', m5.overLdh===true&&m3.overLdh===false&&m3.peak>201&&m3.peak<250, `hose5 peak ${Math.round(m5.peak)} hose3 peak ${Math.round(m3.peak)}`);
   ok('hose limit: a run above 250 PSI flags hose 3 too', t3.overLdh===true&&t3.peak>251, `peak ${Math.round(t3.peak)}`); }
@@ -58,9 +59,9 @@ const big=route(4000,x=>400+300*x/4000);
 r=S(big,1000,150); ok('long steep 1000gpm cap150: multiple relays inside the cap', r.relays.length>=3&&!r.over&&check(big,r,20)&&r.segs.every(s=>s.pdp<=150), `relays ${r.relays.length} pdps ${r.segs.map(s=>s.pdp)}`);
 const demand=r.frictionAll+r.climbAll; ok('  engine count is the minimum', r.segs.length===Math.ceil((demand)/(150-20)-1e-6)|| r.segs.length===Math.ceil(demand/130)+0, `demand ${demand.toFixed(0)} segs ${r.segs.length}`);
 // manual placement: a bad hand position reports over the limit
-r=S(hill,1000,150,'chart',20,5,[2]); ok('manual relay near the source: flagged over the limit', r.over===true&&r.auto===false, `pdps ${r.segs.map(s=>s.pdp)}`);
+r=S(hill,1000,150,20,5,[2]); ok('manual relay near the source: flagged over the limit', r.over===true&&r.auto===false, `pdps ${r.segs.map(s=>s.pdp)}`);
 // residual 50
-r=S(flat(2000),750,150,'chart',50); ok('flat 2000ft 750 intake50: PDP 150', r.relays.length===0&&r.maxPdp===150, `pdp ${r.maxPdp}`);
+r=S(flat(2000),750,150,50); ok('flat 2000ft 750 intake50: PDP 140 (90 + 50)', r.relays.length===0&&r.maxPdp===140, `pdp ${r.maxPdp}`);
 // slack and densify
 const pts=[{lat:41.26,lng:-73.80},{lat:41.262,lng:-73.80},{lat:41.262,lng:-73.797}];
 const den=C.densify(pts,25,400); const len=C.routeFt(pts);
@@ -68,7 +69,7 @@ ok('densify keeps the ends and spacing <= 25ft', den.length>=len/25&&Math.abs(de
 const ps=C.buildProfile(den,den.map(()=>300),0.10); ok('10% slack on hose length', Math.abs(ps.h[ps.n-1]-len*1.1)<1, `${ps.h[ps.n-1].toFixed(1)} vs ${(len*1.1).toFixed(1)}`);
 const long=C.densify([{lat:41.2,lng:-73.8},{lat:41.3,lng:-73.8}],25,400); ok('densify caps the sample count', long.length<=401, `n ${long.length}`);
 // ---- hose load limit: one engine lays each section ----
-const SM=(p,gpm,cap,maxSeg,man)=>C.solve(p,{gpm,hose:5,basis:'chart',cap,residual:20,maxSeg},man);
+const SM=(p,gpm,cap,maxSeg,man)=>C.solve(p,{gpm,hose:5,cap,residual:20,maxSeg},man);
 const segLens=r=>r.segs.map(s=>Math.round(s.hose));
 r=SM(flat(2500),500,150,1000); ok('hose limit: flat 2500ft 500gpm, 1000 ft per engine -> 2 relays', r.relays.length===2&&r.segs.every(s=>s.hose<=1000.01)&&!r.overHose, `sections ${segLens(r)} pdps ${r.segs.map(s=>s.pdp)}`);
 ok('  sections balanced within 60 ft', Math.max(...segLens(r))-Math.min(...segLens(r))<=60, `${segLens(r)}`);

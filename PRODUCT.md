@@ -49,7 +49,7 @@ A paper chart gives the pressure for a hose length. It does not know the hill or
 - The road draft is 1 mile maximum by road. It starts at the nearest hydrant, or at a source point that the user clicks.
 - A change to the hydraulic rules, the defaults, or the data needs approval from Alex.
 - Terms: supply line, reverse lay, forward lay, relay engine, attack engine, water source, PDP, LDH, GPM, PSI, chauffeur.
-- Status: pilot v0.9. No field check is done yet.
+- Status: pilot v0.10. No field check is done yet.
 - The county hydrant list is not complete for some districts. The page shows the count for the selected district and warns below 50.
 - The page adds the Town of Greenburgh hydrants (2026). They fill Hartsdale FD and Fairview FD. Peekskill, Buchanan, Ossining, and Harrison have no public hydrant data.
 

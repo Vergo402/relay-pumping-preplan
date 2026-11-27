@@ -7,7 +7,7 @@ Set CHROME_PATH to the Chrome program if Playwright cannot find Chrome.
 The test does not use the internet. It answers map, address, and ground height
 requests with stand-in data. The stand-in ground is a smooth slope.
 """
-import json, os, re, sys, base64, urllib.parse, pathlib
+import datetime, json, os, re, sys, base64, urllib.parse, pathlib
 from playwright.sync_api import sync_playwright
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 src = pathlib.Path(sys.argv[1]).resolve().read_text(encoding='utf-8')
@@ -130,7 +130,7 @@ with sync_playwright() as p:
     pg.click('#btnBack'); pg.wait_for_timeout(300)
     ok('Back to planner returns the selected flow (1,000)', pg.evaluate('window.__relay.state.flow')==1000)
     trows = pg.evaluate("[...document.querySelectorAll('#flowTable tbody tr')].map(r => [r.cells[0].innerText, r.cells[1].innerText])")
-    ok('planner table has six rows with the right FL/100 values (5 inch chart, 1,250 by formula)', trows==[['500 GPM','2 PSI'],['750 GPM','5 PSI'],['1,000 GPM','10 PSI'],['1,250 GPM','12.5 PSI'],['1,500 GPM','20 PSI'],['2,000 GPM','30 PSI']], trows)
+    ok('planner table has six rows with the right FL/100 values (5 inch formula, one decimal only when not whole)', trows==[['500 GPM','2 PSI'],['750 GPM','4.5 PSI'],['1,000 GPM','8 PSI'],['1,250 GPM','12.5 PSI'],['1,500 GPM','18 PSI'],['2,000 GPM','32 PSI']], trows)
     pg.locator('#flowTable').screenshot(path='out/v08-table.png')
     pg.locator('#flowTable tbody tr').nth(4).click(); pg.wait_for_timeout(200)
     ok('a click on the 1,500 row selects it', pg.evaluate('window.__relay.state.flow')==1500 and 'sel' in (pg.locator('#flowTable tbody tr').nth(4).get_attribute('class') or ''))
@@ -215,29 +215,29 @@ with sync_playwright() as p:
         q.on('pageerror', lambda e: errors.append('PAGEERROR '+str(e)))
         q.route('**/*', handle); return q
     LS = "k => localStorage.getItem(k)"
-    VALS = {'district':226, 'hose':4, 'basis':'formula', 'cap':200, 'residual':50, 'slack':5, 'hosePerEngine':1500}
-    VSUM = 'Mohegan FD, 4 inch, formula, 200 PSI, 50 PSI, 5%, 1,500 ft'
+    VALS = {'district':226, 'hose':4, 'cap':200, 'residual':50, 'slack':5, 'hosePerEngine':1500}
+    VSUM = 'Mohegan FD, 4 inch, 200 PSI, 50 PSI, 5%, 1,500 ft'
     def setall(q):
-        for sel, v in (('#setDistrict','226'),('#setHose','4'),('#setBasis','formula'),('#setCap','200'),('#setRes','50'),('#setSlack','5')): q.select_option(sel, v)
+        for sel, v in (('#setDistrict','226'),('#setHose','4'),('#setCap','200'),('#setRes','50'),('#setSlack','5')): q.select_option(sel, v)
         q.fill('#setHosePer', '1500'); q.dispatch_event('#setHosePer', 'change'); q.wait_for_timeout(300)
-    def inputs(q): return q.evaluate("['#setDistrict','#setHose','#setBasis','#setCap','#setRes','#setSlack','#setHosePer'].map(s => document.querySelector(s).value)")
+    def inputs(q): return q.evaluate("['#setDistrict','#setHose','#setCap','#setRes','#setSlack','#setHosePer'].map(s => document.querySelector(s).value)")
     q = fresh(); q.goto(test_html.resolve().as_uri()); q.wait_for_timeout(700)
     caps = q.evaluate("[...document.querySelectorAll('#setCap option')].map(o => o.value)")
     ok('Maximum PDP list is 150, 175, 185, 200', caps==['150','175','185','200'], caps)
     st = q.evaluate('window.__relay.state.settings')
     ok('a fresh page starts at 185 PSI and 1,000 ft', st['cap']==185 and st['hosePerEngine']==1000 and q.input_value('#setCap')=='185' and q.input_value('#setHosePer')=='1000', (st['cap'], st['hosePerEngine']))
-    ok('status reads Defaults in use: YHFD, with the summary', q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, chart, 185 PSI, 20 PSI, 10%, 1,000 ft).', q.inner_text('#defaultsStatus'))
+    ok('status reads Defaults in use: YHFD, with the summary', q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', q.inner_text('#defaultsStatus'))
     ok('the hose hint has no placeholder wording', 'placeholder' not in q.inner_text('#side').lower() and q.inner_text('#side').count('These are your defaults. Change them for this plan if necessary.')==1)
     setall(q); q.click('#btnSaveDefaults')
     ok('Save as my defaults: status says yours with the new summary', q.inner_text('#defaultsStatus')=='Saved in this browser. Defaults in use: yours ('+VSUM+').', q.inner_text('#defaultsStatus'))
     q.evaluate("localStorage.removeItem('yhfd-relay-pilot-v1')"); q.reload(); q.wait_for_timeout(900)  # no autosave: only the saved defaults can give these values
-    ok('reload: the saved defaults give 200 PSI and 1,500 ft, and the status says yours', inputs(q)==['226','4','formula','200','50','5','1500'] and q.inner_text('#defaultsStatus')=='Defaults in use: yours ('+VSUM+').', (inputs(q), q.inner_text('#defaultsStatus')))
+    ok('reload: the saved defaults give 200 PSI and 1,500 ft, and the status says yours', inputs(q)==['226','4','200','50','5','1500'] and q.inner_text('#defaultsStatus')=='Defaults in use: yours ('+VSUM+').', (inputs(q), q.inner_text('#defaultsStatus')))
     GATE['roads'] = True; GATE['addr'] = ADDR2
     q.fill('#geoText', '100 Test Hill Rd'); q.click('#geoForm button'); q.wait_for_timeout(500); draft(q)
     try: q.wait_for_function('window.__relay.state.draft === true', timeout=8000); q.wait_for_selector('#flowTable', timeout=8000)
     except Exception: pass
     q.select_option('#setCap', '150'); q.wait_for_timeout(200); q.click('#btnClear'); q.wait_for_timeout(300)
-    ok('Clear after a changed setting returns the settings to the saved defaults', inputs(q)==['226','4','formula','200','50','5','1500'] and q.evaluate('window.__relay.state.settings.cap')==200 and q.evaluate('window.__relay.state.settings.lay')==None, inputs(q))
+    ok('Clear after a changed setting returns the settings to the saved defaults', inputs(q)==['226','4','200','50','5','1500'] and q.evaluate('window.__relay.state.settings.cap')==200 and q.evaluate('window.__relay.state.settings.lay')==None, inputs(q))
     q.fill('#geoText', '100 Test Hill Rd'); q.click('#geoForm button'); q.wait_for_timeout(500); draft(q)  # a live route, so the copy check proves the route is left out
     try: q.wait_for_function('window.__relay.state.draft === true', timeout=8000)
     except Exception: pass
@@ -245,17 +245,17 @@ with sync_playwright() as p:
     dl.value.save_as('out/copy.html'); cp = pathlib.Path('out/copy.html').read_text(encoding='utf-8')
     ok('Save a copy: file name and status', dl.value.suggested_filename=='Relay Pumping Calculator (my defaults).html' and q.inner_text('#defaultsStatus')=='Saved "Relay Pumping Calculator (my defaults).html". Look in your Downloads folder. That copy starts with: '+VSUM+'.', q.inner_text('#defaultsStatus'))
     blk = lambda t, i: re.search(r'id="' + i + r'">(.*?)</script>', t, re.S).group(1)
-    ok('the copy holds the 7 chosen values in the user-defaults block', json.loads(blk(cp, 'user-defaults'))==VALS, blk(cp, 'user-defaults')[:120])
+    ok('the copy holds the 6 chosen values in the user-defaults block', json.loads(blk(cp, 'user-defaults'))==VALS, blk(cp, 'user-defaults')[:120])
     ok('the copy keeps the hydrant-data and district-data blocks byte for byte', blk(cp, 'hydrant-data')==blk(src, 'hydrant-data') and blk(cp, 'district-data')==blk(src, 'district-data') and len(blk(cp, 'district-data'))>1000)
     ok('the copy has no map, route, or result markup', not re.search(r'class="[^"]*leaflet-container', cp) and '<div id="map"></div>' in cp and '<div id="results"><div class="empty">No route yet.</div></div>' in cp and q.evaluate('window.__relay.state.points.length')>1)
     q2 = fresh(); q2.goto(pathlib.Path('out/copy.html').resolve().as_uri()); q2.wait_for_timeout(900)
-    ok('the copy opens in a new browser with the copied values and says this file', inputs(q2)==['226','4','formula','200','50','5','1500'] and q2.inner_text('#defaultsStatus')=='Defaults in use: this file ('+VSUM+').', (inputs(q2), q2.inner_text('#defaultsStatus')))
+    ok('the copy opens in a new browser with the copied values and says this file', inputs(q2)==['226','4','200','50','5','1500'] and q2.inner_text('#defaultsStatus')=='Defaults in use: this file ('+VSUM+').', (inputs(q2), q2.inner_text('#defaultsStatus')))
     ok('in the copy, the Reset button reads Reset to the file defaults', q2.inner_text('#btnResetDefaults')=='Reset to the file defaults', q2.inner_text('#btnResetDefaults'))
     with q2.expect_download() as dl2: q2.click('#btnCopyDefaults')
     dl2.value.save_as('out/copy2.html')
     ok('the copy can make a further copy with the same values', json.loads(blk(pathlib.Path('out/copy2.html').read_text(encoding='utf-8'), 'user-defaults'))==VALS)
     q.click('#btnResetDefaults'); q.wait_for_timeout(400)
-    ok('Reset removes the browser key, returns 185 PSI and 1,000 ft, and the status says YHFD', q.evaluate(LS, 'yhfd-relay-defaults-v1') is None and inputs(q)==['253','5','chart','185','20','10','1000'] and q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, chart, 185 PSI, 20 PSI, 10%, 1,000 ft).', (inputs(q), q.inner_text('#defaultsStatus')))
+    ok('Reset removes the browser key, returns 185 PSI and 1,000 ft, and the status says YHFD', q.evaluate(LS, 'yhfd-relay-defaults-v1') is None and inputs(q)==['253','5','185','20','10','1000'] and q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', (inputs(q), q.inner_text('#defaultsStatus')))
     # ---- v0.5 phase: hydrant count line and the reason for no draft ----
     v = fresh(); v.goto(test_html.resolve().as_uri()); v.wait_for_timeout(700)
     cnt = lambda: (v.inner_text('#distCount'), v.get_attribute('#distCount', 'class'))
@@ -310,15 +310,15 @@ with sync_playwright() as p:
     # dual 3 inch lines
     before = x.evaluate(SNAP)['res']; x.select_option('#setHose', '3'); x.wait_for_timeout(300)
     after = x.evaluate(SNAP)['res']; fl = x.evaluate('[500,750,1000,1250,1500,2000].map(q => window.__relay.state.results[q].fl100)')
-    ok('Dual 3 inch lines: friction is 6, 11.25, 20, 31.25, 44, 80 PSI per 100 ft, the results change, and the hint shows', fl==[6,11.25,20,31.25,44,80] and after!=before and x.is_visible('#dualHint') and x.inner_text('#dualHint')=='For dual lines, enter the length of dual line that one engine lays.', (fl, before, after))
+    ok('Dual 3 inch lines: friction is 5, 11.25, 20, 31.25, 45, 80 PSI per 100 ft, the results change, and the hint shows', fl==[5,11.25,20,31.25,45,80] and after!=before and x.is_visible('#dualHint') and x.inner_text('#dualHint')=='For dual lines, enter the length of dual line that one engine lays.', (fl, before, after))
     x.click('#layRev'); x.click('#btnCard'); x.wait_for_timeout(500)
     foot = x.inner_text('#cardBody .foot')
-    ok('card footer says dual 3" lines, not 3" LDH', foot.startswith('Rules: dual 3" lines, friction loss') and '3" LDH' not in foot, foot[:60])
+    ok('card footer says dual 3" lines, not 3" LDH', foot.startswith('Rules: dual 3" lines, friction loss from the YHFD chauffeur chart coefficients, 0.5 PSI') and '3" LDH' not in foot and 'chart table' not in foot and '(formula)' not in foot, foot[:60])
     x.click('#btnBack'); x.wait_for_timeout(300)
     x.select_option('#setHose', '5'); x.wait_for_timeout(300)
     ok('the hint hides again for 5 inch', not x.is_visible('#dualHint'))
     x.select_option('#setHose', '3'); x.wait_for_timeout(200); x.click('#btnSaveDefaults'); x.evaluate("localStorage.removeItem('yhfd-relay-pilot-v1')"); x.reload(); x.wait_for_timeout(900)
-    ok('saved defaults accept hose 3: the select, the hint, and the summary', x.input_value('#setHose')=='3' and x.is_visible('#dualHint') and x.inner_text('#defaultsStatus')=='Defaults in use: yours (Yorktown Hgts FD, dual 3 inch, chart, 185 PSI, 20 PSI, 10%, 1,000 ft).', x.inner_text('#defaultsStatus'))
+    ok('saved defaults accept hose 3: the select, the hint, and the summary', x.input_value('#setHose')=='3' and x.is_visible('#dualHint') and x.inner_text('#defaultsStatus')=='Defaults in use: yours (Yorktown Hgts FD, dual 3 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', x.inner_text('#defaultsStatus'))
     # drag S and A with the edit handles hidden
     x.select_option('#setHose', '5'); x.click('#btnResetDefaults')
     x.fill('#geoText', '100 Test Hill Rd'); x.click('#geoForm button'); x.wait_for_timeout(500); draft(x)
@@ -356,7 +356,7 @@ with sync_playwright() as p:
     ok('Go alone: no road request, no route, the status is the exact Found text', not road_calls and y.evaluate('window.__relay.state.points.length')==0 and not y.evaluate('window.__relay.state.draft') and y.inner_text('#status')==FOUND, (len(road_calls), y.inner_text('#status')))
     pin = y.evaluate("(() => { const m=window.__relay.map, e=document.querySelector('.pin'), r=e.getBoundingClientRect(), b=document.getElementById('map').getBoundingClientRect(); const c=m.latLngToContainerPoint([%f,%f]); return {n:document.querySelectorAll('.pin').length, dx:Math.abs(r.left+r.width/2-b.left-c.x), dy:Math.abs(r.top+r.height-b.top-c.y)}; })()" % ADDR2)
     ok('Go alone: one pin is on the map at the address, and the plan name is the address', pin['n']==1 and pin['dx']<14 and pin['dy']<30 and y.input_value('#planName')=='100 TEST HILL RD, YORKTOWN HEIGHTS', pin)
-    y.set_viewport_size({'width':1280,'height':1900}); y.wait_for_timeout(300); y.locator('#side').screenshot(path='out/v09-sidebar.png'); y.set_viewport_size({'width':1280,'height':900}); y.wait_for_timeout(300)
+    y.set_viewport_size({'width':1280,'height':1900}); y.wait_for_timeout(300); y.locator('#side').screenshot(path='out/v10-sidebar.png'); y.set_viewport_size({'width':1280,'height':900}); y.wait_for_timeout(300)
     y.click('#btnDraft'); ok('draft button with no type: Select the water source type in step 2.', y.inner_text('#status')=='Select the water source type in step 2.', y.inner_text('#status'))
     y.select_option('#sourceType', 'Hydrant'); y.click('#btnDraft'); ok('draft button with no lay: Select Reverse lay or Forward lay in step 2.', y.inner_text('#status')=='Select Reverse lay or Forward lay in step 2.' and not road_calls, y.inner_text('#status'))
     y.click('#layRev'); y.click('#btnDraft')
@@ -412,10 +412,68 @@ with sync_playwright() as p:
     # order of the sidebar sections
     heads = y.evaluate("[...document.querySelectorAll('#side .sec h2')].map(h => h.textContent)")
     ok('sidebar sections are in the accepted order', heads==['Fire district','1. Find the address','2. Set up the lay','3. Make the route','4. Read the result','Keep the plan','My defaults'], heads)
-    inside = y.evaluate("(() => { const sec = id => document.getElementById(id).closest('.sec').querySelector('h2').textContent; return {six:['sourceType','layRev','setHose','setHosePer','setCap','setRes','setBasis','setSlack'].map(sec), btns:['btnDraft','btnDraw','btnUndo','btnFinish','btnClear','status'].map(sec), res:sec('results'), defs:['btnSaveDefaults','btnResetDefaults','btnCopyDefaults','defaultsStatus'].map(sec), name:sec('planName')}; })()")
+    inside = y.evaluate("(() => { const sec = id => document.getElementById(id).closest('.sec').querySelector('h2').textContent; return {six:['sourceType','layRev','setHose','setHosePer','setCap','setRes','setSlack'].map(sec), btns:['btnDraft','btnDraw','btnUndo','btnFinish','btnClear','status'].map(sec), res:sec('results'), defs:['btnSaveDefaults','btnResetDefaults','btnCopyDefaults','defaultsStatus'].map(sec), name:sec('planName')}; })()")
     ok('the settings are inside step 2 (before step 3), the buttons in step 3, the result in step 4, My defaults at the bottom', set(inside['six'])=={'2. Set up the lay'} and set(inside['btns'])=={'3. Make the route'} and inside['res']=='4. Read the result' and set(inside['defs'])=={'My defaults'} and inside['name']=='1. Find the address', inside)
-    ok('the six settings sit in three two-column rows in the mockup order', y.evaluate("[...document.querySelectorAll('#setHose,#setHosePer,#setCap,#setRes,#setBasis,#setSlack')].map(e => e.id).join()")=='setHose,setHosePer,setCap,setRes,setBasis,setSlack' and y.evaluate("[...document.querySelectorAll('#side .sec')][2].querySelectorAll('.row').length")==3)
+    ok('the five settings sit in three rows in the mockup order', y.evaluate("[...document.querySelectorAll('#setHose,#setHosePer,#setCap,#setRes,#setSlack')].map(e => e.id).join()")=='setHose,setHosePer,setCap,setRes,setSlack' and y.evaluate("[...document.querySelectorAll('#side .sec')][2].querySelectorAll('.row').length")==3)
     ok('no page errors in the v0.9 phase', not [e for e in errors[e9:] if 'Failed to load resource' not in e], errors[e9:][:3])
+    # ---- v0.10 phase: one friction rule, PDP rounds up, six defaults. Old saved values with basis must load. ----
+    e10 = len(errors)
+    GATE['roads'] = False; GATE['addr'] = C
+    t10 = fresh(); t10.goto(test_html.resolve().as_uri()); t10.wait_for_timeout(700)
+    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.10', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.inner_text('#side') and 'Pilot v0.10' in t10.inner_text('.brand'))
+    ok('v0.10: the status line lists six values', t10.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==6, t10.inner_text('#defaultsStatus'))
+    t10.click('#side details summary'); rules = t10.inner_text('#side details')
+    ok('v0.10: the rules list states the one friction rule and the round-up rule', 'one rule' in rules and '0.08' in rules and 'rounds up to the next 5 PSI' in rules and 'chart table' not in rules.lower() and 'formula option' not in rules.lower(), rules[:200])
+    PLAN = {'name':'Old plan','notes':'','sourceType':'Hydrant','sourceHydrant':None,'flow':750,'manual':{},
+            'points':[{'lat':C[0],'lng':C[1]},{'lat':C[0]+0.004,'lng':C[1]+0.002}],
+            'settings':{'district':253,'hose':5,'basis':'chart','cap':185,'residual':20,'slack':10,'hosePerEngine':1000,'lay':'reverse'}}
+    t10.set_input_files('#fileOpen', files=[{'name':'old.json','mimeType':'application/json','buffer':json.dumps(PLAN).encode()}])
+    try: t10.wait_for_selector('#flowTable', timeout=8000)
+    except Exception: pass
+    ok('v0.10: an old plan file with basis chart loads and gives 4.5 PSI at 750 GPM', t10.evaluate('window.__relay.state.results[750].fl100')==4.5 and t10.evaluate('window.__relay.state.points.length')==2 and 'could not open' not in t10.inner_text('#status'), t10.inner_text('#status'))
+    for bs in ('chart','formula'):
+        PLAN['settings']['basis'] = bs
+        t10.evaluate("p => localStorage.setItem('yhfd-relay-pilot-v1', JSON.stringify(p))", PLAN)
+        t10.evaluate("""d => localStorage.setItem('yhfd-relay-defaults-v1', JSON.stringify(d))""", {'district':253,'hose':4,'basis':bs,'cap':200,'residual':50,'slack':5,'hosePerEngine':1500})
+        t10.reload(); t10.wait_for_timeout(900)
+        ok('v0.10: an old autosave and an old saved default with basis '+bs+' load and the six values apply', t10.evaluate('window.__relay.state.points.length')==2 and t10.input_value('#setCap')=='185' and t10.inner_text('#defaultsStatus')=='Defaults in use: yours (Yorktown Hgts FD, 4 inch, 200 PSI, 50 PSI, 5%, 1,500 ft).', t10.inner_text('#defaultsStatus'))
+    # ---- v0.10 card file name: the browser takes the PDF name from the page title ----
+    t11 = fresh(); t11.goto(test_html.resolve().as_uri()); t11.wait_for_timeout(700)
+    GATE['roads'] = False; GATE['addr'] = C
+    today = datetime.date.today().strftime('%y-%m-%d'); NAME = 'window.__relay.cardFileName()'
+    t11.fill('#geoText', '100 Test Hill Rd'); t11.click('#geoForm button'); t11.wait_for_timeout(600)
+    nm = t11.evaluate(NAME)
+    ok('card name: the date part is today as YY-MM-DD', re.match(r'^\d{2}-\d{2}-\d{2}_', nm) is not None and nm.startswith(today + '_'), nm)
+    ok('card name: a plan name equal to the address shows one time', nm == today + '_100 TEST HILL RD, YORKTOWN HEIGHTS', nm)
+    t11.fill('#planName', '  station 1 drill '); ok('card name: a different plan name comes first, then the address', t11.evaluate(NAME) == today + '_station 1 drill_100 TEST HILL RD, YORKTOWN HEIGHTS', t11.evaluate(NAME))
+    t11.fill('#planName', '100 test hill rd, yorktown heights'); ok('card name: the equal check ignores case and spaces', t11.evaluate(NAME) == today + '_100 TEST HILL RD, YORKTOWN HEIGHTS', t11.evaluate(NAME))
+    t11.fill('#planName', 'Drill A/B: *north?  "x" <y>|z'); nm = t11.evaluate(NAME)
+    ok('card name: characters a file name cannot hold become one space', nm == today + '_Drill A B north x y z_100 TEST HILL RD, YORKTOWN HEIGHTS', nm)
+    t11.fill('#planName', ''); ok('card name: an empty plan name gives the address only', t11.evaluate(NAME) == today + '_100 TEST HILL RD, YORKTOWN HEIGHTS', t11.evaluate(NAME))
+    t11.fill('#planName', 'Drill A'); t11.evaluate("document.body.classList.add('card')")
+    t11.evaluate("window.__t0 = document.title; window.dispatchEvent(new Event('beforeprint'))")
+    ok('print title: beforeprint in card mode sets the card name', t11.evaluate('document.title') == today + '_Drill A_100 TEST HILL RD, YORKTOWN HEIGHTS', t11.evaluate('document.title'))
+    t11.evaluate("window.dispatchEvent(new Event('afterprint'))")
+    ok('print title: afterprint puts the old title back', t11.evaluate('document.title == window.__t0'), t11.evaluate('document.title'))
+    t11.evaluate("document.body.classList.remove('card'); window.dispatchEvent(new Event('beforeprint'))")
+    ok('print title: beforeprint outside card mode does not change the title', t11.evaluate('document.title == window.__t0'), t11.evaluate('document.title'))
+    t11.evaluate("window.dispatchEvent(new Event('afterprint'))")
+    PLAN2 = dict(PLAN, name='Drill A', settings=dict(PLAN['settings'], basis='chart'))  # Save needs a route, so open one, then search again
+    t11.set_input_files('#fileOpen', files=[{'name':'r.json','mimeType':'application/json','buffer':json.dumps(PLAN2).encode()}]); t11.wait_for_timeout(600)
+    t11.fill('#geoText', '100 Test Hill Rd'); t11.click('#geoForm button'); t11.wait_for_timeout(600)
+    with t11.expect_download() as dl: t11.click('#btnSave')
+    saved = json.loads(pathlib.Path(dl.value.path()).read_text())
+    ok('plan file keeps the found address', saved.get('addr', {}).get('label') == '100 TEST HILL RD, YORKTOWN HEIGHTS' and abs(saved['addr']['lat'] - C[0]) < 1e-6, saved.get('addr'))
+    t11.click('#btnClear'); t11.wait_for_timeout(300)
+    ok('card name: Clear forgets the address and its pin', t11.evaluate(NAME) == today + '_Drill A' and t11.evaluate('window.__relay.found()') is None and t11.locator('.pin').count() == 0, t11.evaluate(NAME))
+    t11.fill('#planName', ''); ok('card name: with neither plan name nor address it is the date and Relay pre-plan', t11.evaluate(NAME) == today + '_Relay pre-plan', t11.evaluate(NAME))
+    t11.set_input_files('#fileOpen', files=[{'name':'p.json','mimeType':'application/json','buffer':json.dumps(saved).encode()}]); t11.wait_for_timeout(600)
+    ok('plan file round trip: the card name holds the address again and the pin shows', t11.evaluate(NAME) == today + '_Drill A_100 TEST HILL RD, YORKTOWN HEIGHTS' and t11.locator('.pin').count() == 1, t11.evaluate(NAME))
+    t11.reload(); t11.wait_for_timeout(900)
+    ok('autosave keeps the address after a reload', t11.evaluate(NAME).endswith('_100 TEST HILL RD, YORKTOWN HEIGHTS') and t11.locator('.pin').count() == 1, t11.evaluate(NAME))
+    del saved['addr']; t11.set_input_files('#fileOpen', files=[{'name':'q.json','mimeType':'application/json','buffer':json.dumps(saved).encode()}]); t11.wait_for_timeout(600)
+    ok('an old plan file without an address loads with no error and no pin', t11.evaluate(NAME) == today + '_Drill A' and t11.locator('.pin').count() == 0 and 'could not open' not in t11.inner_text('#status'), t11.inner_text('#status'))
+    ok('no page errors in the v0.10 phase', not [e for e in errors[e10:] if 'Failed to load resource' not in e], errors[e10:][:3])
     GATE['addr'] = C; GATE['roads'] = False
     ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])
     bad = [e for e in errors if 'Failed to load resource' not in e]

@@ -166,7 +166,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.9 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.10 &middot; Planning aid only. Verify on site.</p></div>
 
     <div class="sec">
       <h2>Fire district</h2>
@@ -197,7 +197,6 @@ body.card #profile{height:1.47in}
         <label class="f">Intake pressure to hold<select id="setRes"><option value="20">20 PSI</option><option value="50">50 PSI</option></select></label>
       </div>
       <div class="row">
-        <label class="f">Friction loss values<select id="setBasis"><option value="chart">Chart table</option><option value="formula">Formula (C x Q&sup2; x L)</option></select></label>
         <label class="f">Hose slack allowance<select id="setSlack"><option value="0">0%</option><option value="5">5%</option><option value="10">10%</option><option value="15">15%</option></select></label>
       </div>
       <p class="hint">These are your defaults. Change them for this plan if necessary.</p>
@@ -245,7 +244,8 @@ body.card #profile{height:1.47in}
       </div>
       <details><summary>Rules this page uses</summary>
         <ul>
-          <li>Friction loss: the YHFD chauffeur chart. The chart table is the default. The formula option gives the chart Max Relay Distance values.</li>
+          <li>Friction loss: one rule, C x (GPM/100)&sup2; for each 100 ft. C is 0.08 for 5 inch hose and 0.2 for 4 inch hose. Dual 3 inch lines use 0.8 on half of the flow in one line.</li>
+          <li>PDP: always rounds up to the next 5 PSI. A demand of 31 PSI gives 35. A demand of 30 PSI stays 30. The minimum is 50 PSI.</li>
           <li>Climb: 0.5 PSI for each foot, as the chart shows.</li>
           <li>The hose keeps a minimum of 10 PSI at each point on the route.</li>
           <li>LDH limit: 200 PSI. The page warns when a downhill run goes above it.</li>
@@ -283,14 +283,9 @@ body.card #profile{height:1.47in}
 /* Relay hydraulics. Pure functions, no page or network access. */
 var RelayCore = (function () {
   'use strict';
-  // Hose 3 is two parallel 3 inch lines with 2.5 inch couplings (chart C = 0.8). The chart says to halve the flow and work out one line.
-  // Chart rows: 3 PSI per 50 ft at 250 GPM and 10 PSI per 50 ft at 500 GPM, so 6 and 20 per 100 ft at 500 and 1,000 GPM total.
-  // The chart has no row for 375 GPM, so 750 GPM uses the formula: 0.8 x 3.75^2 = 11.25. It equals COEF 0.2 on the total flow.
-  // 1,250 GPM has no chart row for any hose, so it uses the formula (12.5 for hose 5, 31.25 for hose 4 and hose 3).
-  // 1,500 and 2,000 GPM: hose 5 has chart rows (20 and 30). Hose 4 has a chart row at 2,000 GPM (80) but none at 1,500 GPM.
-  // The 1,500 GPM value for hose 4 is the formula 0.2 x 15^2 = 45 (owner decision).
-  // Hose 3 splits the flow, so 1,500 GPM is 750 GPM in one line: 22 PSI per 50 ft = 44 per 100 ft. 2,000 GPM is 1,000 GPM in one line: 40 per 50 ft = 80.
-  var CHART_FL = { 5: { 500: 2, 750: 5, 1000: 10, 1500: 20, 2000: 30 }, 4: { 500: 5, 750: 10, 1000: 20, 1500: 45, 2000: 80 }, 3: { 500: 6, 750: 11.25, 1000: 20, 1500: 44, 2000: 80 } }; // PSI per 100 ft, YHFD chauffeur chart
+  // Hose 3 is two parallel 3 inch lines with 2.5 inch couplings (chart C = 0.8 on half of the flow in one line). It equals COEF 0.2 on the total flow.
+  // The owner said on 2026-11-27 that the chart table values are the formula values rounded for the pump panel.
+  // The page uses the formula and rounds each PDP up to the next 5 PSI.
   var COEF = { 5: 0.08, 4: 0.2, 3: 0.2 };
   var EP = 0.5;        // PSI per foot of climb (chart: 100 ft = 50 PSI)
   var LINE_MIN = 10;   // minimum PSI in the hose at any point
@@ -302,10 +297,7 @@ var RelayCore = (function () {
   var MIN_PDP = 50;    // a pump at idle
   var R_FT = 20902260; // mean earth radius, feet
 
-  function flPer100(hose, gpm, basis) {
-    if (basis === 'chart' && CHART_FL[hose] && CHART_FL[hose][gpm] != null) return CHART_FL[hose][gpm];
-    return COEF[hose] * Math.pow(gpm / 100, 2);
-  }
+  function flPer100(hose, gpm) { return COEF[hose] * Math.pow(gpm / 100, 2); } // PSI for each 100 ft
   function distFt(a, b) {
     var k = Math.PI / 180, dLat = (b.lat - a.lat) * k, dLng = (b.lng - a.lng) * k;
     var s = Math.pow(Math.sin(dLat / 2), 2) + Math.cos(a.lat * k) * Math.cos(b.lat * k) * Math.pow(Math.sin(dLng / 2), 2);
@@ -383,7 +375,7 @@ var RelayCore = (function () {
     for (var s = 0; s < eng.length; s++) {
       var a = eng[s], b = s + 1 < eng.length ? eng[s + 1] : p.n - 1, req = 0;
       for (var t = a + 1; t <= b; t++) { var r = need(p, a, t, q, t === b); if (r > req) req = r; }
-      var pdp = Math.max(q.minPdp, Math.ceil((req - 1) / 5) * 5), segPeak = pdp; // nearest 5 PSI at or above the demand, 1 PSI tolerance
+      var pdp = Math.max(q.minPdp, Math.ceil((req - 1e-6) / 5) * 5), segPeak = pdp; // always up to the next 5 PSI; 1e-6 only guards against float noise
       line.push([p.h[a], pdp]);
       for (t = a + 1; t <= b; t++) {
         var pr = pdp - q.fl * (p.h[t] - p.h[a]) - q.ep * (p.z[t] - p.z[a]);
@@ -392,7 +384,7 @@ var RelayCore = (function () {
         if (pr > peak) { peak = pr; peakAt = p.h[t]; }
       }
       var intake = pdp - q.fl * (p.h[b] - p.h[a]) - q.ep * (p.z[b] - p.z[a]);
-      var segOver = req > q.cap + 1, segLdh = segPeak > q.ldhMax + 1;
+      var segOver = req > q.cap + 1e-6, segLdh = segPeak > q.ldhMax + 1;
       var segHose = !!q.maxSeg && (p.h[b] - p.h[a]) > q.maxSeg + 1;
       if (segOver) over = true; if (segLdh) overLdh = true; if (segHose) overHose = true; if (pdp > maxPdp) maxPdp = pdp;
       segs.push({ from: a, to: b, at: p.h[a], z: p.z[a], hose: p.h[b] - p.h[a], climb: p.z[b] - p.z[a], req: req, pdp: pdp,
@@ -400,9 +392,9 @@ var RelayCore = (function () {
     }
     return { segs: segs, line: line, maxPdp: maxPdp, over: over, overLdh: overLdh, overHose: overHose, peak: peak, peakAt: peakAt };
   }
-  // o: {gpm, hose, basis, cap, residual, maxSeg}; maxSeg = longest hose section one engine can lay, 0 = no limit; manual: relay sample indexes set by hand, or undefined
+  // o: {gpm, hose, cap, residual, maxSeg}; maxSeg = longest hose section one engine can lay, 0 = no limit; manual: relay sample indexes set by hand, or undefined
   function solve(p, o, manual) {
-    var fl100 = flPer100(o.hose, o.gpm, o.basis);
+    var fl100 = flPer100(o.hose, o.gpm);
     var q = { fl: fl100 / 100, ep: EP, cap: o.cap, residual: o.residual, lineMin: LINE_MIN, ldhMax: hoseMax(o.hose), minPdp: MIN_PDP, maxSeg: o.maxSeg || 0 };
     var relays, auto = true, placed = true;
     if (Array.isArray(manual)) {
@@ -535,7 +527,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   var USGS_SAMPLES = 'https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/getSamples';
   var EPQS = 'https://epqs.nationalmap.gov/v1/json';
   var FLOWS = [500, 750, 1000, 1250, 1500, 2000], CARD_FLOWS = [500, 1250, 2000], cardPrevFlow = 0, M2FT = 3.280839895, STORE = 'yhfd-relay-pilot-v1';
-  var DEFAULTS = { hose: 5, basis: 'chart', cap: 185, residual: 20, slack: 10, hosePerEngine: 1000, lay: null, district: 253 };
+  var DEFAULTS = { hose: 5, cap: 185, residual: 20, slack: 10, hosePerEngine: 1000, lay: null, district: 253 };
   var LAY = {
     reverse: { name: 'Reverse lay', hint: 'Trace from the attack engine back to the water source.',
       steps: ['Select <b>Trace by hand</b>.', 'Click the attack engine position first.', 'Click along the hose path. Follow the driveway back to the road.', 'Click the water source last. A click near a hydrant snaps to it. Select <b>Finish</b>.'] },
@@ -548,14 +540,13 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   var hydrants = JSON.parse($('hydrant-data').textContent); // [lng, lat, number, district]
 
   /* ---------- defaults: built-in (YHFD), then the file block, then this browser. A later layer wins. ---------- */
-  var DKEY = 'yhfd-relay-defaults-v1', DKEYS = ['district', 'hose', 'basis', 'cap', 'residual', 'slack', 'hosePerEngine'];
+  var DKEY = 'yhfd-relay-defaults-v1', DKEYS = ['district', 'hose', 'cap', 'residual', 'slack', 'hosePerEngine'];
   var fileDefaults = null;
   try { fileDefaults = JSON.parse($('user-defaults').textContent); } catch (e) { /* no file defaults */ }
   function inList(id, v) { return [].some.call($(id).options, function (o) { return +o.value === v; }); }
   var VALID = {
     district: function (v) { return districts.some(function (f) { return f.properties.id === v; }); },
     hose: function (v) { return v === 5 || v === 4 || v === 3; },
-    basis: function (v) { return v === 'chart' || v === 'formula'; },
     cap: function (v) { return inList('setCap', v); },
     residual: function (v) { return v === 20 || v === 50; },
     slack: function (v) { return inList('setSlack', v); },
@@ -569,7 +560,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   function effDefaults() { return Object.assign({}, DEFAULTS, layer(fileDefaults), layer(browserDefaults())); }
   function summary(d) {
     var f = districts.filter(function (x) { return x.properties.id === d.district; })[0] || districts[0];
-    return f.properties.name + ', ' + (d.hose === 3 ? 'dual 3' : d.hose) + ' inch, ' + d.basis + ', ' + d.cap + ' PSI, ' + d.residual + ' PSI, ' + d.slack + '%, ' + fmt(d.hosePerEngine) + ' ft';
+    return f.properties.name + ', ' + (d.hose === 3 ? 'dual 3' : d.hose) + ' inch, ' + d.cap + ' PSI, ' + d.residual + ' PSI, ' + d.slack + '%, ' + fmt(d.hosePerEngine) + ' ft';
   }
   function current() { var d = {}; DKEYS.forEach(function (k) { d[k] = state.settings[k]; }); return d; }
   state.settings = effDefaults();
@@ -829,7 +820,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     var s = state.settings;
     state.profile = RelayCore.buildProfile(state.samples, state.elevFt, s.slack / 100);
     state.results = {};
-    FLOWS.forEach(function (q) { state.results[q] = RelayCore.solve(state.profile, { gpm: q, hose: s.hose, basis: s.basis, cap: s.cap, residual: s.residual, maxSeg: s.hosePerEngine }, state.manual[q]); });
+    FLOWS.forEach(function (q) { state.results[q] = RelayCore.solve(state.profile, { gpm: q, hose: s.hose, cap: s.cap, residual: s.residual, maxSeg: s.hosePerEngine }, state.manual[q]); });
     render(); autosave();
   }
 
@@ -1022,7 +1013,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     });
     if (s.lay) h += '<p class="key">The arrow shows the way each engine drives as it lays hose. The arrowhead is where that engine stops and pumps.' + (s.lay === 'forward' ? ' The source engine lays no hose.' : '') + '</p>';
     h += '<div class="notes"><b>Notes:</b> ' + esc(state.notes) + '</div>';
-    h += '<div class="foot">Rules: ' + (s.hose === 3 ? 'dual 3" lines' : s.hose + '" LDH') + ', friction loss from the YHFD chauffeur chart (' + (s.basis === 'chart' ? 'chart table' : 'formula') + '), 0.5 PSI for each foot of climb, maximum PDP ' + s.cap + ' PSI, intake ' + s.residual + ' PSI, hose slack ' + s.slack + '%, one engine lays each section, maximum ' + fmt(s.hosePerEngine) + ' ft. ' +
+    h += '<div class="foot">Rules: ' + (s.hose === 3 ? 'dual 3" lines' : s.hose + '" LDH') + ', friction loss from the YHFD chauffeur chart coefficients, 0.5 PSI for each foot of climb, maximum PDP ' + s.cap + ' PSI, intake ' + s.residual + ' PSI, hose slack ' + s.slack + '%, one engine lays each section, maximum ' + fmt(s.hosePerEngine) + ' ft. ' +
       (s.lay === 'reverse' ? 'Reverse lay: each engine starts at the attack end of its section, lays hose back to its position, and pumps there. ' : s.lay === 'forward' ? 'Forward lay: each engine starts at the source end of its section and lays hose to its position. One more engine pumps at the source. ' : '') +
       'Ground heights: USGS 3DEP LiDAR. Hydrants: Westchester County GIS, 2015, and Town of Greenburgh, 2026. This card does not show the flow the water source can give. Planning aid only. The pump operator sets pressures from the gauges on scene.</div>';
     $('cardBody').innerHTML = h;
@@ -1040,7 +1031,18 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     if (on) { var over = $('right').scrollHeight - 57.6 - 960; if (over > 0) $('map').style.height = Math.max(172.8, 302.4 - over) + 'px'; }
     setTimeout(function () { map.invalidateSize(); if (on && state.points.length > 1) map.fitBounds(routeBounds(), { padding: [45, 45], maxZoom: 19 }); renderProfile(); }, 60);
   }
-  window.addEventListener('beforeprint', function () { if (document.body.classList.contains('card')) { map.invalidateSize(); if (state.points.length > 1) map.fitBounds(routeBounds(), { padding: [45, 45], maxZoom: 19 }); } });
+  // The browser takes the PDF file name from the page title, so the title changes only while the card prints.
+  function cardFileName() {
+    var d = new Date(), p = function (n) { return ('0' + n).slice(-2); }, nm = (state.name || '').trim(), ad = found && found.label ? found.label.trim() : '';
+    if (nm.toLowerCase() === ad.toLowerCase()) nm = '';
+    var parts = [p(d.getFullYear() % 100) + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()), nm, ad].filter(Boolean);
+    if (parts.length === 1) parts.push('Relay pre-plan');
+    return parts.join('_').replace(/[\\\/:*?"<>|\u0000-\u001f]/g, ' ').replace(/ +/g, ' ').trim();
+  }
+  var titleBefore = null;
+  window.addEventListener('afterprint', function () { if (titleBefore !== null) { document.title = titleBefore; titleBefore = null; } });
+  window.addEventListener('beforeprint', function () { if (document.body.classList.contains('card')) {
+      if (titleBefore === null) titleBefore = document.title; document.title = cardFileName(); map.invalidateSize(); if (state.points.length > 1) map.fitBounds(routeBounds(), { padding: [45, 45], maxZoom: 19 }); } });
   $('btnCard').onclick = function () { setCard(true); };
   $('btnBack').onclick = function () { setCard(false); };
   $('btnPrint').onclick = function () { window.print(); };
@@ -1048,14 +1050,15 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   /* ---------- save, open, settings ---------- */
   function planData() {
     return { app: 'yhfd-relay-calculator', version: 1, savedAt: new Date().toISOString(), name: state.name, notes: state.notes, sourceType: state.sourceType,
-      sourceHydrant: state.sourceHydrant, points: state.points, flow: state.flow, settings: state.settings, manual: state.manual };
+      sourceHydrant: state.sourceHydrant, points: state.points, flow: state.flow, settings: state.settings, manual: state.manual,
+      addr: found };
   }
   function loadPlan(d, quiet) {
     if (!d || !Array.isArray(d.points)) throw new Error('This file is not a relay plan.');
     state.name = d.name || ''; state.notes = d.notes || ''; state.sourceType = d.sourceType || ''; state.sourceHydrant = d.sourceHydrant || null;
     state.points = d.points.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lng); }).map(function (p) { return { lat: +p.lat, lng: +p.lng }; });
     state.flow = FLOWS.indexOf(d.flow) >= 0 ? d.flow : 750; state.settings = Object.assign({}, effDefaults(), d.settings || {}); state.manual = d.manual || {}; state.draft = false;
-    state.samples = state.elevFt = state.profile = null; state.results = {};
+    state.samples = state.elevFt = state.profile = null; state.results = {}; restoreAddr(d.addr);
     syncInputs(); setDrawing(false);
     if (state.points.length > 1) { map.fitBounds(routeBounds(), { padding: [60, 60], maxZoom: 19 }); compute(); } else { render(); if (!quiet) setStatus('Plan opened. It has no route.'); }
   }
@@ -1074,9 +1077,9 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   function syncInputs(keepMap) {
     var s = state.settings;
     $('planName').value = state.name; $('planNotes').value = state.notes; $('sourceType').value = state.sourceType;
-    applyDistrict(s.district, false, !keepMap); $('setHose').value = s.hose; $('dualHint').hidden = s.hose !== 3; $('setBasis').value = s.basis; $('setCap').value = s.cap; $('setRes').value = s.residual; $('setSlack').value = s.slack; $('setHosePer').value = s.hosePerEngine;
+    applyDistrict(s.district, false, !keepMap); $('setHose').value = s.hose; $('dualHint').hidden = s.hose !== 3; $('setCap').value = s.cap; $('setRes').value = s.residual; $('setSlack').value = s.slack; $('setHosePer').value = s.hosePerEngine;
   }
-  // set the 7 default settings from the effective defaults; the map stays when the district is the same
+  // set the 6 default settings from the effective defaults; the map stays when the district is the same
   function useDefaults() {
     var d = effDefaults(), same = d.district === state.settings.district;
     DKEYS.forEach(function (k) { state.settings[k] = d[k]; });
@@ -1109,7 +1112,6 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   bind('setDistrict', function () { applyDistrict(this.value, true); });
   bind('sourceType', function () { state.sourceType = this.value; awaitSrc = false; autosave(); });
   bind('setHose', function () { state.settings.hose = +this.value; $('dualHint').hidden = state.settings.hose !== 3; state.manual = {}; recalc(); });
-  bind('setBasis', function () { state.settings.basis = this.value; state.manual = {}; recalc(); });
   bind('setCap', function () { state.settings.cap = +this.value; state.manual = {}; recalc(); });
   bind('setRes', function () { state.settings.residual = +this.value; state.manual = {}; recalc(); });
   bind('setSlack', function () { state.settings.slack = +this.value; state.manual = {}; recalc(); });
@@ -1169,6 +1171,16 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     if (state.sourceType !== 'Hydrant') { awaitSrc = true; setStatus('Click the water source on the map.'); return; }
     awaitSrc = false; roadDraft(found, ++geoToken, null);
   };
+  function showPin(lat, lng) {
+    if (geoMarker) map.removeLayer(geoMarker);
+    geoMarker = L.marker([lat, lng], { interactive: false, icon: L.divIcon({ className: '', html: '<div class="pin"></div>', iconSize: [24, 24], iconAnchor: [12, 29] }) }).addTo(map);
+  }
+  // Restore the found address from a saved plan. An old plan has no address.
+  function restoreAddr(a) {
+    if (geoMarker) { map.removeLayer(geoMarker); geoMarker = null; }
+    found = a && isFinite(a.lat) && isFinite(a.lng) && typeof a.label === 'string' ? { lat: +a.lat, lng: +a.lng, label: a.label } : null;
+    if (found) showPin(found.lat, found.lng);
+  }
   $('geoForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     var text = $('geoText').value.trim(); if (!text) return;
@@ -1182,13 +1194,12 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
       if (c) c = d.candidates.filter(function (k) { return k.score >= c.score - 5 && RelayCore.pointInPolygon(k.location.x, k.location.y, district.geometry); })[0] || c;
       if (!c) { d = await (await fetchT(url, null, 20000)).json(); c = d.candidates && d.candidates[0]; } // no match in the district box: try the whole county
       if (!c) { setStatus('No match for that address. Check the spelling, or move the map by hand.', 'err'); return; }
-      if (geoMarker) map.removeLayer(geoMarker);
-      geoMarker = L.marker([c.location.y, c.location.x], { interactive: false, icon: L.divIcon({ className: '', html: '<div class="pin"></div>', iconSize: [24, 24], iconAnchor: [12, 29] }) }).addTo(map);
+      showPin(c.location.y, c.location.x);
       map.setView([c.location.y, c.location.x], 18);
       var label = c.address.replace(/, NY.*$/i, '');
       // A new search replaces a plan name that an earlier search set. It keeps a name that the user typed.
       if (!state.name || state.name === autoName) { state.name = autoName = label; $('planName').value = state.name; }
-      found = { lat: c.location.y, lng: c.location.x, label: label }; awaitSrc = false;
+      found = { lat: c.location.y, lng: c.location.x, label: label }; awaitSrc = false; autosave();
       setStatus('Found: ' + label + '. Check step 2. Then select Draft route by road, or trace by hand.');
     } catch (err) { setStatus('The address search did not answer. Move the map by hand. (' + err.message + ')', 'err'); }
   });
@@ -1197,9 +1208,9 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(renderProfile, 150); });
 
   syncInputs(); drawRoute(); render();
-  try { var saved = localStorage.getItem(STORE); if (saved) { var d = JSON.parse(saved); if (d && d.points && d.points.length > 1) loadPlan(d, true); else if (d) { state.settings = Object.assign({}, effDefaults(), d.settings || {}, { lay: null }); state.sourceType = d.sourceType || ''; syncInputs(); renderLay(); } } } catch (e) { /* storage is optional */ }
+  try { var saved = localStorage.getItem(STORE); if (saved) { var d = JSON.parse(saved); if (d && d.points && d.points.length > 1) loadPlan(d, true); else if (d) { state.settings = Object.assign({}, effDefaults(), d.settings || {}, { lay: null }); state.sourceType = d.sourceType || ''; restoreAddr(d.addr); syncInputs(); renderLay(); } } } catch (e) { /* storage is optional */ }
   showDefaults();
-  window.__relay = { state: state, map: map };
+  window.__relay = { state: state, map: map, cardFileName: cardFileName, found: function () { return found; } };
 })();
 </script>
 </body>

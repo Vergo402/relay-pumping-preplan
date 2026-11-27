@@ -3,14 +3,8 @@
 This repo is one HTML page that plans a long supply line lay for Yorktown Heights Fire District (YHFD). A repo is a project folder that Git tracks. Git saves each version of the files.
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
-Status: pilot v0.9. Alex approved the v0.2 direction. No field check is done yet.
-v0.3 adds a fire district picker for 60 Westchester districts and a road draft. The hydraulic rules are still the YHFD rules.
-v0.4 adds 185 PSI as the default maximum PDP and a "My defaults" box. A user can keep their own start values in the browser or in a saved copy of the page.
-v0.5 shows the county hydrant count for the selected district. It warns when the count is below 50, and the no-draft status gives the reason.
-v0.6 adds the Town of Greenburgh hydrants. They fill Hartsdale FD (417 hydrants) and Fairview FD (678).
-v0.7 adds dual 3 inch supply lines, a road draft that stops on the road for a short driveway, and S and A markers that the user can drag.
-v0.8 shows six flows, 500 to 2,000 GPM. The card prints three: 500, 1,250, and 2,000 GPM. The card preview has the width of the printed page.
-v0.9 drafts a route only on the "Draft route by road" button, after the user sets up the lay. A draft is 1 mile maximum by road.
+Status: pilot v0.10. Alex approved the v0.2 direction. No field check is done yet.
+The history of each version, v0.3 to v0.10, is in `docs/handoff-2026-11-24.md`.
 The GitHub repo is private. Its name is yhfd-relay-calculator.
 
 ## Files
@@ -25,9 +19,9 @@ The GitHub repo is private. Its name is yhfd-relay-calculator.
 | `scripts/fetch_hydrants.py` | Gets the hydrant list again from the county. |
 | `scripts/fetch_greenburgh_hydrants.py` | Gets the town hydrants again from the Town of Greenburgh. |
 | `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
-| `tests/test_core.js` | 68 math checks: against the chauffeur chart, for the road draft, and for dual 3 inch lines. Runs in Node. |
-| `tests/test_ui.py` | 113 page checks in Chrome through Playwright. No internet needed. |
-| `package.json` | Version 0.9.0. It holds the `build`, `test`, and `test:ui` commands. |
+| `tests/test_core.js` | 70 math checks: against the chauffeur chart, for the road draft, and for dual 3 inch lines. Runs in Node. |
+| `tests/test_ui.py` | 135 page checks in Chrome through Playwright. No internet needed. |
+| `package.json` | Version 0.10.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
 | `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
 | `dist/` | Build output. Git ignores it. |
@@ -51,11 +45,11 @@ No Playwright browser download is necessary. The page test uses the installed Go
 | Command | Result |
 |---|---|
 | `python3 build.py` | Writes `dist/YHFD Relay Pumping Calculator.html`. |
-| `npm test` | Builds, then runs the 68 math checks. |
-| `npm run test:ui` | Builds, then runs the 113 page checks. It calls `.venv/bin/python`. |
+| `npm test` | Builds, then runs the 70 math checks. |
+| `npm run test:ui` | Builds, then runs the 135 page checks. It calls `.venv/bin/python`. |
 
 Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-On 2026-11-27, 68 of 68 math checks and 113 of 113 page checks passed on macOS with Google Chrome 158.
+On 2026-11-27, 70 of 70 math checks and 135 of 135 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 
@@ -69,34 +63,27 @@ On 2026-11-27, 68 of 68 math checks and 113 of 113 page checks passed on macOS w
 8. After a build, check the SHA-256. The SHA-256 is a fingerprint of a file. It must equal the recorded value below.
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
-Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `68a96646c4a4b8edbb1a20a60d2abd503ddd6899814985ceebcf806987034683`
-This is the v0.9 build. The v0.5 value was `53160474532b59cd8a433e202782c25fe5a89353ebf57c912d5a66f79baa3332`.
-On 2026-11-27 the copy Alex uses in OneDrive is the v0.8 build (`3d848a6d0f56ef4a6783cb8ace4d706757b48eedd57201a84e5412413824115a`).
-Claude replaced that copy five times (v0.3, v0.4, v0.6, v0.7, and v0.8), each on a direct request from Alex.
-The v0.7 value was `40fcf9d939d3ec409fe6474a6486e4fda0ac77139e8e18321b1f537fb1493870`.
-The v0.6 value was `64ad6939217b90d76a5e0f95e50516bced66a497ffdf12c0e09dcb7efe8f3825`.
-The v0.4 value was `bc20308410d7842a70e7d4f1246dee7f77da2314918be2c45611566eb6a97c15`. Rule 3 still applies.
-The v0.2 value was `21e80ce837c58ff39c76c82a0030220d7f9b859dc50db28cb6cfe615406c2e09`.
+Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `5b67de1ed294185b72d01e1211851309bf4be45996f04183d09fa9d49bcd6667`
+This is the v0.10 build. Older values are in `docs/handoff-2026-11-24.md`.
+On 2026-11-27 the copy Alex uses in OneDrive is the v0.9 build (`68a96646c4a4b8edbb1a20a60d2abd503ddd6899814985ceebcf806987034683`).
+Claude replaced that copy six times (v0.3, v0.4, and v0.6 to v0.9), each on a direct request from Alex. Rule 3 still applies.
 
 ## Hydraulic rules
 
 All values come from the YHFD chauffeur reference chart (PDF).
 
-- Friction loss, 5 inch hose, PSI for each 100 ft: 2 at 500 GPM, 5 at 750 GPM, 10 at 1,000 GPM.
-- Friction loss, 4 inch hose: 5, 10, and 20.
-- Formula option: `C x (GPM/100)^2 x (ft/100)`, with C = 0.08 for 5 inch and 0.2 for 4 inch.
-- Dual 3 inch lines: the chart says to divide the total flow in half and to calculate for one 3 inch line (C = 0.8).
-- Friction loss, dual 3 inch lines, at the total flow: 6, 11.25, and 20. The chart has no 375 GPM row, so 11.25 is the formula value (Alex, 2026-11-26).
+- Friction loss, one rule: `C x (GPM/100)^2` PSI for each 100 ft. C = 0.08 for 5 inch hose and 0.2 for 4 inch hose.
+- Dual 3 inch lines: the chart says to divide the total flow in half and to calculate for one 3 inch line (C = 0.8). This equals C = 0.2 on the total flow.
+- The chart table values are the formula values, rounded for the pump panel (Alex, 2026-11-27). The page does not use the table.
+- Values for each 100 ft at 500, 750, 1,000, 1,250, 1,500, and 2,000 GPM: 2, 4.5, 8, 12.5, 18, 32 for 5 inch. 5, 11.25, 20, 31.25, 45, 80 for 4 inch and dual 3 inch lines.
 - Maximum pressure for 3 inch hose: 250 PSI (Alex, 2026-11-26). This value is not in the chart.
-- Friction loss at 1,500 and 2,000 GPM: 20 and 30 for 5 inch, 45 and 80 for 4 inch, 44 and 80 for dual 3 inch lines. The 45 is the formula value, because the chart has no row.
-- 1,250 GPM has no chart row for any hose. The page uses the formula: 12.5 for 5 inch, 31.25 for 4 inch and dual 3 inch lines.
 - Climb: 0.5 PSI for each foot.
 - Maximum LDH pressure: 200 PSI. The page warns when a downhill run goes above it.
 - Minimum pressure in the hose at each point: 10 PSI.
 - Intake pressure to hold at each engine: 20 PSI (setting: 20 or 50).
 - Maximum PDP: 185 PSI (setting: 150, 175, 185, or 200). The chart has Max Relay Distance values for 150 and 200 PSI only.
 - Minimum PDP: 50 PSI, a pump at idle.
-- PDP rounds to the nearest 5 PSI at or above the demand, with a 1 PSI tolerance.
+- PDP always rounds up to the next 5 PSI (Alex, 2026-11-27). 31 gives 35. 30 stays 30. A pump operator can set a pressure to about 5 PSI.
 - Hose length: map distance and slope, plus a slack allowance (setting, 10% default).
 - Ground height: one sample each 25 ft, 400 samples maximum for a route.
 
@@ -127,7 +114,7 @@ Decisions for v0.3 (Alex, 2026-11-26):
 Decisions for v0.4 (Alex, 2026-11-26):
 
 - A user can save the page to a device and set their own defaults.
-- The 7 defaults are: fire district, hose size, friction basis, maximum PDP, intake pressure, slack, and hose on each engine. The lay is never a default.
+- The 6 defaults are: fire district, hose size, maximum PDP, intake pressure, slack, and hose on each engine. The lay is never a default. (v0.10 removed the friction basis.)
 - Three layers, and a later layer wins: the built-in YHFD values, the values in a saved copy of the page, and the values saved in the browser.
 - Clear sets the settings back to the defaults. A plan file keeps its own settings.
 - A saved copy uses its own browser storage keys.
@@ -159,11 +146,18 @@ Decisions for v0.8 (Alex, 2026-11-26):
 Decisions for v0.9 (Alex, 2026-11-27):
 
 - The address search only finds the address. It makes no route.
-- Step 2, "Set up the lay", holds the water source type, the lay, and the six settings. The user sees them before a draft.
+- Step 2, "Set up the lay", holds the water source type, the lay, and the settings (six in v0.9, five from v0.10). The user sees them before a draft.
 - The page drafts only on the "Draft route by road" button. The water source type and the lay start empty.
 - A road draft is 5,280 ft maximum by road. Before v0.9 the limit was a search box, and a draft could be longer.
 - For a draft site, a tanker dump site, or other, the user clicks the source on the map. The page drafts by road from that point. Claude added this.
 - These decisions replace two v0.3 decisions: the draft after the address search, and the box of 1 mile.
+
+Decisions for v0.10 (Alex, 2026-11-27):
+
+- The chart table is "2 am fireman math": the formula, rounded for the pump panel. This closes chart conflict 2 in the handoff notes.
+- A PDP always rounds up to the next 5 PSI.
+- A card printed to PDF gets the file name `YY-MM-DD_Plan Name_Address`. The plan file keeps the found address.
+- The page has one friction rule and no selector. Claude read the answer from Alex as a yes to this. Alex has not said the word yes.
 
 ## Data sources
 
