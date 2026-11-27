@@ -1,6 +1,6 @@
 # YHFD Relay Pumping Calculator
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.4. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.5. No field check is done yet.
 
 ## What the tool does
 
@@ -49,8 +49,8 @@ The repo has two test sets. Each command builds the page first.
 
 | Command | Checks | Result |
 |---|---|---|
-| `npm test` | 47 math checks. 36 are against the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI. 11 are for the road draft. | 47 of 47 pass. |
-| `npm run test:ui` | 51 page checks in Chrome through Playwright. | 51 of 51 pass. |
+| `npm test` | 49 math checks. 36 are against the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI. 13 are for the road draft. | 49 of 49 pass. |
+| `npm run test:ui` | 55 page checks in Chrome through Playwright. | 55 of 55 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
@@ -93,6 +93,7 @@ The user can drag a relay engine. The page then shows the PDPs for that position
 - No field check is done yet.
 - The draft follows the road centerline. The last leg to the address is a straight line to the tax parcel point. Edit it to match the driveway.
 - The draft uses hydrants only. It does not know draft sites.
+- The county hydrant list is not complete. Some districts have few or no hydrants in it. The page shows the count and a warning.
 - The supply hose on each engine is a 1,000 ft placeholder. It now sets the engine count.
 
 ## Data sources

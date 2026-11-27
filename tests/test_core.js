@@ -92,4 +92,8 @@ ok('  a hydrant more than 150 ft from a road is ignored', C.draftRoute(AD,[H5],r
 ok('  an address more than 500 ft from a road gives null', C.draftRoute(P(620,1200),[H1,H2],roads,{})===null&&C.draftRoute(P(620,1200),[H1,H2],roads,{addrMaxFt:1000})!==null);
 d=C.draftRoute(AD,[H1],roads,{}); const want=C.routeFt([P(500,400),P(500,0),P(600,0),P(600,300)]);
 ok('  streets lists the road names used, longest run first', d&&d.hydrant[2]==='H-1'&&d.streets.join()==='Left Rd,Right Rd,Bottom Rd'&&Math.abs(d.roadFt-want)/want<0.01, d&&`${d.streets} roadFt ${d.roadFt.toFixed(1)} want ${want.toFixed(1)}`);
+let o={}; C.draftRoute(P(620,1200),[H1,H2],roads,o);
+ok('  the reason is road when no road is near the address', o.why==='road', o.why);
+o={}; C.draftRoute(AD,[H3],roads,o);
+ok('  the reason is hydrant when no hydrant joins by road', o.why==='hydrant', o.why);
 console.log(fails?`\n${fails} FAILED`:'\nALL PASS'); process.exit(fails?1:0);

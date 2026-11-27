@@ -19,7 +19,7 @@ assert n_swap == 1, 'hydrant data block not found in the built page'
 test_html = pathlib.Path('out/test.html'); test_html.write_text(src, encoding='utf-8')
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mO88f7jfwAJHAPb0q7eVQAAAABJRU5ErkJggg==')
 # The old checks need the road query to fail, so no draft appears. The new phase turns the stand-in roads on.
-GATE = {'roads': False, 'addr': C}
+GATE = {'roads': False, 'addr': C, 'road': None}  # road: a stand-in road to use in place of ROAD
 # One road, TEST HILL RD: west to east past T-101, north 0.003 degrees, then east to the address. T-102 is 100 ft off the road and is the nearest by road.
 ROAD = [[C[1], C[0]], [C[1]+0.00237, C[0]], [C[1]+0.00237, C[0]+0.003], [C[1]+0.0035, C[0]+0.003]]
 ADDR2 = (C[0]+0.0031, C[1]+0.0035)
@@ -32,7 +32,7 @@ def handle(route):
     elif 'findAddressCandidates' in u:
         route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin':'*'}, body=json.dumps({'candidates':[{'address':'100 TEST HILL RD, YORKTOWN HEIGHTS, NY, 10598','location':{'x':GATE['addr'][1],'y':GATE['addr'][0]},'score':100}]}))
     elif 'MappingWestchesterCounty_Roads/MapServer/11/query' in u and GATE['roads']:
-        route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin':'*'}, body=json.dumps({'features':[{'attributes':{'ST_NM_PREF':' ','ST_NM_BASE':'TEST HILL','ST_NM_SUFF':' ','ST_TYP_AFT':'RD'},'geometry':{'paths':[ROAD]}}]}))
+        route.fulfill(status=200, content_type='application/json', headers={'Access-Control-Allow-Origin':'*'}, body=json.dumps({'features':[{'attributes':{'ST_NM_PREF':' ','ST_NM_BASE':'TEST HILL','ST_NM_SUFF':' ','ST_TYP_AFT':'RD'},'geometry':{'paths':[GATE['road'] or ROAD]}}]}))
     elif '/tile/' in u or '/export' in u: route.fulfill(status=200, content_type='image/png', body=PNG)
     elif u.startswith('file:'): route.continue_()
     else: route.abort()
@@ -58,7 +58,7 @@ with sync_playwright() as p:
     pg.fill('#geoText', '100 Test Hill Rd'); pg.click('#geoForm button'); pg.wait_for_timeout(600)
     try: pg.wait_for_function("document.getElementById('status').textContent.includes('No road draft')", timeout=5000)
     except Exception: pass
-    ok('road query fails: no draft, the route stays empty and the status says so', pg.evaluate('window.__relay.state.points.length')==0 and not pg.evaluate('window.__relay.state.draft') and pg.inner_text('#status').startswith('Found: ') and 'No road draft is available here.' in pg.inner_text('#status'), pg.inner_text('#status'))
+    ok('road query fails: no draft, the route stays empty and the status says so', pg.evaluate('window.__relay.state.points.length')==0 and not pg.evaluate('window.__relay.state.draft') and pg.inner_text('#status').startswith('Found: ') and 'No road draft: the road data did not answer. Trace the route by hand.' in pg.inner_text('#status'), pg.inner_text('#status'))
     pg.evaluate('window.__relay.map.setZoom(16,{animate:false})'); pg.wait_for_timeout(400)
     box = pg.locator('#map').bounding_box(); cx, cy = box['x']+box['width']/2, box['y']+box['height']/2
     # ---- reverse lay: attack engine first ----
@@ -196,6 +196,25 @@ with sync_playwright() as p:
     ok('the copy can make a further copy with the same values', json.loads(blk(pathlib.Path('out/copy2.html').read_text(encoding='utf-8'), 'user-defaults'))==VALS)
     q.click('#btnResetDefaults'); q.wait_for_timeout(400)
     ok('Reset removes the browser key, returns 185 PSI and 1,000 ft, and the status says YHFD', q.evaluate(LS, 'yhfd-relay-defaults-v1') is None and inputs(q)==['253','5','chart','185','20','10','1000'] and q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, chart, 185 PSI, 20 PSI, 10%, 1,000 ft).', (inputs(q), q.inner_text('#defaultsStatus')))
+    # ---- v0.5 phase: hydrant count line and the reason for no draft ----
+    v = fresh(); v.goto(test_html.resolve().as_uri()); v.wait_for_timeout(700)
+    cnt = lambda: (v.inner_text('#distCount'), v.get_attribute('#distCount', 'class'))
+    NOTE = 'The county list is from 2015 and can be incomplete. Set the water source from a hydrant or a draft site that you know.'
+    ok('count line, Yorktown Hgts FD with 3 stand-in hydrants: plural, warning form', cnt()==('County data: 3 hydrants in this district. ' + NOTE, 'note-box warn'), cnt())
+    v.select_option('#setDistrict', '226'); v.wait_for_timeout(500)
+    ok('count line, a district with none of the stand-in hydrants: "no hydrants", warning form', cnt()==('County data: no hydrants in this district. ' + NOTE, 'note-box warn'), cnt())
+    v.select_option('#setDistrict', '253'); v.wait_for_timeout(500); GATE['roads'] = True
+    def why(addr, road):
+        GATE['addr'] = addr; GATE['road'] = road
+        v.fill('#geoText', '100 Test Hill Rd'); v.click('#geoForm button')
+        try: v.wait_for_function("document.getElementById('status').textContent.includes('No road draft')", timeout=8000)
+        except Exception: pass
+        GATE['road'] = None; return v.inner_text('#status')
+    FAR = [[C[1], C[0]+0.05], [C[1]+0.002, C[0]+0.05]]   # a road about 3.4 miles from every stand-in hydrant
+    t = why((C[0]+0.05, C[1]+0.001), FAR)
+    ok('no hydrant in 1 mile by road: the status gives that reason', t=='Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. No road draft: the county data has no hydrant in 1 mile by road. Trace the route by hand.', t)
+    t = why((C[0]+0.01, C[1]), None)   # about 3,600 ft north of the stand-in road
+    ok('no road within 500 ft: the status gives that reason', t=='Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. No road draft: no road is near this address. Trace the route by hand.', t)
     ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])
     bad = [e for e in errors if 'Failed to load resource' not in e]
     ok('no console errors except the aborted requests', not bad, bad[:3])

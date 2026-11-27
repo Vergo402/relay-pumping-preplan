@@ -49,7 +49,8 @@ A paper chart gives the pressure for a hose length. It does not know the hill or
 - The road draft uses hydrants only. It makes no draft when no hydrant is in 1 mile by road.
 - A change to the hydraulic rules, the defaults, or the data needs approval from Alex.
 - Terms: supply line, reverse lay, forward lay, relay engine, attack engine, water source, PDP, LDH, GPM, PSI, chauffeur.
-- Status: pilot v0.4. No field check is done yet.
+- Status: pilot v0.5. No field check is done yet.
+- The county hydrant list is not complete for some districts. The page shows the count for the selected district and warns below 50.
 
 - The built-in start values are the YHFD values: 1,000 ft of hose on each engine and 185 PSI maximum PDP. A YHFD engine carries 1,500 ft, and the department maximum is 200 PSI.
 - A user can set their own start values. The values stay in the browser or in a saved copy of the page.

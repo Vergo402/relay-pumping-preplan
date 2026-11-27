@@ -3,9 +3,10 @@
 This repo is one HTML page that plans a long supply line lay for Yorktown Heights Fire District (YHFD). A repo is a project folder that Git tracks. Git saves each version of the files.
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
-Status: pilot v0.4. Alex approved the v0.2 direction. No field check is done yet.
+Status: pilot v0.5. Alex approved the v0.2 direction. No field check is done yet.
 v0.3 adds a fire district picker for 60 Westchester districts and a road draft. The hydraulic rules are still the YHFD rules.
 v0.4 adds 185 PSI as the default maximum PDP and a "My defaults" box. A user can keep their own start values in the browser or in a saved copy of the page.
+v0.5 shows the county hydrant count for the selected district. It warns when the count is below 50, and the no-draft status gives the reason.
 The GitHub repo is private. Its name is yhfd-relay-calculator.
 
 ## Files
@@ -15,12 +16,12 @@ The GitHub repo is private. Its name is yhfd-relay-calculator.
 | `src/calculator.html` | The page source. Markup, styles, and two scripts: `core` (hydraulics) and `appjs` (map and screen). |
 | `build.py` | Puts Leaflet, the district boundary, and the hydrant list into one HTML file. |
 | `data/fire-districts.geojson` | 60 named Westchester fire district boundaries. Yorktown Hgts FD is id 253. |
-| `data/hydrants.json` | 22,499 hydrants, all of Westchester County. 823 have the YHFD code `YKTWN`. |
+| `data/hydrants.json` | 22,499 hydrants, all of Westchester County. 823 have the YHFD code `YKTWN`. The county list is not complete: Hartsdale FD has 3, Fairview FD 24, Peekskill FD 1. |
 | `scripts/fetch_hydrants.py` | Gets the hydrant list again from the county. |
 | `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
-| `tests/test_core.js` | 47 math checks: 36 against the chauffeur chart and 11 for the road draft. Runs in Node. |
-| `tests/test_ui.py` | 51 page checks in Chrome through Playwright. No internet needed. |
-| `package.json` | Version 0.4.0. It holds the `build`, `test`, and `test:ui` commands. |
+| `tests/test_core.js` | 49 math checks: 36 against the chauffeur chart and 13 for the road draft. Runs in Node. |
+| `tests/test_ui.py` | 55 page checks in Chrome through Playwright. No internet needed. |
+| `package.json` | Version 0.5.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
 | `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
 | `dist/` | Build output. Git ignores it. |
@@ -44,11 +45,11 @@ No Playwright browser download is necessary. The page test uses the installed Go
 | Command | Result |
 |---|---|
 | `python3 build.py` | Writes `dist/YHFD Relay Pumping Calculator.html`. |
-| `npm test` | Builds, then runs the 47 math checks. |
-| `npm run test:ui` | Builds, then runs the 51 page checks. It calls `.venv/bin/python`. |
+| `npm test` | Builds, then runs the 49 math checks. |
+| `npm run test:ui` | Builds, then runs the 55 page checks. It calls `.venv/bin/python`. |
 
 Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-On 2026-11-26, 47 of 47 math checks and 51 of 51 page checks passed on macOS with Google Chrome 158.
+On 2026-11-26, 49 of 49 math checks and 55 of 55 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 
@@ -62,8 +63,8 @@ On 2026-11-26, 47 of 47 math checks and 51 of 51 page checks passed on macOS wit
 8. After a build, check the SHA-256. The SHA-256 is a fingerprint of a file. It must equal the recorded value below.
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
-Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `bc20308410d7842a70e7d4f1246dee7f77da2314918be2c45611566eb6a97c15`
-This is the v0.4 build. On 2026-11-26 the copy Alex uses in OneDrive is the same file, byte for byte.
+Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `53160474532b59cd8a433e202782c25fe5a89353ebf57c912d5a66f79baa3332`
+This is the v0.5 build. On 2026-11-26 the copy Alex uses in OneDrive is the v0.4 build (`bc20308410d7842a70e7d4f1246dee7f77da2314918be2c45611566eb6a97c15`).
 Claude replaced that copy two times (v0.3 and v0.4), each on a direct request from Alex. Rule 3 still applies.
 The v0.2 value was `21e80ce837c58ff39c76c82a0030220d7f9b859dc50db28cb6cfe615406c2e09`.
 
