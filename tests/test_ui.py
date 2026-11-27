@@ -47,6 +47,8 @@ def to_set(q):  # v0.17: show the Settings view (My defaults, the rules list). S
 def to_plan(q):  # v0.17: go back to the planner view. Safe to call twice.
     if q.evaluate("document.getElementById('side').classList.contains('set')"): q.click('#btnSettingsBack')
 ROWS20 = "[...document.querySelectorAll('#side .sec[data-k] .su')].map(b => [b.className.split(' ').slice(1).sort().join(' '), getComputedStyle(b).backgroundColor, getComputedStyle(b).color, getComputedStyle(b, '::before').width])"  # v0.20: the state of each setup row
+def named(q):  # v0.21: the address is required before a route. With no address, type a plan name.
+    q.evaluate("(() => { const r = window.__relay; if (!r.state.name && !r.found()) { const i = document.getElementById('planName'); i.value = 'Test plan'; i.dispatchEvent(new Event('input')); } })()")
 def open_sec(q, key):  # v0.16: one setup section is open at a time. Click its line (if closed) before a check uses a control inside.
     to_plan(q)
     q.evaluate("k => { const s=document.querySelector('#side .sec[data-k=' + k + ']'); if (!s.querySelector('.bd').classList.contains('op')) s.firstElementChild.click(); }", key)
@@ -80,20 +82,20 @@ with sync_playwright() as p:
     pg.on('pageerror', lambda e: errors.append('PAGEERROR '+str(e)))
     pg.route('**/*', handle)
     pg.goto(test_html.resolve().as_uri()); pg.wait_for_timeout(700)
-    ok('no default lay: Trace by hand stays enabled (v0.16: its click explains the missing choice) and the lay is empty at the start', pg.is_enabled('#btnDraw') and pg.evaluate('window.__relay.state.settings.lay')==None, pg.inner_text('#layHint'))
+    ok('no default lay: Manually draw route stays enabled (v0.16: its click explains the missing choice) and the lay is empty at the start', pg.is_enabled('#btnDraw') and pg.evaluate('window.__relay.state.settings.lay')==None, pg.inner_text('#layHint'))
     pg.screenshot(path='out/v2_start.png')
     pick(pg); open_sec(pg, 'dist')
     opts = pg.evaluate("[...document.querySelectorAll('#setDistrict option')].map(o => o.textContent)")
     ok('district picker: Select district plus 60 districts, Yorktown Hgts FD (253) picked, hint right', len(opts)==61 and opts[0]=='Select district' and pg.input_value('#setDistrict')=='253' and 'Yorktown Hgts FD' in pg.evaluate("document.querySelector('#setDistrict').selectedOptions[0].textContent") and pg.evaluate('window.__relay.state.settings.district')==253 and pg.inner_text('#distHint')=='60 county districts. Hydraulic rules: chauffeur chart.', pg.inner_text('#distHint'))
     open_sec(pg, 'addr'); pg.fill('#geoText', '100 Test Hill Rd'); open_sec(pg, 'addr'); pg.click('#geoForm button'); pg.wait_for_timeout(600); draft(pg)
-    try: pg.wait_for_function("document.getElementById('status').textContent.includes('No road draft')", timeout=5000)
+    try: pg.wait_for_function("document.getElementById('status').textContent.includes('No auto route')", timeout=5000)
     except Exception: pass
-    ok('road query fails: no draft, the route stays empty and the status says so', pg.evaluate('window.__relay.state.points.length')==0 and not pg.evaluate('window.__relay.state.draft') and pg.inner_text('#status').startswith('Found: ') and 'No road draft: the road data did not answer. Trace the route by hand.' in pg.inner_text('#status'), pg.inner_text('#status'))
+    ok('road query fails: no draft, the route stays empty and the status says so', pg.evaluate('window.__relay.state.points.length')==0 and not pg.evaluate('window.__relay.state.draft') and pg.inner_text('#status').startswith('Found: ') and 'No auto route: the road data did not answer. Draw the route manually.' in pg.inner_text('#status'), pg.inner_text('#status'))
     pg.evaluate('window.__relay.map.setZoom(16,{animate:false})'); pg.wait_for_timeout(400)
     box = pg.locator('#map').bounding_box(); cx, cy = box['x']+box['width']/2, box['y']+box['height']/2
     # ---- reverse lay: attack engine first ----
     open_sec(pg, 'lay'); pg.click('#layRev'); open_sec(pg, 'route'); ok('reverse selected: steps start at the attack engine', 'attack engine position first' in pg.inner_text('#steps') and pg.is_enabled('#btnDraw'), pg.inner_text('#status'))
-    open_sec(pg, 'route'); pg.click('#btnDraw'); ok('lay buttons lock during the trace', pg.is_disabled('#layFwd'))
+    open_sec(pg, 'route'); named(pg); pg.click('#btnDraw'); ok('lay buttons lock during the trace', pg.is_disabled('#layFwd'))
     for dx,dy in reversed(UP): pg.mouse.click(cx+dx, cy+dy); pg.wait_for_timeout(100)
     ok('reverse status asks for the water source last', 'water source last' in pg.inner_text('#status'), pg.inner_text('#status'))
     pg.mouse.click(cx-200, cy+200); pg.wait_for_timeout(100); n5 = pg.evaluate('window.__relay.state.points.length')
@@ -209,11 +211,11 @@ with sync_playwright() as p:
     pg.click('#btnBack'); pg.wait_for_timeout(200)
     # ---- clear: lay must be picked again ----
     open_sec(pg, 'route'); clear(pg); pg.wait_for_timeout(150)
-    ok('clear resets the lay and the district; Trace by hand stays enabled', pg.evaluate('window.__relay.state.settings.lay')==None and pg.evaluate('window.__relay.state.settings.district')==None and pg.is_enabled('#btnDraw'), pg.inner_text('#status'))
+    ok('clear resets the lay and the district; Manually draw route stays enabled', pg.evaluate('window.__relay.state.settings.lay')==None and pg.evaluate('window.__relay.state.settings.district')==None and pg.is_enabled('#btnDraw'), pg.inner_text('#status'))
     # ---- forward lay: source first ----
     pick(pg); open_sec(pg, 'lay'); pg.select_option('#sourceType', 'Hydrant')
     pg.evaluate('window.__relay.map.setView([%f,%f],16,{animate:false})' % C); pg.wait_for_timeout(400)
-    open_sec(pg, 'lay'); pg.click('#layFwd'); open_sec(pg, 'route'); pg.click('#btnDraw')
+    open_sec(pg, 'lay'); pg.click('#layFwd'); open_sec(pg, 'route'); named(pg); pg.click('#btnDraw')
     for dx,dy in UP: pg.mouse.click(cx+dx, cy+dy); pg.wait_for_timeout(100)
     open_sec(pg, 'route'); pg.click('#btnFinish'); pg.wait_for_selector('#flowTable', timeout=8000); pg.wait_for_timeout(300)
     f2 = pg.evaluate(SNAP)
@@ -237,7 +239,7 @@ with sync_playwright() as p:
     print('DRAFT:', json.dumps(dr))
     r20 = pg.evaluate(ROWS20)
     ok('v0.20: with a route, all four setup rows are done and no row is the next step', pg.evaluate('window.__relay.state.points.length') > 1 and [x[0] for x in r20]==['ok','ok','ok','ok'] and all(x[1]=='rgba(0, 0, 0, 0)' for x in r20), r20)
-    ok('road draft with an empty route (hydrant T-102 by road): draft set, source hydrant, status ok', dr['draft'] is True and dr['n']>=3 and dr['hyd'] and dr['hyd']['num']=='T-102' and dr['cls']=='ok' and dr['text'].startswith('Draft route: hydrant'), dr['text'])
+    ok('road draft with an empty route (hydrant T-102 by road): draft set, source hydrant, status ok', dr['draft'] is True and dr['n']>=3 and dr['hyd'] and dr['hyd']['num']=='T-102' and dr['cls']=='ok' and dr['text'].startswith('Auto route: hydrant'), dr['text'])
     ok('  first point is hydrant T-102 and last point is the address', dr['first'] and abs(dr['first']['lat']-(C[0]+0.001))<1e-9 and abs(dr['first']['lng']-(C[1]+0.002))<1e-9 and abs(dr['last']['lat']-ADDR2[0])<1e-9 and abs(dr['last']['lng']-ADDR2[1])<1e-9, (dr['first'], dr['last']))
     ok('  the results table appears for the draft', pg.locator('#flowTable').count()==1 and pg.is_visible('#flowTable'))
     dl = pg.evaluate("(() => { let d=0, y=0; window.__relay.map.eachLayer(l => { if (l.options && l.options.color==='#ffd21f') { y++; if (l.options.dashArray) d++; } }); return [y, d]; })()")
@@ -326,14 +328,14 @@ with sync_playwright() as p:
     def why(addr, road):
         GATE['addr'] = addr; GATE['road'] = road
         open_sec(v, 'addr'); v.fill('#geoText', '100 Test Hill Rd'); open_sec(v, 'addr'); v.click('#geoForm button'); v.wait_for_timeout(500); draft(v)
-        try: v.wait_for_function("document.getElementById('status').textContent.includes('No road draft')", timeout=8000)
+        try: v.wait_for_function("document.getElementById('status').textContent.includes('No auto route')", timeout=8000)
         except Exception: pass
         GATE['road'] = None; return v.inner_text('#status')
     FAR = [[C[1], C[0]+0.05], [C[1]+0.002, C[0]+0.05]]   # a road about 3.4 miles from every stand-in hydrant
     t = why((C[0]+0.05, C[1]+0.001), FAR)
-    ok('no hydrant in 1 mile by road: the status gives that reason', t=='Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. No road draft: the hydrant data has no hydrant in 1 mile by road. Trace the route by hand.', t)
+    ok('no hydrant in 1 mile by road: the status gives that reason', t=='Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. No auto route: the hydrant data has no hydrant in 1 mile by road. Draw the route manually.', t)
     t = why((C[0]+0.01, C[1]), None)   # about 3,600 ft north of the stand-in road
-    ok('no road within 500 ft: the status gives that reason', t=='Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. No road draft: no road is near this address. Trace the route by hand.', t)
+    ok('no road within 500 ft: the status gives that reason', t=='Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. No auto route: no road is near this address. Draw the route manually.', t)
     # ---- v0.6 phase: Town of Greenburgh hydrants (code TOG) ----
     def tog_page(rows):
         f = pathlib.Path('out/test_tog.html')
@@ -362,7 +364,7 @@ with sync_playwright() as p:
     open_sec(x, 'addr'); x.fill('#geoText', '100 Test Hill Rd'); open_sec(x, 'addr'); x.click('#geoForm button'); x.wait_for_timeout(500); draft(x)
     try: x.wait_for_function('window.__relay.state.draft === true', timeout=8000); x.wait_for_selector('#flowTable', timeout=8000); x.wait_for_timeout(300)
     except Exception: pass
-    SHORT_TXT = 'Draft route: hydrant T-102 to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd. The driveway is shorter than 100 ft, so the draft stops on the road. Drag S or A to move them.'
+    SHORT_TXT = 'Auto route: hydrant T-102 to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd. The driveway is shorter than 100 ft, so the auto route stops on the road. Drag S or A to move them.'
     sd = x.evaluate("(() => { const s=window.__relay.state, m=window.__relay.map; let dash=0, yellow=0; m.eachLayer(l => { if (l.options && l.options.color==='#ffd21f') { yellow++; if (l.options.dashArray) dash++; } }); return {draft:s.draft, last:s.points[s.points.length-1], dash, yellow, text:document.getElementById('status').textContent}; })()")
     ok('short driveway: the draft ends at the road point, not the address', sd['draft'] is True and abs(sd['last']['lat']-(C[0]+0.003))<1e-6 and abs(sd['last']['lng']-ADDR_SHORT[1])<1e-6, sd['last'])
     ok('  the status says the draft stops on the road (with the low hydrant caution)', sd['text']==SHORT_TXT + ' The county hydrant list can be incomplete here. A nearer hydrant can exist.', sd['text'])
@@ -403,14 +405,14 @@ with sync_playwright() as p:
     ok('  the moved S no longer counts as a hydrant source', p2['hyd'] is None and x.inner_text('#sourceType')!='' , p2['hyd'])
     # ---- v0.9 phase: Go finds the address only. Step 2 holds the choices. The draft starts on a button. ----
     e9 = len(errors)
-    FOUND = 'Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. Check step 2. Then select Draft route by road, or trace by hand.'
+    FOUND = 'Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. Check step 2. Then select Auto draw route, or Manually draw route.'
     GATE['roads'] = True; GATE['addr'] = ADDR2; GATE['road'] = None
     y = fresh(); y.set_viewport_size({'width':1280,'height':900}); road_calls = []
     y.on('request', lambda r: road_calls.append(r.url) if 'MapServer/11/query' in r.url else None)
     load(y)
     ok('the source type starts empty: first option is Select the type, the state is empty', y.evaluate("[...document.querySelectorAll('#sourceType option')].map(o => o.value + ':' + o.textContent)")==[':Select the type','Hydrant:Hydrant','Draft site:Draft site','Tanker dump site:Tanker dump site','Other:Other'] and y.input_value('#sourceType')=='' and y.evaluate('window.__relay.state.sourceType')=='')
     open_sec(y, 'route')
-    ok('the trace button idle label is Trace by hand and the draft button is first in the row and enabled', y.inner_text('#btnDraw')=='Trace by hand' and y.is_enabled('#btnDraft') and y.evaluate("document.querySelector('#btnDraft').nextElementSibling.id")=='btnDraw' and y.inner_text('#btnDraft')=='Draft route by road')
+    ok('the trace button idle label is Manually draw route and the draft button is first in the row and enabled', y.inner_text('#btnDraw')=='Manually draw route' and y.is_enabled('#btnDraft') and y.evaluate("document.querySelector('#btnDraft').nextElementSibling.id")=='btnDraw' and y.inner_text('#btnDraft')=='Auto draw route to closest hydrant')
     open_sec(y, 'route'); y.click('#btnDraft')
     ok('draft button with no address and no type: the type message comes first (v0.16 order: district, type, lay, address)', y.inner_text('#status')=='Select the water source type in step 2.', y.inner_text('#status'))
     open_sec(y, 'addr'); y.fill('#geoText', '100 Test Hill Rd'); open_sec(y, 'addr'); y.click('#geoForm button'); y.wait_for_function("document.getElementById('status').textContent.startsWith('Found')", timeout=8000); y.wait_for_timeout(700)
@@ -424,9 +426,9 @@ with sync_playwright() as p:
     try: y.wait_for_function('window.__relay.state.draft === true', timeout=8000); y.wait_for_selector('#flowTable', timeout=8000); y.wait_for_timeout(300)
     except Exception: pass
     d9 = y.evaluate("(() => { const s=window.__relay.state; return {n:s.points.length, first:s.points[0], last:s.points[s.points.length-1], hyd:s.sourceHydrant, type:s.sourceType, text:document.getElementById('status').textContent}; })()")
-    ok('hydrant draft after the button equals the old draft: hydrant T-102 first, the address last, the same status text', d9['hyd'] and d9['hyd']['num']=='T-102' and d9['n']>=3 and abs(d9['first']['lat']-(C[0]+0.001))<1e-9 and abs(d9['first']['lng']-(C[1]+0.002))<1e-9 and abs(d9['last']['lat']-ADDR2[0])<1e-9 and abs(d9['last']['lng']-ADDR2[1])<1e-9 and d9['text']=='Draft route: hydrant T-102 to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd. Drag a point to match the driveway. Click the line to add a point. The county hydrant list can be incomplete here. A nearer hydrant can exist.', d9)
+    ok('hydrant draft after the button equals the old draft: hydrant T-102 first, the address last, the same status text', d9['hyd'] and d9['hyd']['num']=='T-102' and d9['n']>=3 and abs(d9['first']['lat']-(C[0]+0.001))<1e-9 and abs(d9['first']['lng']-(C[1]+0.002))<1e-9 and abs(d9['last']['lat']-ADDR2[0])<1e-9 and abs(d9['last']['lng']-ADDR2[1])<1e-9 and d9['text']=='Auto route: hydrant T-102 to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd. Drag a point to match the driveway. Click the line to add a point. The county hydrant list can be incomplete here. A nearer hydrant can exist.', d9)
     y.screenshot(path='out/v09-after-draft.png')
-    open_sec(y, 'route'); y.click('#btnDraft'); ok('draft button with a route: Clear the route first. The draft needs an empty route.', y.inner_text('#status')=='Clear the route first. The draft needs an empty route.' and y.evaluate('window.__relay.state.points.length')==d9['n'], y.inner_text('#status'))
+    open_sec(y, 'route'); y.click('#btnDraft'); ok('draft button with a route: Clear the route first. The auto route needs an empty route.', y.inner_text('#status')=='Clear the route first. The auto route needs an empty route.' and y.evaluate('window.__relay.state.points.length')==d9['n'], y.inner_text('#status'))
     open_sec(y, 'route'); clear(y); y.wait_for_timeout(300)
     ok('Clear empties the source type, the lay, and the pin; the draft then asks for the address', y.input_value('#sourceType')=='' and y.evaluate('window.__relay.state.sourceType')=='' and y.evaluate('window.__relay.state.settings.lay')==None and y.locator('.pin').count()==0, y.input_value('#sourceType'))
     open_sec(y, 'route'); y.click('#btnDraft'); ok('after Clear the draft button says Select the fire district first.', y.inner_text('#status')=='Select the fire district first.', y.inner_text('#status'))
@@ -442,7 +444,7 @@ with sync_playwright() as p:
     except Exception: pass
     d9 = y.evaluate("(() => { const s=window.__relay.state; return {n:s.points.length, first:s.points[0], last:s.points[s.points.length-1], hyd:s.sourceHydrant, type:s.sourceType, text:document.getElementById('status').textContent}; })()")
     ok('Draft site: the click is the first point, the address is last, the source hydrant stays null, the type stays', d9['hyd'] is None and d9['type']=='Draft site' and d9['n']>=3 and abs(d9['first']['lat']-SRC[0])<1e-9 and abs(d9['first']['lng']-SRC[1])<1e-9 and abs(d9['last']['lat']-ADDR2[0])<1e-9, d9)
-    ok('  the status starts: Draft route: draft site to <address>. It follows Test Hill Rd.', d9['text'].startswith('Draft route: draft site to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd.') and 'county hydrant list' not in d9['text'], d9['text'])
+    ok('  the status starts: Draft route: draft site to <address>. It follows Test Hill Rd.', d9['text'].startswith('Auto route: draft site to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd.') and 'county hydrant list' not in d9['text'], d9['text'])
     # a far hydrant: a winding road of about 11,000 ft joins the only hydrant to the address
     KLAT = 20902260*3.141592653589793/180
     import math
@@ -453,22 +455,22 @@ with sync_playwright() as p:
     w9 = fresh(); load(w9, f9)
     GATE['addr'] = (FARROAD[3][1], FARROAD[3][0]); GATE['road'] = FARROAD
     open_sec(w9, 'addr'); w9.fill('#geoText', '100 Test Hill Rd'); open_sec(w9, 'addr'); w9.click('#geoForm button'); w9.wait_for_timeout(700); draft(w9)
-    try: w9.wait_for_function("document.getElementById('status').textContent.startsWith('No road draft')", timeout=8000)
+    try: w9.wait_for_function("document.getElementById('status').textContent.startsWith('No auto route')", timeout=8000)
     except Exception: pass
     GATE['addr'] = ADDR2; GATE['road'] = None
-    ok('a hydrant more than 1 mile away by road: the exact no-draft status and no route', w9.inner_text('#status')=='No road draft: the nearest hydrant by road is F-1, about 11,000 ft away. That is more than 1 mile. Select a different water source type, or trace the route by hand.' and w9.evaluate('window.__relay.state.points.length')==0 and not w9.evaluate('window.__relay.state.draft'), w9.inner_text('#status'))
+    ok('a hydrant more than 1 mile away by road: the exact no-draft status and no route', w9.inner_text('#status')=='No auto route: the nearest hydrant by road is F-1, about 11,000 ft away. That is more than 1 mile. Select a different water source type, or draw the route manually.' and w9.evaluate('window.__relay.state.points.length')==0 and not w9.evaluate('window.__relay.state.draft'), w9.inner_text('#status'))
     # a clicked source more than 1 mile away by road
     open_sec(w9, 'lay'); w9.select_option('#sourceType', 'Other'); open_sec(w9, 'route'); w9.click('#btnDraft'); GATE['addr'] = (FARROAD[3][1], FARROAD[3][0]); GATE['road'] = FARROAD
     w9.evaluate('window.__relay.map.fire("click",{latlng:{lat:%f,lng:%f}})' % (FARROAD[0][1], FARROAD[0][0]))
-    try: w9.wait_for_function("document.getElementById('status').textContent.startsWith('No road draft')", timeout=8000)
+    try: w9.wait_for_function("document.getElementById('status').textContent.startsWith('No auto route')", timeout=8000)
     except Exception: pass
     GATE['addr'] = ADDR2; GATE['road'] = None
-    ok('a clicked source more than 1 mile away by road: the exact no-draft status and no route', w9.inner_text('#status')=='No road draft: the water source is about 11,000 ft away by road. That is more than 1 mile. Trace the route by hand.' and w9.evaluate('window.__relay.state.points.length')==0, w9.inner_text('#status'))
+    ok('a clicked source more than 1 mile away by road: the exact no-draft status and no route', w9.inner_text('#status')=='No auto route: the water source is about 11,000 ft away by road. That is more than 1 mile. Draw the route manually.' and w9.evaluate('window.__relay.state.points.length')==0, w9.inner_text('#status'))
     # a card with no source type prints Not selected
     GATE['roads'] = False
     k9 = fresh(); load(k9)
     kb = k9.locator('#map').bounding_box(); kx, ky = kb['x']+kb['width']/2, kb['y']+kb['height']/2
-    open_sec(k9, 'lay'); k9.select_option('#sourceType', 'Other'); k9.click('#layRev'); open_sec(k9, 'route'); k9.click('#btnDraw')
+    open_sec(k9, 'lay'); k9.select_option('#sourceType', 'Other'); k9.click('#layRev'); open_sec(k9, 'route'); named(k9); k9.click('#btnDraw')
     for dx,dy in ((220,120),(300,170)): k9.mouse.click(kx+dx, ky+dy); k9.wait_for_timeout(100)
     open_sec(k9, 'route'); k9.click('#btnFinish'); k9.wait_for_selector('#flowTable', timeout=8000); open_sec(k9, 'lay'); k9.select_option('#sourceType', ''); k9.click('#btnCard'); k9.wait_for_timeout(500)
     ok('a card with no source type: the Water source fact reads Not selected', k9.evaluate('window.__relay.state.sourceType')=='' and k9.inner_text('#cardHead .facts4 div:nth-child(1) b')=='Not selected' and k9.inner_text('#cardHead .facts4 div:nth-child(1) span').lower()=='water source', k9.inner_text('#cardHead .facts4 div:nth-child(1)'))
@@ -483,7 +485,7 @@ with sync_playwright() as p:
     e10 = len(errors)
     GATE['roads'] = False; GATE['addr'] = C
     t10 = fresh(); load(t10)
-    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.20' in t10.inner_text('.brand'))
+    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.21' in t10.inner_text('.brand'))
     ok('v0.19: the name is Relay Pumping Pre-plan in the tab and the header, and the page text does not say YHFD', t10.title()=='Relay Pumping Pre-plan' and t10.inner_text('.brand h1')=='Relay Pumping Pre-plan' and 'YHFD' not in t10.evaluate("document.getElementById('side').textContent + document.getElementById('cardHead').textContent"), t10.title())
     ok('v0.16: the status line lists five values (no district)', t10.inner_text('#defaultsStatus')=='Defaults in use: built-in (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==5, t10.inner_text('#defaultsStatus'))
     to_set(t10); rules = t10.inner_text('#setView ul')
@@ -547,7 +549,7 @@ with sync_playwright() as p:
     ok('v0.16: before a route the four lines show and all four sections are closed (controls hidden)', f13.locator('#side .su:visible').count()==4 and f13.evaluate(SEC+".every(s => !s.querySelector('.bd').classList.contains('op'))") and not f13.is_visible('#setDistrict') and not f13.is_visible('#layRev'))
     open_sec(f13, 'addr'); f13.fill('#geoText', '100 Test Hill Rd'); f13.click('#geoForm button'); f13.wait_for_timeout(600); draft(f13); f13.wait_for_selector('#flowTable', timeout=8000); f13.wait_for_timeout(300)
     rows = f13.evaluate("[...document.querySelectorAll('#side .su')].map(b => [b.querySelector('i').textContent, b.querySelector('span').textContent, b.querySelector('u').textContent, b.getAttribute('aria-expanded'), b.offsetParent !== null])")
-    ok('v0.13: after a draft four summary rows show with the expected texts', rows==[['District','Yorktown Hgts FD','Change','false',True],['1. Address','100 TEST HILL RD, YORKTOWN HEIGHTS','Change','false',True],['2. Lay','Hydrant \u00b7 Reverse \u00b7 5 inch \u00b7 185 PSI','Change','false',True],['3. Route','Draft by road from hydrant T-102','Edit','false',True]], rows)
+    ok('v0.13: after a draft four summary rows show with the expected texts', rows==[['District','Yorktown Hgts FD','Change','false',True],['1. Address','100 TEST HILL RD, YORKTOWN HEIGHTS','Change','false',True],['2. Lay','Hydrant \u00b7 Reverse \u00b7 5 inch \u00b7 185 PSI','Change','false',True],['3. Route','Auto route from hydrant T-102','Edit','false',True]], rows)
     ok('v0.13: the section controls are hidden after a draft', not any(f13.is_visible(c) for c in ('#setDistrict','#geoText','#layRev','#btnClear')))
     f13.click('#side .su >> nth=2')
     ok('v0.13: a click on a row opens that section, sets aria-expanded, and reads Close', f13.is_visible('#layRev') and f13.is_visible('#setCap') and not f13.is_visible('#setDistrict') and f13.locator('#side .su >> nth=2').get_attribute('aria-expanded')=='true' and f13.inner_text('#side .su >> nth=2 >> u')=='Close')
@@ -629,7 +631,7 @@ with sync_playwright() as p:
     n16 = fresh(); n16.goto(test_html.resolve().as_uri()); n16.wait_for_timeout(700)
     ln = n16.evaluate(LINES)
     ok('v0.16 item 1: no district at the start (Select district, empty value, state none, count note hidden, map shows the whole county)', n16.input_value('#setDistrict')=='' and n16.evaluate("document.querySelector('#setDistrict').selectedOptions[0].textContent")=='Select district' and n16.evaluate('window.__relay.state.settings.district')==None and n16.evaluate("document.getElementById('distCount').hidden") and n16.evaluate('window.__relay.map.getZoom()')<=11, n16.evaluate('window.__relay.map.getZoom()'))
-    ok('v0.16 items 2 and 5: four lines show with no route, all closed; District and Lay read Select, Address Change, Route Make', [(l['label'], l['vis'], l['text'], l['act'], l['exp']) for l in ln]==[('District',True,'Select district','Select','false'),('1. Address',True,'No address','Change','false'),('2. Lay',True,'Select source type and lay','Select','false'),('3. Route',True,'No route','Make','false')] and [l['req'] for l in ln]==[True,False,True,False], ln)
+    ok('v0.16 items 2 and 5: four lines show with no route, all closed; all four are required (v0.21): District and Lay read Select, Address Enter, Route Make', [(l['label'], l['vis'], l['text'], l['act'], l['exp']) for l in ln]==[('District',True,'Select district','Select','false'),('1. Address',True,'Enter address','Enter','false'),('2. Lay',True,'Select source type and lay','Select','false'),('3. Route',True,'Make a route','Make','false')] and [l['req'] for l in ln]==[True,True,True,True], ln)
     ok('v0.16 item 5: a missing line has the light red background and red bold text', n16.evaluate("(() => { const b=document.querySelector('#side .su.req'), c=getComputedStyle(b), t=getComputedStyle(b.children[1]); return [c.backgroundColor, t.color, t.fontWeight]; })()")==['rgb(251, 236, 235)','rgb(179, 38, 30)','600'])
     st = n16.evaluate("(() => { const s=document.getElementById('status'), r=s.getBoundingClientRect(), l=[...document.querySelectorAll('#side .su')][3].getBoundingClientRect(); return {vis:r.height>0 && getComputedStyle(s).visibility=='visible', inSec:!!s.closest('.sec'), below:r.top>=l.bottom-1, text:s.textContent}; })()")
     ok('v0.16 item 8: the status block shows with every section closed, outside any section, under the fourth line', st['vis'] and not st['inSec'] and st['below'] and st['text']!='', st)
@@ -643,14 +645,14 @@ with sync_playwright() as p:
     rm = n16.evaluate("(() => { const b=document.querySelector('#side .bd'), c=getComputedStyle(b), i=getComputedStyle(b.firstElementChild); return [c.transitionProperty, c.transitionDuration, i.transitionProperty.includes('opacity'), Math.max(...i.transitionDuration.split(',').map(parseFloat))]; })()")
     ok('v0.16 item 4: with prefers-reduced-motion the section has no height transition and keeps a short fade', rm[0]=='none' and rm[1]=='0s' and rm[2] and 0<rm[3]<=0.1, rm)
     n16.emulate_media(reduced_motion='no-preference')
-    # force: Go, Trace by hand, and Draft with a missing choice open that section, focus the control, and show the red message
+    # force: Go, Manually draw route, and Draft with a missing choice open that section, focus the control, and show the red message
     open_sec(n16, 'addr'); n16.click('#geoForm button'); n16.wait_for_timeout(100); f = n16.evaluate(FORCE)
     ok('v0.16 item 9: Go with no district closes the open section, opens District, focuses the select, and shows the red message', f=={'open':['dist'],'focus':'setDistrict','status':'Select the fire district first.','cls':'err'}, f)
     ok('v0.16 item 6: with the district missing, the select has a red border and the light red background', n16.evaluate(COL, 'setDistrict')==['rgb(179, 38, 30)','rgb(251, 236, 235)'])
     open_sec(n16, 'route'); n16.click('#btnDraft'); n16.wait_for_timeout(100); f = n16.evaluate(FORCE)
-    ok('v0.16 item 9: Draft route by road with no district: District opens, same message', f=={'open':['dist'],'focus':'setDistrict','status':'Select the fire district first.','cls':'err'}, f)
-    open_sec(n16, 'route'); n16.click('#btnDraw'); n16.wait_for_timeout(100); f = n16.evaluate(FORCE)
-    ok('v0.16 item 9: Trace by hand with no district: District opens, same message, and no trace starts', f=={'open':['dist'],'focus':'setDistrict','status':'Select the fire district first.','cls':'err'} and not n16.evaluate('window.__relay.state.drawing'), f)
+    ok('v0.16 item 9: Auto draw route to closest hydrant with no district: District opens, same message', f=={'open':['dist'],'focus':'setDistrict','status':'Select the fire district first.','cls':'err'}, f)
+    open_sec(n16, 'route'); named(n16); n16.click('#btnDraw'); n16.wait_for_timeout(100); f = n16.evaluate(FORCE)
+    ok('v0.16 item 9: Manually draw route with no district: District opens, same message, and no trace starts', f=={'open':['dist'],'focus':'setDistrict','status':'Select the fire district first.','cls':'err'} and not n16.evaluate('window.__relay.state.drawing'), f)
     n16.select_option('#setDistrict', '253'); n16.wait_for_timeout(300); ln = n16.evaluate(LINES)
     ok('v0.16 item 7: the District tint goes away when a district is picked, and the line reads the name and Close', not ln[0]['req'] and ln[0]['text']=='Yorktown Hgts FD' and ln[0]['act']=='Close' and 'req' not in (n16.get_attribute('#setDistrict','class') or ''), ln[0])
     open_sec(n16, 'addr'); n16.fill('#geoText', '100 Test Hill Rd'); n16.click('#geoForm button'); n16.wait_for_function("document.getElementById('status').textContent.startsWith('Found')", timeout=8000)
@@ -658,21 +660,21 @@ with sync_playwright() as p:
     open_sec(n16, 'route'); n16.click('#btnDraft'); n16.wait_for_timeout(100); f = n16.evaluate(FORCE); ln = n16.evaluate(LINES)
     ok('v0.16 item 9: Draft with no source type: Lay opens, the type select has focus, the step 2 message shows', f=={'open':['lay'],'focus':'sourceType','status':'Select the water source type in step 2.','cls':'err'} and ln[2]['text']=='Select source type and lay', f)
     ok('v0.16 item 6: both lay controls are red: the type select and the lay buttons', n16.evaluate(COL, 'sourceType')==['rgb(179, 38, 30)','rgb(251, 236, 235)'] and n16.evaluate("(() => { const b=getComputedStyle(document.getElementById('layRev')); return [b.borderTopColor, b.backgroundColor]; })()")==['rgb(179, 38, 30)','rgb(251, 236, 235)'])
-    open_sec(n16, 'route'); n16.click('#btnDraw'); n16.wait_for_timeout(100); f = n16.evaluate(FORCE)
-    ok('v0.16 item 9: Trace by hand with no source type: same Lay message and focus', f=={'open':['lay'],'focus':'sourceType','status':'Select the water source type in step 2.','cls':'err'} and not n16.evaluate('window.__relay.state.drawing'), f)
+    open_sec(n16, 'route'); named(n16); n16.click('#btnDraw'); n16.wait_for_timeout(100); f = n16.evaluate(FORCE)
+    ok('v0.16 item 9: Manually draw route with no source type: same Lay message and focus', f=={'open':['lay'],'focus':'sourceType','status':'Select the water source type in step 2.','cls':'err'} and not n16.evaluate('window.__relay.state.drawing'), f)
     n16.select_option('#sourceType', 'Hydrant'); n16.wait_for_timeout(200); ln = n16.evaluate(LINES)
     ok('v0.16 item 7: picking the source type removes its tint; the line now reads Select lay', ln[2]['text']=='Select lay' and ln[2]['req'] and 'req' not in (n16.get_attribute('#sourceType','class') or '') and 'req' in n16.get_attribute('#layRev >> xpath=..', 'class'), ln[2])
     open_sec(n16, 'route'); n16.click('#btnDraft'); n16.wait_for_timeout(100); f = n16.evaluate(FORCE)
     ok('v0.16 item 9: Draft with no lay: Lay opens, the first lay button has focus, the lay message shows', f=={'open':['lay'],'focus':'layRev','status':'Select Reverse lay or Forward lay in step 2.','cls':'err'}, f)
-    open_sec(n16, 'route'); n16.click('#btnDraw'); n16.wait_for_timeout(100); f = n16.evaluate(FORCE)
-    ok('v0.16 item 9: Trace by hand with no lay: same lay message and focus', f=={'open':['lay'],'focus':'layRev','status':'Select Reverse lay or Forward lay in step 2.','cls':'err'} and not n16.evaluate('window.__relay.state.drawing'), f)
+    open_sec(n16, 'route'); named(n16); n16.click('#btnDraw'); n16.wait_for_timeout(100); f = n16.evaluate(FORCE)
+    ok('v0.16 item 9: Manually draw route with no lay: same lay message and focus', f=={'open':['lay'],'focus':'layRev','status':'Select Reverse lay or Forward lay in step 2.','cls':'err'} and not n16.evaluate('window.__relay.state.drawing'), f)
     n16.click('#layRev'); n16.wait_for_timeout(200); ln = n16.evaluate(LINES)
-    ok('v0.16 items 7 and 10: picking the lay removes the last tint; the line reads the full summary and Close', ln[2]['text']=='Hydrant · Reverse · 5 inch · 185 PSI' and not ln[2]['req'] and ln[2]['act']=='Close' and 'req' not in n16.get_attribute('#layRev >> xpath=..', 'class') and not any(l['req'] for l in ln), ln)
+    ok('v0.16 items 7 and 10: picking the lay removes the last tint; the line reads the full summary and Close', ln[2]['text']=='Hydrant · Reverse · 5 inch · 185 PSI' and not ln[2]['req'] and ln[2]['act']=='Close' and 'req' not in n16.get_attribute('#layRev >> xpath=..', 'class') and not any(l['req'] for l in ln[:3]) and ln[3]['req'], ln)
     n16.click('#side .su >> nth=1'); n16.wait_for_timeout(250)
     ok('v0.16 item 3: a click on a line opens it and closes the open one', n16.evaluate(OPEN)==['addr'] and not n16.is_visible('#layRev') and n16.is_visible('#geoText'), n16.evaluate(OPEN))
     n16.click('#side .su >> nth=1'); n16.wait_for_timeout(250)
     ok('v0.16 item 3: a click on the open line closes it, and none is open', n16.evaluate(OPEN)==[] and not n16.is_visible('#geoText') and n16.evaluate(LINES)[1]['act']=='Change')
-    open_sec(n16, 'route'); n16.click('#btnDraw'); n16.wait_for_timeout(100); n16.click('#side .su >> nth=1'); n16.wait_for_timeout(300)
+    open_sec(n16, 'route'); named(n16); n16.click('#btnDraw'); n16.wait_for_timeout(100); n16.click('#side .su >> nth=1'); n16.wait_for_timeout(300)
     ok('v0.16: while a trace runs, section 3 stays open (a click on another line cannot close it)', n16.evaluate('window.__relay.state.drawing') and n16.evaluate(OPEN)==['route'] and n16.is_visible('#btnFinish'), n16.evaluate(OPEN))
     n16.close()
     # old saved defaults that hold a district: the district is ignored (browser storage, then a saved copy)
@@ -736,7 +738,7 @@ with sync_playwright() as p:
     u.locator('.mid').first.dispatch_event('click'); u.wait_for_timeout(900); u.click('#btnCard'); u.wait_for_timeout(600)
     ok('v0.16 F: in card mode the box is hidden by CSS (it is not hidden by script)', u.evaluate("(() => { const b=document.querySelector('.ud'); return !b.hidden && getComputedStyle(b).display; })()")=='none' and u.evaluate(UDT) is None)
     u.click('#btnBack'); u.wait_for_timeout(500)
-    open_sec(u, 'route'); u.locator('.mid').first.dispatch_event('click'); u.wait_for_timeout(900); u.click('#btnDraw'); u.wait_for_timeout(300)
+    open_sec(u, 'route'); u.locator('.mid').first.dispatch_event('click'); u.wait_for_timeout(900); named(u); u.click('#btnDraw'); u.wait_for_timeout(300)
     ok('v0.16 F: entering trace mode hides the box', u.evaluate(UDT) is None)
     udrag('.vx >> nth=1', 60, 40)
     ok('v0.16 F: a point drag in trace mode shows no box', u.evaluate(UDT) is None)
@@ -812,13 +814,22 @@ with sync_playwright() as p:
     ok('no page errors in the v0.16 Undo phase', not [e for e in errors[e16u:] if 'Failed to load resource' not in e], errors[e16u:][:3])
     ok('no page errors in the v0.16 phase', not [e for e in errors[e16:] if 'Failed to load resource' not in e], errors[e16:][:3])
     ok('no page errors in the v0.15 phase', not [e for e in errors[e15:] if 'Failed to load resource' not in e], errors[e15:][:3])
-    # ---- v0.20 phase: each setup row shows done, next, or required ----
+    # ---- v0.20 and v0.21 phase: each setup row shows done or required. All four steps are required. ----
     v20 = fresh(); v20.goto(test_html.resolve().as_uri()); v20.wait_for_timeout(700); r20 = v20.evaluate(ROWS20)
-    ok('v0.20: a new page: District is required and red, not blue; Lay is required; no row is done', [x[0] for x in r20]==['nx req','','req',''] and r20[0][1]=='rgb(251, 236, 235)' and r20[2][1]=='rgb(251, 236, 235)', r20)
+    ok('v0.21: a new page: all four setup rows are required and red; no row is done', [x[0] for x in r20]==['req','req','req','req'] and all(x[1]=='rgb(251, 236, 235)' for x in r20), r20)
     pick(v20); r20 = v20.evaluate(ROWS20)
-    ok('v0.20: with a district: District is done, Address is the next step in solid blue with white text, Lay is red', [x[0] for x in r20]==['ok','nx','req',''] and r20[1][1]=='rgb(31, 95, 168)' and r20[1][2]=='rgb(255, 255, 255)' and r20[2][1]=='rgb(251, 236, 235)', r20)
+    ok('v0.21: with a district: District is done; Address, Lay, and Route stay red', [x[0] for x in r20]==['ok','req','req','req'] and r20[0][1]=='rgba(0, 0, 0, 0)' and all(x[1]=='rgb(251, 236, 235)' for x in r20[1:]), r20)
     ok('v0.20: each setup row starts with a 16 px mark', all(x[3]=='16px' for x in r20), r20)
-    ok('v0.20: the action word of the next step is a white button with blue text', v20.evaluate("(() => { const c = getComputedStyle(document.querySelector('#side .su.nx u')); return [c.backgroundColor, c.color]; })()")==['rgb(255, 255, 255)','rgb(31, 95, 168)'])
+    ok('v0.21: the action word of a required row is a solid red button with white text', v20.evaluate("(() => { const c = getComputedStyle(document.querySelector('#side .sec[data-k=route] .su u')); return [c.backgroundColor, c.color]; })()")==['rgb(179, 38, 30)','rgb(255, 255, 255)'])
+    open_sec(v20, 'route'); bb = v20.evaluate("['btnDraft','btnDraw'].map(i => { const r = document.getElementById(i).getBoundingClientRect(); return [document.getElementById(i).textContent, Math.round(r.width), Math.round(r.top)]; })")
+    ok('v0.21: the two route buttons have the new names, full width, one above the other', bb[0][0]=='Auto draw route to closest hydrant' and bb[1][0]=='Manually draw route' and bb[0][1]==bb[1][1] and bb[0][1]>300 and bb[1][2]>bb[0][2], bb)
+    open_sec(v20, 'lay'); v20.select_option('#sourceType', 'Draft site'); t1 = v20.text_content('#btnDraft'); v20.select_option('#sourceType', 'Hydrant'); t2 = v20.text_content('#btnDraft')
+    ok('v0.21: the auto button names the water source for a source that is not a hydrant', (t1, t2)==('Auto draw route to water source','Auto draw route to closest hydrant'), (t1, t2))
+    ok('v0.21: the setting label reads Intake pressure residual', v20.evaluate("document.getElementById('setRes').parentNode.firstChild.textContent")=='Intake pressure residual')
+    v20.click('#layRev'); open_sec(v20, 'route'); v20.click('#btnDraw'); v20.wait_for_timeout(300)
+    ok('v0.21: Manually draw route with no address opens step 1, marks the address field red, and gives the message', not v20.evaluate('window.__relay.state.drawing') and v20.inner_text('#status')=='Find the address in step 1 first. With no match, type a plan name.' and v20.evaluate("document.querySelector('#side .sec[data-k=addr] .bd').classList.contains('op') && document.getElementById('geoText').classList.contains('req') && document.activeElement.id==='geoText'"), v20.inner_text('#status'))
+    named(v20); open_sec(v20, 'route'); v20.click('#btnDraw'); v20.wait_for_timeout(300)
+    ok('v0.21: with a plan name, the address row is done and Manually draw route starts; the button reads Drawing...', v20.evaluate('window.__relay.state.drawing') and v20.text_content('#btnDraw')=='Drawing...' and v20.evaluate(ROWS20)[1][0]=='ok')
     ok('no page errors in the v0.14 phase', not [e for e in errors[e14:] if 'Failed to load resource' not in e], errors[e14:][:3])
     ok('no page errors in the v0.13 phase', not [e for e in errors[e13:] if 'Failed to load resource' not in e], errors[e13:][:3])
     ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])

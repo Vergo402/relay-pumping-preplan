@@ -3,7 +3,7 @@
 This repo is one HTML page that plans a long supply line lay for Yorktown Heights Fire District (YHFD). A repo is a project folder that Git tracks. Git saves each version of the files.
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
-Status: pilot v0.20. Alex approved the v0.2 direction. No field check is done yet. The history of each version, v0.3 to v0.20, is in `docs/handoff-2026-11-24.md`.
+Status: pilot v0.21. Alex approved the v0.2 direction. No field check is done yet. The history of each version, v0.3 to v0.21, is in `docs/handoff-2026-11-24.md`.
 The GitHub repo is public (Alex, 2026-11-27). Its name is relay-pumping-preplan (renamed from yhfd-relay-calculator). The folder on this Mac keeps the old name. Live page: https://vergo402.github.io/relay-pumping-preplan/ . `.github/workflows/pages.yml` builds and publishes it after each push to main. Do not put secrets or personal data in this repo.
 
 ## Files
@@ -19,8 +19,8 @@ The GitHub repo is public (Alex, 2026-11-27). Its name is relay-pumping-preplan 
 | `scripts/fetch_greenburgh_hydrants.py` | Gets the town hydrants again from the Town of Greenburgh. |
 | `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
 | `tests/test_core.js` | 70 math checks: against the chauffeur chart, for the road draft, and for dual 3 inch lines. Runs in Node. |
-| `tests/test_ui.py` | 238 page checks in Chrome through Playwright. No internet needed. |
-| `package.json` | Version 0.20.0. It holds the `build`, `test`, and `test:ui` commands. |
+| `tests/test_ui.py` | 243 page checks in Chrome through Playwright. No internet needed. |
+| `package.json` | Version 0.21.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
 | `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
 | `dist/` | Build output. Git ignores it. |
@@ -45,9 +45,9 @@ No Playwright browser download is necessary. The page test uses the installed Go
 |---|---|
 | `python3 build.py` | Writes `dist/Relay Pumping Pre-plan.html`. |
 | `npm test` | Builds, then runs the 70 math checks. |
-| `npm run test:ui` | Builds, then runs the 238 page checks. It calls `.venv/bin/python`. |
+| `npm run test:ui` | Builds, then runs the 243 page checks. It calls `.venv/bin/python`. |
 
-Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome. On 2026-11-27, 70 of 70 math checks and 238 of 238 page checks passed on macOS with Google Chrome 158.
+Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome. On 2026-11-27, 70 of 70 math checks and 243 of 243 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 
@@ -61,8 +61,8 @@ Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome. On 202
 8. After a build, check the SHA-256. The SHA-256 is a fingerprint of a file. It must equal the recorded value below.
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
-Recorded SHA-256 of `dist/Relay Pumping Pre-plan.html`: `e550656320ea64dbda09b9344eba775280449bf0cc05e923e2337862da0cbbcc`
-This is the v0.20 build. Older values are in `docs/handoff-2026-11-24.md`. On 2026-11-27 the copy Alex uses in OneDrive is the v0.20 build, `Relay Pumping Pre-plan.html`. Claude replaced that copy fifteen times (v0.3, v0.4, v0.6 to v0.10, and v0.13 to v0.20), each on a direct request from Alex. Rule 3 still applies.
+Recorded SHA-256 of `dist/Relay Pumping Pre-plan.html`: `2fbbaed5d17e6894c3210d74a9c9fe7439c1fa061c6fd4789048e226bc0466d7`
+This is the v0.21 build. Older values are in `docs/handoff-2026-11-24.md`. On 2026-11-27 the copy Alex uses in OneDrive is the v0.21 build, `Relay Pumping Pre-plan.html`. Claude replaced that copy sixteen times (v0.3, v0.4, v0.6 to v0.10, and v0.13 to v0.21), each on a direct request from Alex. Rule 3 still applies.
 
 ## Hydraulic rules
 
@@ -165,7 +165,7 @@ Decisions for v0.11 to v0.15 (Alex, 2026-11-27). All came from an Impeccable cri
 - v0.14: Clear asks first. Route handles are larger. A click on a point offers "Remove point". Flow rows work from the keyboard. The pressure demand box is gone.
 - v0.15: the hose lay order table has one line for each lay. On a phone the map layer list starts closed. No real phone check is done.
 - v0.16 (direct request, not the critique): the setup lines are always folded, one open at a time, with an animation. District, source type, and lay are required and show red until set. PDP is 14 px, square points 12 px. The map has a one-level Undo. Details are in the handoff notes.
-- v0.17 (Impeccable live mode): each engine PDP sits in a grey box. A gear in the header opens a Settings view with "My defaults" and "Rules this page uses". The planner does not show them. On a desktop the header stays in view. v0.18 (bug fix): the print step does not fit the card map again, because that made the street map print blank. v0.19: Alex renamed the product and the file to "Relay Pumping Pre-plan". "YHFD defaults" reads "built-in defaults". The storage keys and the plan file id keep the old names. v0.20 (Impeccable live mode): each setup row starts with a mark. A done step shows a green check. The first step that is not done is a solid blue row. Red still means a required choice is missing.
+- v0.17 (Impeccable live mode): each engine PDP sits in a grey box. A gear in the header opens a Settings view with "My defaults" and "Rules this page uses". The planner does not show them. On a desktop the header stays in view. v0.18 (bug fix): the print step does not fit the card map again, because that made the street map print blank. v0.19: Alex renamed the product and the file to "Relay Pumping Pre-plan". "YHFD defaults" reads "built-in defaults". The storage keys and the plan file id keep the old names. v0.20 (Impeccable live mode): each setup row starts with a mark. A done step shows a green check. The first step that is not done is a solid blue row. Red still means a required choice is missing. v0.21 (direct request): all four setup steps are required and red until done, so no row is blue. The route buttons read "Auto draw route to closest hydrant" (or "to water source" for a source that is not a hydrant) and "Manually draw route". A route needs an address or a plan name first. The setting label reads "Intake pressure residual".
 
 ## Data sources
 

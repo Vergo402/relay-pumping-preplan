@@ -1,6 +1,6 @@
 # Relay Pumping Pre-plan
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.20. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.21. No field check is done yet.
 
 Live page: https://vergo402.github.io/relay-pumping-preplan/
 
@@ -54,7 +54,7 @@ The repo has two test sets. Each command builds the page first.
 | Command | Checks | Result |
 |---|---|---|
 | `npm test` | 70 math checks. They cover the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI, the road draft, and dual 3 inch lines. | 70 of 70 pass. |
-| `npm run test:ui` | 238 page checks in Chrome through Playwright. | 238 of 238 pass. |
+| `npm run test:ui` | 243 page checks in Chrome through Playwright. | 243 of 243 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
@@ -67,13 +67,13 @@ The results above are from 2026-11-27 on macOS with Google Chrome 158.
 3. Enter the address and select **Go**. The page finds the address. It makes no route.
 4. In step 2 on the page, select the water source type and reverse lay or forward lay. The page has no default for these two.
 5. Check the five settings in step 2. They show your defaults.
-6. Select **Draft route by road**. For a hydrant, the draft goes from the nearest hydrant by road to the address. For a different source type, click the water source on the map.
+6. Select **Auto draw route to closest hydrant**. For a hydrant, the draft goes from the nearest hydrant by road to the address. For a different source type, click the water source on the map.
 7. Drag a point to match the driveway. Click a middle handle or the line to add a point. Click a point and select **Remove point** to remove it.
 
-With no road, or with no water source in 1 mile by road, the page makes no draft. Then trace by hand:
+With no road, or with no water source in 1 mile by road, the page makes no draft. Then draw the route manually:
 
 1. Select reverse lay or forward lay.
-2. Select **Trace by hand**.
+2. Select **Manually draw route**. The page asks for an address or a plan name first.
 3. Click the route on the map. Reverse: click the attack engine first and the water source last. Forward: click in the opposite order.
 4. Select **Finish**.
 
