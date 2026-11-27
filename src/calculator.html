@@ -215,7 +215,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><div><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.17 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><div><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.18 &middot; Planning aid only. Verify on site.</p></div>
       <button type="button" id="btnSettings" aria-label="Settings" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div id="setView">
       <div class="bk"><button type="button" id="btnSettingsBack">&larr; Back to the plan</button><span>Settings</span></div>
@@ -1175,7 +1175,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   var titleBefore = null;
   window.addEventListener('afterprint', function () { if (titleBefore !== null) { document.title = titleBefore; titleBefore = null; } });
   window.addEventListener('beforeprint', function () { if (document.body.classList.contains('card')) {
-      if (titleBefore === null) titleBefore = document.title; document.title = cardFileName(); map.invalidateSize(); if (state.points.length > 1) map.fitBounds(routeBounds(), { padding: [20, 20], maxZoom: 19 }); } });
+      if (titleBefore === null) titleBefore = document.title; document.title = cardFileName(); } }); // no map fit here: new tiles do not load in time for the print, and the map prints blank
   // Settings view: the planner scroll position is saved and restored. Focus goes to Back, then to the gear.
   var setScroll = { t: 0, y: 0 };
   function setSettings(on) {

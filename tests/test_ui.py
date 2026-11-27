@@ -198,6 +198,13 @@ with sync_playwright() as p:
     on_t = pg.evaluate(EM_T); fit = pg.evaluate(EM_FIT)
     ok('v0.12: card mode scales the engine markers to 0.7; the planner leaves them at none', len(on_t)>=2 and all(t=='matrix(0.7, 0, 0, 0.7, 0, 0)' for t in on_t) and len(off_t)>=2 and all(t=='none' for t in off_t), (off_t[:1], on_t[:1]))
     ok('v0.12: on the card, every engine marker is inside the map and the markers span more than the map size minus 90 px', fit['n']>=2 and fit['inside'] and fit['span'] > fit['size']-90, fit)
+    # v0.18: the print step must not move the map or load new tiles. A print takes its picture before new tiles arrive.
+    # proof: with the old fitBounds in beforeprint, the centre moves and this check fails.
+    PV = "(()=>{const m=window.__relay.map,c=m.getCenter();return [m.getZoom(),c.lat.toFixed(6),c.lng.toFixed(6),document.querySelectorAll('#map .leaflet-tile-pane img').length,document.title]})()"
+    pv0 = pg.evaluate(PV); pg.emulate_media(media='print')
+    pg.evaluate("window.dispatchEvent(new Event('beforeprint'))"); pv1 = pg.evaluate(PV)
+    pg.evaluate("window.dispatchEvent(new Event('afterprint'))"); pg.emulate_media(media='screen'); pg.wait_for_timeout(200)
+    ok('v0.18: the print step keeps the card map view and tiles, and still sets the PDF file name', pv1[:4]==pv0[:4] and pv1[4]!=pv0[4] and pg.evaluate(PV)[4]==pv0[4], (pv0, pv1))
     pg.click('#btnBack'); pg.wait_for_timeout(200)
     # ---- clear: lay must be picked again ----
     open_sec(pg, 'route'); clear(pg); pg.wait_for_timeout(150)
@@ -473,7 +480,7 @@ with sync_playwright() as p:
     e10 = len(errors)
     GATE['roads'] = False; GATE['addr'] = C
     t10 = fresh(); load(t10)
-    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.17' in t10.inner_text('.brand'))
+    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.18' in t10.inner_text('.brand'))
     ok('v0.16: the status line lists five values (no district)', t10.inner_text('#defaultsStatus')=='Defaults in use: YHFD (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==5, t10.inner_text('#defaultsStatus'))
     to_set(t10); rules = t10.inner_text('#setView ul')
     ok('v0.10: the rules list states the one friction rule and the round-up rule', 'one rule' in rules and '0.08' in rules and 'rounds up to the next 5 PSI' in rules and 'chart table' not in rules.lower() and 'formula option' not in rules.lower(), rules[:200])
