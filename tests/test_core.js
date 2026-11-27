@@ -120,4 +120,11 @@ d=C.draftRoute(P(702,150),[H2],R2,{});
 ok('  102 ft from the road: the address point stays, shortDrive is false', d&&d.shortDrive===false&&C.distFt(d.points[d.points.length-1],P(702,150))<0.5, d&&`${d.shortDrive}`);
 d=C.draftRoute(AD150,[H2],roads,{});
 ok('  150 ft from the road: the address point stays', d&&d.shortDrive===false&&C.distFt(d.points[d.points.length-1],AD150)<0.5, d&&`${d.shortDrive} ${d.points.length} points`);
+// 1 mile limit: the road path of the chosen draft. A straight road of 5,270 ft drafts, one of 5,290 ft gives null with why far and the feet.
+const LONG=ft=>[{name:'Long Rd',path:[LL(0,0),LL(ft,0)]}], HL=HY(0,0,'H-L');
+ok('draftRoute: MAX_DRAFT_FT is 5,280', C.MAX_DRAFT_FT===5280);
+o={}; d=C.draftRoute(P(5270,0),[HL],LONG(5270),o);
+ok('  a road path of 5,270 ft drafts', d&&Math.abs(d.roadFt-5270)<5&&o.why===undefined, d&&d.roadFt);
+o={}; d=C.draftRoute(P(5290,0),[HL],LONG(5290),o);
+ok('  a road path of 5,290 ft gives null, why far, the hydrant, and the feet', d===null&&o.why==='far'&&o.hydrant[2]==='H-L'&&Math.abs(o.roadFt-5290)<5, JSON.stringify([o.why,o.roadFt]));
 console.log(fails?`\n${fails} FAILED`:'\nALL PASS'); process.exit(fails?1:0);

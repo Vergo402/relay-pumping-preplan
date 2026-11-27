@@ -95,6 +95,8 @@ details ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:12.5px}
 .vx{width:12px;height:12px;border-radius:2px;background:#fff;border:2px solid #111;box-shadow:0 0 0 1px #fff}
 .em{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:15px;color:#fff;font:700 12px/1 -apple-system,"Segoe UI",Arial,sans-serif;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6)}
 .em.S{background:var(--blue)} .em.R{background:var(--amber);cursor:grab} .em.A{background:var(--red)}
+.pin{width:24px;height:24px;background:var(--blue);border:2px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 1px 4px rgba(0,0,0,.6)}
+.pin::after{content:'';position:absolute;left:6px;top:6px;width:8px;height:8px;border-radius:4px;background:#fff}
 .mid{width:10px;height:10px;border-radius:5px;background:#fff;border:2px dashed #111;cursor:pointer}
 .hov{width:12px;height:12px;border-radius:6px;background:#fff;border:3px solid #111}
 .leaflet-container{font:12px/1.4 -apple-system,"Segoe UI",Arial,sans-serif}
@@ -164,7 +166,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.8 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.9 &middot; Planning aid only. Verify on site.</p></div>
 
     <div class="sec">
       <h2>Fire district</h2>
@@ -180,44 +182,67 @@ body.card #profile{height:1.47in}
     </div>
 
     <div class="sec">
-      <h2>2. Trace the hose route</h2>
+      <h2>2. Set up the lay</h2>
+      <label class="f">Water source type<select id="sourceType"><option value="">Select the type</option><option>Hydrant</option><option>Draft site</option><option>Tanker dump site</option><option>Other</option></select></label>
       <div class="hint" style="margin:0 0 4px">Supply line lay</div>
       <div class="seg" role="group" aria-label="Supply line lay"><button type="button" id="layRev">Reverse lay</button><button type="button" id="layFwd">Forward lay</button></div>
       <p class="hint" id="layHint" style="margin:0 0 10px"></p>
-      <ol class="steps" id="steps"></ol>
-      <p class="hint">Drag a point to move it. Click a middle handle or the line to add a point. Right-click a point to remove it.</p>
-      <div class="row">
-        <button class="btn primary" id="btnDraw">Trace route</button>
-        <button class="btn" id="btnUndo" disabled>Undo point</button>
-        <button class="btn" id="btnFinish" disabled>Finish</button>
-        <button class="btn" id="btnClear" disabled>Clear</button>
-      </div>
-      <div id="status">Find the address. Select the lay type. Then trace the hose route.</div>
-      <label class="f">Water source type<select id="sourceType"><option>Hydrant</option><option>Draft site</option><option>Tanker dump site</option><option>Other</option></select></label>
-      <label class="hint" style="display:block;margin:0 0 10px"><input type="checkbox" id="showHandles" checked> Show edit handles</label>
-    </div>
-
-    <div class="sec">
-      <h2>3. Read the result</h2>
-      <div id="results"><div class="empty">No route yet.</div></div>
-    </div>
-
-    <div class="sec">
-      <h2>Settings</h2>
       <div class="row">
         <label class="f">Supply hose<select id="setHose"><option value="5">5 inch LDH</option><option value="4">4 inch LDH</option><option value="3">Dual 3 inch lines</option></select></label>
-        <label class="f">Friction loss values<select id="setBasis"><option value="chart">Chart table</option><option value="formula">Formula (C x Q&sup2; x L)</option></select></label>
+        <div><label class="f">Hose on each engine (ft)<input type="number" id="setHosePer" min="100" step="100"></label>
+        <p class="hint" id="dualHint" hidden>For dual lines, enter the length of dual line that one engine lays.</p></div>
       </div>
       <div class="row">
         <label class="f">Maximum PDP<select id="setCap"><option value="150">150 PSI</option><option value="175">175 PSI</option><option value="185">185 PSI</option><option value="200">200 PSI</option></select></label>
         <label class="f">Intake pressure to hold<select id="setRes"><option value="20">20 PSI</option><option value="50">50 PSI</option></select></label>
       </div>
       <div class="row">
+        <label class="f">Friction loss values<select id="setBasis"><option value="chart">Chart table</option><option value="formula">Formula (C x Q&sup2; x L)</option></select></label>
         <label class="f">Hose slack allowance<select id="setSlack"><option value="0">0%</option><option value="5">5%</option><option value="10">10%</option><option value="15">15%</option></select></label>
-        <label class="f">Supply hose on each engine (ft)<input type="number" id="setHosePer" min="100" step="100"></label>
       </div>
-      <p class="hint">One engine lays each hose section. The page keeps each section within this length. Set the supply hose load of your engines.</p>
-      <p class="hint" id="dualHint" hidden>For dual lines, enter the length of dual line that one engine lays.</p>
+      <p class="hint">These are your defaults. Change them for this plan if necessary.</p>
+    </div>
+
+    <div class="sec">
+      <h2>3. Make the route</h2>
+      <div class="row">
+        <button class="btn primary" id="btnDraft">Draft route by road</button>
+        <button class="btn" id="btnDraw">Trace by hand</button>
+      </div>
+      <div class="row">
+        <button class="btn" id="btnUndo" disabled>Undo point</button>
+        <button class="btn" id="btnFinish" disabled>Finish</button>
+        <button class="btn" id="btnClear" disabled>Clear</button>
+      </div>
+      <div id="status">Find the address in step 1. Then set up the lay in step 2.</div>
+      <ol class="steps" id="steps"></ol>
+      <p class="hint">Drag a point to move it. Click a middle handle or the line to add a point. Right-click a point to remove it.</p>
+      <label class="hint" style="display:block;margin:0 0 10px"><input type="checkbox" id="showHandles" checked> Show edit handles</label>
+    </div>
+
+    <div class="sec">
+      <h2>4. Read the result</h2>
+      <div id="results"><div class="empty">No route yet.</div></div>
+    </div>
+
+    <div class="sec">
+      <h2>Keep the plan</h2>
+      <div class="row">
+        <button class="btn" id="btnCard" disabled>Make card</button>
+        <button class="btn" id="btnSave" disabled>Save plan file</button>
+        <button class="btn" id="btnOpen">Open plan file</button>
+      </div>
+      <input type="file" id="fileOpen" accept=".json,application/json" hidden>
+      <label class="f">Notes for the card<input type="text" id="planNotes" placeholder="Example: gate code, turnaround, low wires"></label>
+    </div>
+    <div class="sec">
+      <h2>My defaults</h2>
+      <div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 14px">
+        <p class="hint" style="margin:0 0 8px">A new route starts with these values and your fire district.</p>
+        <div class="row"><button class="btn" id="btnSaveDefaults">Save as my defaults</button><button class="btn" id="btnResetDefaults">Reset to YHFD defaults</button></div>
+        <button class="btn" id="btnCopyDefaults" style="width:100%">Save a copy of this page with my defaults</button>
+        <p class="hint" id="defaultsStatus" style="margin:8px 0 0"></p>
+      </div>
       <details><summary>Rules this page uses</summary>
         <ul>
           <li>Friction loss: the YHFD chauffeur chart. The chart table is the default. The formula option gives the chart Max Relay Distance values.</li>
@@ -233,24 +258,6 @@ body.card #profile{height:1.47in}
           <li>Not included: the flow the water source can give, appliance loss, and attack line pressures.</li>
         </ul>
       </details>
-      <div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:10px 0 14px">
-        <b>My defaults</b>
-        <p class="hint" style="margin:2px 0 8px">A new route starts with these values and your fire district.</p>
-        <div class="row"><button class="btn" id="btnSaveDefaults">Save as my defaults</button><button class="btn" id="btnResetDefaults">Reset to YHFD defaults</button></div>
-        <button class="btn" id="btnCopyDefaults" style="width:100%">Save a copy of this page with my defaults</button>
-        <p class="hint" id="defaultsStatus" style="margin:8px 0 0"></p>
-      </div>
-    </div>
-
-    <div class="sec">
-      <h2>4. Keep the plan</h2>
-      <div class="row">
-        <button class="btn" id="btnCard" disabled>Make card</button>
-        <button class="btn" id="btnSave" disabled>Save plan file</button>
-        <button class="btn" id="btnOpen">Open plan file</button>
-      </div>
-      <input type="file" id="fileOpen" accept=".json,application/json" hidden>
-      <label class="f">Notes for the card<input type="text" id="planNotes" placeholder="Example: gate code, turnaround, low wires"></label>
     </div>
   </aside>
 
@@ -289,6 +296,7 @@ var RelayCore = (function () {
   var LINE_MIN = 10;   // minimum PSI in the hose at any point
   var LDH_MAX = 200;   // LDH maximum pressure (chart)
   var HOSE_MAX = { 5: 200, 4: 200, 3: 250 }; // maximum hose pressure by hose; 250 for dual 3 inch is the owner decision
+  var MAX_DRAFT_FT = 5280; // a road draft is not made when the road path is longer than 1 mile
   var SHORT_DRIVE_FT = 100; // a road draft ends on the road when the address is closer than this
   function hoseMax(hose) { return HOSE_MAX[hose] || LDH_MAX; }
   var MIN_PDP = 50;    // a pump at idle
@@ -462,7 +470,7 @@ var RelayCore = (function () {
     return top;
   }
   // addr {lat,lng}; hydrants [[lng,lat,num,code]]; roads [{name, path:[[lng,lat],...]}]; o {box:[w,s,e,n], addrMaxFt, hydMaxFt, tolFt, why}
-  // on failure it returns null and sets o.why: 'road' (no road near the address) or 'hydrant' (no hydrant joins by road)
+  // on failure it returns null and sets o.why: 'road' (no road near the address), 'hydrant' (no hydrant joins by road), or 'far' (the road path is longer than MAX_DRAFT_FT; o.hydrant and o.roadFt tell which and how far)
   // returns null or {points (water order), hydrant, roadFt, streets (most-used first), shortDrive}
   // shortDrive: the address is closer than SHORT_DRIVE_FT to the road, so the draft ends at the road point and has no address point
   function draftRoute(addr, hydrants, roads, o) {
@@ -501,6 +509,7 @@ var RelayCore = (function () {
     var best = null;
     hyd.forEach(function (c) { var d = dist[c.key]; if (d !== undefined && (!best || d + c.ft < best.d + best.c.ft)) best = { c: c, d: d }; });
     if (!best) { o.why = 'hydrant'; return null; }
+    if (best.d > MAX_DRAFT_FT) { o.why = 'far'; o.hydrant = best.c.h; o.roadFt = best.d; return null; }
     // walk back from the hydrant road point to the address road point: this is water order
     var road = [], used = {}, k = best.c.key;
     while (k !== A.key) { road.push(coord[k]); var f = from[k]; used[f.e.name] = (used[f.e.name] || 0) + f.e.w; k = f.k; }
@@ -511,7 +520,7 @@ var RelayCore = (function () {
   }
   return { flPer100: flPer100, distFt: distFt, routeFt: routeFt, densify: densify, buildProfile: buildProfile, stats: stats, solve: solve,
     nearestOnPaths: nearestOnPaths, simplify: simplify, pointInPolygon: pointInPolygon, draftRoute: draftRoute,
-    EP: EP, LINE_MIN: LINE_MIN, LDH_MAX: LDH_MAX, HOSE_MAX: HOSE_MAX, hoseMax: hoseMax, SHORT_DRIVE_FT: SHORT_DRIVE_FT };
+    EP: EP, LINE_MIN: LINE_MIN, LDH_MAX: LDH_MAX, HOSE_MAX: HOSE_MAX, hoseMax: hoseMax, SHORT_DRIVE_FT: SHORT_DRIVE_FT, MAX_DRAFT_FT: MAX_DRAFT_FT };
 })();
 if (typeof module !== 'undefined') module.exports = RelayCore;
 </script>
@@ -529,11 +538,11 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   var DEFAULTS = { hose: 5, basis: 'chart', cap: 185, residual: 20, slack: 10, hosePerEngine: 1000, lay: null, district: 253 };
   var LAY = {
     reverse: { name: 'Reverse lay', hint: 'Trace from the attack engine back to the water source.',
-      steps: ['Select <b>Trace route</b>.', 'Click the attack engine position first.', 'Click along the hose path. Follow the driveway back to the road.', 'Click the water source last. A click near a hydrant snaps to it. Select <b>Finish</b>.'] },
+      steps: ['Select <b>Trace by hand</b>.', 'Click the attack engine position first.', 'Click along the hose path. Follow the driveway back to the road.', 'Click the water source last. A click near a hydrant snaps to it. Select <b>Finish</b>.'] },
     forward: { name: 'Forward lay', hint: 'Trace from the water source to the attack engine.',
-      steps: ['Select <b>Trace route</b>.', 'Click the water source first. A click near a hydrant snaps to it.', 'Click along the hose path. Follow the driveway.', 'Click the attack engine position last. Select <b>Finish</b>.'] }
+      steps: ['Select <b>Trace by hand</b>.', 'Click the water source first. A click near a hydrant snaps to it.', 'Click along the hose path. Follow the driveway.', 'Click the attack engine position last. Select <b>Finish</b>.'] }
   };
-  var state = { name: '', notes: '', sourceType: 'Hydrant', points: [], drawing: false, flow: 750, samples: null, elevFt: null,
+  var state = { name: '', notes: '', sourceType: '', points: [], drawing: false, flow: 750, samples: null, elevFt: null,
     profile: null, results: {}, manual: {}, sourceHydrant: null, draft: false, settings: Object.assign({}, DEFAULTS) };
   var districts = JSON.parse($('district-data').textContent).features, district = null, hIn = []; // hIn[i]: is hydrant i inside the district
   var hydrants = JSON.parse($('hydrant-data').textContent); // [lng, lat, number, district]
@@ -630,7 +639,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   L.control.scale({ metric: false, maxWidth: 160 }).addTo(map);
 
   var routeGroup = L.layerGroup().addTo(map), engineGroup = L.layerGroup().addTo(map), vertexGroup = L.layerGroup().addTo(map);
-  var hoverMarker = null, geoMarker = null;
+  var hoverMarker = null, geoMarker = null, found = null, awaitSrc = false; // found: the address from the last search; awaitSrc: the next map click is the water source
 
   function nearestHydrant(latlng, px, maxFt) {
     var p = map.latLngToContainerPoint(latlng), best = null, bd = px;
@@ -654,16 +663,17 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     $('layRev').classList.toggle('on', lay === 'reverse'); $('layFwd').classList.toggle('on', lay === 'forward');
     $('layRev').disabled = $('layFwd').disabled = state.drawing;
     $('layHint').textContent = lay ? LAY[lay].hint : 'Select a lay type first. It sets the click order.';
-    $('steps').innerHTML = (lay ? LAY[lay].steps : ['Select <b>Reverse lay</b> or <b>Forward lay</b>.', 'Select <b>Trace route</b>.', 'Click the hose path on the map.', 'Select <b>Finish</b>.']).map(function (t) { return '<li>' + t + '</li>'; }).join('');
+    $('steps').innerHTML = (lay ? LAY[lay].steps : ['Select <b>Reverse lay</b> or <b>Forward lay</b>.', 'Select <b>Trace by hand</b>.', 'Click the hose path on the map.', 'Select <b>Finish</b>.']).map(function (t) { return '<li>' + t + '</li>'; }).join('');
     $('btnDraw').disabled = !lay;
   }
   function setLay(v) {
     if (state.drawing) return;
     state.settings.lay = v; renderLay(); render(); autosave();
-    if (!state.points.length) setStatus(LAY[v].name + ' selected. Select Trace route. ' + (v === 'reverse' ? 'Click the attack engine position first.' : 'Click the water source first.'));
+    if (!state.points.length) setStatus(LAY[v].name + ' selected. Select Draft route by road, or Trace by hand.');
   }
   map.on('click', function (e) {
     if (state.drawing) { addPoint(e.latlng); return; }
+    if (awaitSrc) { awaitSrc = false; roadDraft(found, ++geoToken, { lat: e.latlng.lat, lng: e.latlng.lng }); return; }
     var h = nearestHydrant(e.latlng, 10);
     if (h) L.popup().setLatLng([h[1], h[0]]).setContent('<b>Hydrant ' + esc(h[2] || '(no number)') + '</b><br>' + (h[3] === 'TOG' ? 'Town of Greenburgh data, 2026.<br>No flow value.' : 'District code: ' + esc(h[3]) + '<br>County data, 2015. No flow value.')).openOn(map);
   });
@@ -735,10 +745,10 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     state.drawing = on;
     $('map').classList.toggle('drawing', on);
     $('btnDraw').classList.toggle('on', on);
-    $('btnDraw').textContent = on ? 'Tracing...' : (state.points.length ? 'Add points' : 'Trace route');
+    $('btnDraw').textContent = on ? 'Tracing...' : (state.points.length ? 'Add points' : 'Trace by hand');
     drawRoute(); renderLay();
   }
-  $('btnDraw').onclick = function () { if (state.drawing) return; if (!state.settings.lay) { setStatus('Select Reverse lay or Forward lay first.', 'err'); return; } setDrawing(true); drawStatus(); };
+  $('btnDraw').onclick = function () { if (state.drawing) return; awaitSrc = false; if (!state.settings.lay) { setStatus('Select Reverse lay or Forward lay first.', 'err'); return; } setDrawing(true); drawStatus(); };
   $('showHandles').onchange = drawRoute;
   $('layRev').onclick = function () { setLay('reverse'); };
   $('layFwd').onclick = function () { setLay('forward'); };
@@ -747,6 +757,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   $('btnClear').onclick = function () {
     state.points = []; state.sourceHydrant = null; state.manual = {}; state.draft = false; state.samples = state.elevFt = state.profile = null; state.results = {};
     state.settings.lay = null; // no default lay: select it for each new route
+    state.sourceType = ''; awaitSrc = false; found = null; if (geoMarker) { map.removeLayer(geoMarker); geoMarker = null; }
     useDefaults(); // a new route starts with the defaults
     setDrawing(false); engineGroup.clearLayers(); render(); setStatus('Route cleared. Select Reverse lay or Forward lay to start again.'); autosave();
   };
@@ -859,7 +870,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   }
   function warnings(r, st) {
     var w = [], s = state.settings;
-    if (r.over || !r.placed) w.push(['bad', 'This layout needs more than ' + s.cap + ' PSI. Add a relay engine, lower the flow, or raise the maximum PDP in Settings.']);
+    if (r.over || !r.placed) w.push(['bad', 'This layout needs more than ' + s.cap + ' PSI. Add a relay engine, lower the flow, or raise the maximum PDP in step 2.']);
     if (r.overLdh) w.push(['bad', 'Downhill run: hose pressure reaches ' + Math.round(r.peak) + ' PSI at ' + fmt(r.peakAt) + ' ft. This is above the ' + (s.hose === 3 ? RelayCore.hoseMax(3) + ' PSI limit for 3 inch hose' : '200 PSI LDH limit') + '. Gate down or change the layout.']);
     if (r.overHose) w.push(['bad', 'One hose section is longer than ' + fmt(s.hosePerEngine) + ' ft, the supply hose on one engine. Move the relay engine, or select Reset to automatic.']);
     if (!r.auto) w.push(['', 'Relay positions for this flow were moved by hand. <button class="btn small" id="btnAuto">Reset to automatic</button>']);
@@ -868,7 +879,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     return w.map(function (x) { return '<div class="warn ' + x[0] + '">' + x[1] + '</div>'; }).join('');
   }
   function sourceLabel() {
-    return state.sourceType + (state.sourceType === 'Hydrant' && state.sourceHydrant ? ' ' + (state.sourceHydrant.num || '(no number)') : '');
+    return (state.sourceType || 'Not selected') + (state.sourceType === 'Hydrant' && state.sourceHydrant ? ' ' + (state.sourceHydrant.num || '(no number)') : '');
   }
   function renderResults() {
     var el = $('results'), p = state.profile;
@@ -1041,7 +1052,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   }
   function loadPlan(d, quiet) {
     if (!d || !Array.isArray(d.points)) throw new Error('This file is not a relay plan.');
-    state.name = d.name || ''; state.notes = d.notes || ''; state.sourceType = d.sourceType || 'Hydrant'; state.sourceHydrant = d.sourceHydrant || null;
+    state.name = d.name || ''; state.notes = d.notes || ''; state.sourceType = d.sourceType || ''; state.sourceHydrant = d.sourceHydrant || null;
     state.points = d.points.filter(function (p) { return p && isFinite(p.lat) && isFinite(p.lng); }).map(function (p) { return { lat: +p.lat, lng: +p.lng }; });
     state.flow = FLOWS.indexOf(d.flow) >= 0 ? d.flow : 750; state.settings = Object.assign({}, effDefaults(), d.settings || {}); state.manual = d.manual || {}; state.draft = false;
     state.samples = state.elevFt = state.profile = null; state.results = {};
@@ -1092,10 +1103,11 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   };
   if (has(fileDefaults)) $('btnResetDefaults').textContent = 'Reset to the file defaults';
   function bind(id, fn) { $(id).addEventListener('change', fn); }
+  var autoName = '';
   $('planName').addEventListener('input', function () { state.name = this.value; autosave(); });
   $('planNotes').addEventListener('input', function () { state.notes = this.value; autosave(); });
   bind('setDistrict', function () { applyDistrict(this.value, true); });
-  bind('sourceType', function () { state.sourceType = this.value; autosave(); });
+  bind('sourceType', function () { state.sourceType = this.value; awaitSrc = false; autosave(); });
   bind('setHose', function () { state.settings.hose = +this.value; $('dualHint').hidden = state.settings.hose !== 3; state.manual = {}; recalc(); });
   bind('setBasis', function () { state.settings.basis = this.value; state.manual = {}; recalc(); });
   bind('setCap', function () { state.settings.cap = +this.value; state.manual = {}; recalc(); });
@@ -1123,27 +1135,40 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     });
     return roads;
   }
-  // draft a hose route along the roads from the nearest hydrant; any failure leaves the route empty
-  async function roadDraft(addr, label, token) {
-    var res = null, why = 'fail'; // fail: the road request did not answer
+  // draft a hose route along the roads; src is the clicked water source, or null for the nearest hydrant. Any failure leaves the route empty.
+  async function roadDraft(addr, token, src) {
+    var label = addr.label, res = null, why = 'fail', o; // fail: the road request did not answer
+    setStatus('Looking for a road route...', 'busy');
     try {
       for (var mi = 1; mi <= 2 && !res; mi++) { // half a mile first, then one mile
         var dLat = mi * 2640 / 364000, dLng = dLat / Math.cos(addr.lat * Math.PI / 180);
         var box = [addr.lng - dLng, addr.lat - dLat, addr.lng + dLng, addr.lat + dLat], roads = await roadsIn(box);
         if (token !== geoToken) return;
-        var o = { box: box }; res = RelayCore.draftRoute(addr, hydrants, roads, o); why = o.why;
+        o = { box: box }; res = RelayCore.draftRoute(addr, src ? [[src.lng, src.lat, '', '']] : hydrants, roads, o); why = o.why;
       }
     } catch (err) { res = null; why = 'fail'; }
     if (token !== geoToken || state.drawing || state.points.length) return;
-    if (!res) { setStatus('Found: ' + label + '. No road draft: ' + { fail: 'the road data did not answer', road: 'no road is near this address', hydrant: 'the hydrant data has no hydrant in 1 mile by road' }[why] + '. Trace the route by hand.'); return; }
+    var ft = fmt(Math.round((o && o.roadFt || 0) / 100) * 100);
+    if (why === 'far') { setStatus(src ? 'No road draft: the water source is about ' + ft + ' ft away by road. That is more than 1 mile. Trace the route by hand.' :
+      'No road draft: the nearest hydrant by road is ' + (o.hydrant[2] || '(no number)') + ', about ' + ft + ' ft away. That is more than 1 mile. Select a different water source type, or trace the route by hand.'); return; }
+    if (!res) { setStatus('Found: ' + label + '. No road draft: ' + { fail: 'the road data did not answer', road: 'no road is near this address', hydrant: src ? 'no road joins the water source to this address in 1 mile' : 'the hydrant data has no hydrant in 1 mile by road' }[why] + '. Trace the route by hand.'); return; }
     var h = res.hydrant;
-    state.points = res.points; state.sourceHydrant = { num: h[2], code: h[3] }; $('sourceType').value = state.sourceType = 'Hydrant'; state.manual = {}; state.draft = true; state.draftShort = res.shortDrive;
+    state.points = res.points; state.sourceHydrant = src ? null : { num: h[2], code: h[3] }; state.manual = {}; state.draft = true; state.draftShort = res.shortDrive;
     drawRoute(); map.fitBounds(routeBounds(), { padding: [60, 60], maxZoom: 19 });
-    compute('Draft route: hydrant ' + (h[2] || '(no number)') + ' to ' + label + '. It follows ' + (res.streets.length ? res.streets.slice(0, 2).map(titleCase).join(' and ') : 'an unnamed road') +
+    compute('Draft route: ' + (src ? state.sourceType.toLowerCase() : 'hydrant ' + (h[2] || '(no number)')) + ' to ' + label + '. It follows ' + (res.streets.length ? res.streets.slice(0, 2).map(titleCase).join(' and ') : 'an unnamed road') +
       (res.shortDrive ? '. The driveway is shorter than 100 ft, so the draft stops on the road. Drag S or A to move them.' : '. Drag a point to match the driveway. Click the line to add a point.') +
       // few county hydrants in this district: the draft can miss a nearer hydrant
-      (hIn.filter(Boolean).length < MIN_HYD ? ' The county hydrant list can be incomplete here. A nearer hydrant can exist.' : ''), 'ok');
+      (!src && hIn.filter(Boolean).length < MIN_HYD ? ' The county hydrant list can be incomplete here. A nearer hydrant can exist.' : ''), 'ok');
   }
+  // the draft button: check the choices in order, then draft
+  $('btnDraft').onclick = function () {
+    var bad = !found ? 'Find the address first.' : !state.sourceType ? 'Select the water source type in step 2.' : !state.settings.lay ? 'Select Reverse lay or Forward lay in step 2.' :
+      state.points.length ? 'Clear the route first. The draft needs an empty route.' : '';
+    if (bad) { setStatus(bad, 'err'); return; }
+    if (state.drawing) setDrawing(false);
+    if (state.sourceType !== 'Hydrant') { awaitSrc = true; setStatus('Click the water source on the map.'); return; }
+    awaitSrc = false; roadDraft(found, ++geoToken, null);
+  };
   $('geoForm').addEventListener('submit', async function (e) {
     e.preventDefault();
     var text = $('geoText').value.trim(); if (!text) return;
@@ -1158,21 +1183,21 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
       if (!c) { d = await (await fetchT(url, null, 20000)).json(); c = d.candidates && d.candidates[0]; } // no match in the district box: try the whole county
       if (!c) { setStatus('No match for that address. Check the spelling, or move the map by hand.', 'err'); return; }
       if (geoMarker) map.removeLayer(geoMarker);
-      geoMarker = L.circleMarker([c.location.y, c.location.x], { radius: 9, color: '#1f5fa8', weight: 3, fillOpacity: 0.15, interactive: false }).addTo(map);
+      geoMarker = L.marker([c.location.y, c.location.x], { interactive: false, icon: L.divIcon({ className: '', html: '<div class="pin"></div>', iconSize: [24, 24], iconAnchor: [12, 29] }) }).addTo(map);
       map.setView([c.location.y, c.location.x], 18);
       var label = c.address.replace(/, NY.*$/i, '');
-      if (!state.name) { state.name = label; $('planName').value = state.name; }
-      if (state.points.length || state.drawing) { setStatus('Found: ' + c.address + '. Switch to the aerial photo to see the driveway. Then select Trace route.'); return; }
-      setStatus('Found: ' + label + '. The page looks for a road route from the nearest hydrant.', 'busy');
-      roadDraft({ lat: c.location.y, lng: c.location.x }, label, token);
+      // A new search replaces a plan name that an earlier search set. It keeps a name that the user typed.
+      if (!state.name || state.name === autoName) { state.name = autoName = label; $('planName').value = state.name; }
+      found = { lat: c.location.y, lng: c.location.x, label: label }; awaitSrc = false;
+      setStatus('Found: ' + label + '. Check step 2. Then select Draft route by road, or trace by hand.');
     } catch (err) { setStatus('The address search did not answer. Move the map by hand. (' + err.message + ')', 'err'); }
   });
 
-  function render() { renderResults(); renderEngines(); renderProfile(); if (document.body.classList.contains('card')) renderCard(); $('btnDraw').textContent = state.drawing ? 'Tracing...' : (state.points.length ? 'Add points' : 'Trace route'); renderLay(); }
+  function render() { renderResults(); renderEngines(); renderProfile(); if (document.body.classList.contains('card')) renderCard(); $('btnDraw').textContent = state.drawing ? 'Tracing...' : (state.points.length ? 'Add points' : 'Trace by hand'); renderLay(); }
   var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(renderProfile, 150); });
 
   syncInputs(); drawRoute(); render();
-  try { var saved = localStorage.getItem(STORE); if (saved) { var d = JSON.parse(saved); if (d && d.points && d.points.length > 1) loadPlan(d, true); else if (d) { state.settings = Object.assign({}, effDefaults(), d.settings || {}, { lay: null }); syncInputs(); renderLay(); } } } catch (e) { /* storage is optional */ }
+  try { var saved = localStorage.getItem(STORE); if (saved) { var d = JSON.parse(saved); if (d && d.points && d.points.length > 1) loadPlan(d, true); else if (d) { state.settings = Object.assign({}, effDefaults(), d.settings || {}, { lay: null }); state.sourceType = d.sourceType || ''; syncInputs(); renderLay(); } } } catch (e) { /* storage is optional */ }
   showDefaults();
   window.__relay = { state: state, map: map };
 })();

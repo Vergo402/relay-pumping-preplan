@@ -42,6 +42,8 @@ errors = []; fails = []
 def ok(name, cond, info=''):
     print(('PASS ' if cond else 'FAIL ') + name + ('  -> ' + str(info) if info != '' else ''))
     if not cond: fails.append(name)
+def draft(q, kind='Hydrant', lay='#layRev'):  # v0.9: the draft needs the type and the lay, then the button
+    q.select_option('#sourceType', kind); q.click(lay); q.click('#btnDraft')
 SNAP = '''() => { const s=window.__relay.state; return {lay:s.settings.lay, pts:s.points.length, first:s.points[0], last:s.points[s.points.length-1], hyd:s.sourceHydrant, hose:s.profile?s.profile.h[s.profile.n-1]:null,
   net:s.profile?s.profile.z[s.profile.n-1]-s.profile.z[0]:null, res:s.profile?[500,750,1000,1250,1500,2000].map(q=>({q, relays:s.results[q].relays.length, pdps:s.results[q].segs.map(x=>x.pdp), secs:s.results[q].segs.map(x=>Math.round(x.hose)), over:s.results[q].over, overHose:s.results[q].overHose})):null}; }'''
 # The card blocks. Each block gives its label, mark, engine texts, arrowhead counts, "Lays" values, and the planner lay values for the same flow.
@@ -60,11 +62,11 @@ with sync_playwright() as p:
     pg.on('pageerror', lambda e: errors.append('PAGEERROR '+str(e)))
     pg.route('**/*', handle)
     pg.goto(test_html.resolve().as_uri()); pg.wait_for_timeout(700)
-    ok('no default lay: Trace route is disabled at the start', pg.is_disabled('#btnDraw') and pg.evaluate('window.__relay.state.settings.lay')==None, pg.inner_text('#layHint'))
+    ok('no default lay: Trace by hand is disabled at the start', pg.is_disabled('#btnDraw') and pg.evaluate('window.__relay.state.settings.lay')==None, pg.inner_text('#layHint'))
     pg.screenshot(path='out/v2_start.png')
     opts = pg.evaluate("[...document.querySelectorAll('#setDistrict option')].map(o => o.textContent)")
     ok('district picker: 60 options, default Yorktown Hgts FD (253), hint right', len(opts)==60 and pg.input_value('#setDistrict')=='253' and 'Yorktown Hgts FD' in pg.evaluate("document.querySelector('#setDistrict').selectedOptions[0].textContent") and pg.evaluate('window.__relay.state.settings.district')==253 and pg.inner_text('#distHint')=='60 county districts. Hydraulic rules: YHFD chauffeur chart.', pg.inner_text('#distHint'))
-    pg.fill('#geoText', '100 Test Hill Rd'); pg.click('#geoForm button'); pg.wait_for_timeout(600)
+    pg.fill('#geoText', '100 Test Hill Rd'); pg.click('#geoForm button'); pg.wait_for_timeout(600); draft(pg)
     try: pg.wait_for_function("document.getElementById('status').textContent.includes('No road draft')", timeout=5000)
     except Exception: pass
     ok('road query fails: no draft, the route stays empty and the status says so', pg.evaluate('window.__relay.state.points.length')==0 and not pg.evaluate('window.__relay.state.draft') and pg.inner_text('#status').startswith('Found: ') and 'No road draft: the road data did not answer. Trace the route by hand.' in pg.inner_text('#status'), pg.inner_text('#status'))
@@ -155,7 +157,7 @@ with sync_playwright() as p:
     pg.reload(); pg.wait_for_selector('#flowTable', timeout=8000); ok('reload keeps the route and its lay', pg.evaluate('window.__relay.state.settings.lay')=='reverse')
     # ---- clear: lay must be picked again ----
     pg.click('#btnClear'); pg.wait_for_timeout(150)
-    ok('clear resets the lay and locks Trace route', pg.evaluate('window.__relay.state.settings.lay')==None and pg.is_disabled('#btnDraw'), pg.inner_text('#status'))
+    ok('clear resets the lay and locks Trace by hand', pg.evaluate('window.__relay.state.settings.lay')==None and pg.is_disabled('#btnDraw'), pg.inner_text('#status'))
     # ---- forward lay: source first ----
     pg.evaluate('window.__relay.map.setView([%f,%f],16,{animate:false})' % C); pg.wait_for_timeout(400)
     pg.click('#layFwd'); pg.click('#btnDraw')
@@ -175,7 +177,7 @@ with sync_playwright() as p:
     ok('district set back to Yorktown Hgts FD (253)', pg.evaluate('window.__relay.state.settings.district')==253 and 'Yorktown Hgts FD' in pg.get_attribute('#geoText','placeholder'), pg.get_attribute('#geoText','placeholder'))
     # road draft: T-102 is the expected hydrant (T-101 is 2,050 ft by road, T-102 is 1,130 ft; X-9 is far from any road)
     GATE['roads'] = True; GATE['addr'] = ADDR2
-    pg.fill('#geoText', '100 Test Hill Rd'); pg.click('#geoForm button')
+    pg.fill('#geoText', '100 Test Hill Rd'); pg.click('#geoForm button'); pg.wait_for_timeout(500); draft(pg)
     try: pg.wait_for_function('window.__relay.state.draft === true', timeout=8000); pg.wait_for_selector('#flowTable', timeout=8000); pg.wait_for_timeout(300)
     except Exception: pass
     dr = pg.evaluate("(() => { const s=window.__relay.state, st=document.getElementById('status'); return {draft:s.draft, n:s.points.length, first:s.points[0], last:s.points[s.points.length-1], hyd:s.sourceHydrant, cls:st.className, text:st.textContent}; })()")
@@ -225,18 +227,18 @@ with sync_playwright() as p:
     st = q.evaluate('window.__relay.state.settings')
     ok('a fresh page starts at 185 PSI and 1,000 ft', st['cap']==185 and st['hosePerEngine']==1000 and q.input_value('#setCap')=='185' and q.input_value('#setHosePer')=='1000', (st['cap'], st['hosePerEngine']))
     ok('status reads Defaults in use: YHFD, with the summary', q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, chart, 185 PSI, 20 PSI, 10%, 1,000 ft).', q.inner_text('#defaultsStatus'))
-    ok('the hose hint has no placeholder wording', 'placeholder' not in q.inner_text('#side').lower() and 'Set the supply hose load of your engines.' in q.inner_text('#side'))
+    ok('the hose hint has no placeholder wording', 'placeholder' not in q.inner_text('#side').lower() and q.inner_text('#side').count('These are your defaults. Change them for this plan if necessary.')==1)
     setall(q); q.click('#btnSaveDefaults')
     ok('Save as my defaults: status says yours with the new summary', q.inner_text('#defaultsStatus')=='Saved in this browser. Defaults in use: yours ('+VSUM+').', q.inner_text('#defaultsStatus'))
     q.evaluate("localStorage.removeItem('yhfd-relay-pilot-v1')"); q.reload(); q.wait_for_timeout(900)  # no autosave: only the saved defaults can give these values
     ok('reload: the saved defaults give 200 PSI and 1,500 ft, and the status says yours', inputs(q)==['226','4','formula','200','50','5','1500'] and q.inner_text('#defaultsStatus')=='Defaults in use: yours ('+VSUM+').', (inputs(q), q.inner_text('#defaultsStatus')))
     GATE['roads'] = True; GATE['addr'] = ADDR2
-    q.fill('#geoText', '100 Test Hill Rd'); q.click('#geoForm button')
+    q.fill('#geoText', '100 Test Hill Rd'); q.click('#geoForm button'); q.wait_for_timeout(500); draft(q)
     try: q.wait_for_function('window.__relay.state.draft === true', timeout=8000); q.wait_for_selector('#flowTable', timeout=8000)
     except Exception: pass
     q.select_option('#setCap', '150'); q.wait_for_timeout(200); q.click('#btnClear'); q.wait_for_timeout(300)
     ok('Clear after a changed setting returns the settings to the saved defaults', inputs(q)==['226','4','formula','200','50','5','1500'] and q.evaluate('window.__relay.state.settings.cap')==200 and q.evaluate('window.__relay.state.settings.lay')==None, inputs(q))
-    q.fill('#geoText', '100 Test Hill Rd'); q.click('#geoForm button')  # a live route, so the copy check proves the route is left out
+    q.fill('#geoText', '100 Test Hill Rd'); q.click('#geoForm button'); q.wait_for_timeout(500); draft(q)  # a live route, so the copy check proves the route is left out
     try: q.wait_for_function('window.__relay.state.draft === true', timeout=8000)
     except Exception: pass
     with q.expect_download() as dl: q.click('#btnCopyDefaults')
@@ -264,7 +266,7 @@ with sync_playwright() as p:
     v.select_option('#setDistrict', '253'); v.wait_for_timeout(500); GATE['roads'] = True
     def why(addr, road):
         GATE['addr'] = addr; GATE['road'] = road
-        v.fill('#geoText', '100 Test Hill Rd'); v.click('#geoForm button')
+        v.fill('#geoText', '100 Test Hill Rd'); v.click('#geoForm button'); v.wait_for_timeout(500); draft(v)
         try: v.wait_for_function("document.getElementById('status').textContent.includes('No road draft')", timeout=8000)
         except Exception: pass
         GATE['road'] = None; return v.inner_text('#status')
@@ -297,7 +299,7 @@ with sync_playwright() as p:
     x = fresh(); x.goto(test_html.resolve().as_uri()); x.wait_for_timeout(700)
     ok('hose list has Dual 3 inch lines after 4 inch, and the dual hint is hidden for 5 inch', x.evaluate("[...document.querySelectorAll('#setHose option')].map(o => o.value + ':' + o.textContent)")==['5:5 inch LDH','4:4 inch LDH','3:Dual 3 inch lines'] and not x.is_visible('#dualHint'))
     GATE['roads'] = True; GATE['addr'] = ADDR_SHORT; GATE['road'] = None
-    x.fill('#geoText', '100 Test Hill Rd'); x.click('#geoForm button')
+    x.fill('#geoText', '100 Test Hill Rd'); x.click('#geoForm button'); x.wait_for_timeout(500); draft(x)
     try: x.wait_for_function('window.__relay.state.draft === true', timeout=8000); x.wait_for_selector('#flowTable', timeout=8000); x.wait_for_timeout(300)
     except Exception: pass
     SHORT_TXT = 'Draft route: hydrant T-102 to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd. The driveway is shorter than 100 ft, so the draft stops on the road. Drag S or A to move them.'
@@ -319,7 +321,7 @@ with sync_playwright() as p:
     ok('saved defaults accept hose 3: the select, the hint, and the summary', x.input_value('#setHose')=='3' and x.is_visible('#dualHint') and x.inner_text('#defaultsStatus')=='Defaults in use: yours (Yorktown Hgts FD, dual 3 inch, chart, 185 PSI, 20 PSI, 10%, 1,000 ft).', x.inner_text('#defaultsStatus'))
     # drag S and A with the edit handles hidden
     x.select_option('#setHose', '5'); x.click('#btnResetDefaults')
-    x.fill('#geoText', '100 Test Hill Rd'); x.click('#geoForm button')
+    x.fill('#geoText', '100 Test Hill Rd'); x.click('#geoForm button'); x.wait_for_timeout(500); draft(x)
     try: x.wait_for_function('window.__relay.state.draft === true', timeout=8000); x.wait_for_selector('#flowTable', timeout=8000); x.wait_for_timeout(300)
     except Exception: pass
     x.uncheck('#showHandles'); x.wait_for_timeout(200)
@@ -339,6 +341,81 @@ with sync_playwright() as p:
     drag('.em.S', -80, 60); p2 = x.evaluate(PT)
     ok('drag S: the first point moves, the last stays, and the route is recalculated', abs(p2['first']['lat']-p1['first']['lat'])+abs(p2['first']['lng']-p1['first']['lng'])>0.0002 and p2['last']==p1['last'] and p2['hose']!=p1['hose'], (p1['first'], p2['first'], p1['hose'], p2['hose']))
     ok('  the moved S no longer counts as a hydrant source', p2['hyd'] is None and x.inner_text('#sourceType')!='' , p2['hyd'])
+    # ---- v0.9 phase: Go finds the address only. Step 2 holds the choices. The draft starts on a button. ----
+    e9 = len(errors)
+    FOUND = 'Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. Check step 2. Then select Draft route by road, or trace by hand.'
+    GATE['roads'] = True; GATE['addr'] = ADDR2; GATE['road'] = None
+    y = fresh(); y.set_viewport_size({'width':1280,'height':900}); road_calls = []
+    y.on('request', lambda r: road_calls.append(r.url) if 'MapServer/11/query' in r.url else None)
+    y.goto(test_html.resolve().as_uri()); y.wait_for_timeout(700)
+    ok('the source type starts empty: first option is Select the type, the state is empty', y.evaluate("[...document.querySelectorAll('#sourceType option')].map(o => o.value + ':' + o.textContent)")==[':Select the type','Hydrant:Hydrant','Draft site:Draft site','Tanker dump site:Tanker dump site','Other:Other'] and y.input_value('#sourceType')=='' and y.evaluate('window.__relay.state.sourceType')=='')
+    ok('the trace button idle label is Trace by hand and the draft button is first in the row and enabled', y.inner_text('#btnDraw')=='Trace by hand' and y.is_enabled('#btnDraft') and y.evaluate("document.querySelector('#btnDraft').nextElementSibling.id")=='btnDraw' and y.inner_text('#btnDraft')=='Draft route by road')
+    y.click('#btnDraft')
+    ok('draft button with no address: Find the address first.', y.inner_text('#status')=='Find the address first.', y.inner_text('#status'))
+    y.fill('#geoText', '100 Test Hill Rd'); y.click('#geoForm button'); y.wait_for_function("document.getElementById('status').textContent.startsWith('Found')", timeout=8000); y.wait_for_timeout(700)
+    ok('Go alone: no road request, no route, the status is the exact Found text', not road_calls and y.evaluate('window.__relay.state.points.length')==0 and not y.evaluate('window.__relay.state.draft') and y.inner_text('#status')==FOUND, (len(road_calls), y.inner_text('#status')))
+    pin = y.evaluate("(() => { const m=window.__relay.map, e=document.querySelector('.pin'), r=e.getBoundingClientRect(), b=document.getElementById('map').getBoundingClientRect(); const c=m.latLngToContainerPoint([%f,%f]); return {n:document.querySelectorAll('.pin').length, dx:Math.abs(r.left+r.width/2-b.left-c.x), dy:Math.abs(r.top+r.height-b.top-c.y)}; })()" % ADDR2)
+    ok('Go alone: one pin is on the map at the address, and the plan name is the address', pin['n']==1 and pin['dx']<14 and pin['dy']<30 and y.input_value('#planName')=='100 TEST HILL RD, YORKTOWN HEIGHTS', pin)
+    y.set_viewport_size({'width':1280,'height':1900}); y.wait_for_timeout(300); y.locator('#side').screenshot(path='out/v09-sidebar.png'); y.set_viewport_size({'width':1280,'height':900}); y.wait_for_timeout(300)
+    y.click('#btnDraft'); ok('draft button with no type: Select the water source type in step 2.', y.inner_text('#status')=='Select the water source type in step 2.', y.inner_text('#status'))
+    y.select_option('#sourceType', 'Hydrant'); y.click('#btnDraft'); ok('draft button with no lay: Select Reverse lay or Forward lay in step 2.', y.inner_text('#status')=='Select Reverse lay or Forward lay in step 2.' and not road_calls, y.inner_text('#status'))
+    y.click('#layRev'); y.click('#btnDraft')
+    try: y.wait_for_function('window.__relay.state.draft === true', timeout=8000); y.wait_for_selector('#flowTable', timeout=8000); y.wait_for_timeout(300)
+    except Exception: pass
+    d9 = y.evaluate("(() => { const s=window.__relay.state; return {n:s.points.length, first:s.points[0], last:s.points[s.points.length-1], hyd:s.sourceHydrant, type:s.sourceType, text:document.getElementById('status').textContent}; })()")
+    ok('hydrant draft after the button equals the old draft: hydrant T-102 first, the address last, the same status text', d9['hyd'] and d9['hyd']['num']=='T-102' and d9['n']>=3 and abs(d9['first']['lat']-(C[0]+0.001))<1e-9 and abs(d9['first']['lng']-(C[1]+0.002))<1e-9 and abs(d9['last']['lat']-ADDR2[0])<1e-9 and abs(d9['last']['lng']-ADDR2[1])<1e-9 and d9['text']=='Draft route: hydrant T-102 to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd. Drag a point to match the driveway. Click the line to add a point. The county hydrant list can be incomplete here. A nearer hydrant can exist.', d9)
+    y.screenshot(path='out/v09-after-draft.png')
+    y.click('#btnDraft'); ok('draft button with a route: Clear the route first. The draft needs an empty route.', y.inner_text('#status')=='Clear the route first. The draft needs an empty route.' and y.evaluate('window.__relay.state.points.length')==d9['n'], y.inner_text('#status'))
+    y.click('#btnClear'); y.wait_for_timeout(300)
+    ok('Clear empties the source type, the lay, and the pin; the draft then asks for the address', y.input_value('#sourceType')=='' and y.evaluate('window.__relay.state.sourceType')=='' and y.evaluate('window.__relay.state.settings.lay')==None and y.locator('.pin').count()==0, y.input_value('#sourceType'))
+    y.click('#btnDraft'); ok('after Clear the draft button says Find the address first.', y.inner_text('#status')=='Find the address first.', y.inner_text('#status'))
+    # a non-hydrant type: the page asks for a click on the map, then drafts from the click
+    y.fill('#geoText', '100 Test Hill Rd'); y.click('#geoForm button'); y.wait_for_function("document.getElementById('status').textContent.startsWith('Found')", timeout=8000)
+    y.select_option('#sourceType', 'Draft site'); y.click('#layFwd'); road_calls.clear(); y.click('#btnDraft')
+    ok('Draft site: the status asks for a click on the water source, and no road request is made yet', y.inner_text('#status')=='Click the water source on the map.' and not road_calls and y.evaluate('window.__relay.state.points.length')==0, y.inner_text('#status'))
+    SRC = (C[0]+0.00005, C[1]+0.001)
+    y.evaluate('window.__relay.map.fire("click",{latlng:{lat:%f,lng:%f}})' % SRC)
+    try: y.wait_for_function('window.__relay.state.draft === true', timeout=8000); y.wait_for_selector('#flowTable', timeout=8000); y.wait_for_timeout(300)
+    except Exception: pass
+    d9 = y.evaluate("(() => { const s=window.__relay.state; return {n:s.points.length, first:s.points[0], last:s.points[s.points.length-1], hyd:s.sourceHydrant, type:s.sourceType, text:document.getElementById('status').textContent}; })()")
+    ok('Draft site: the click is the first point, the address is last, the source hydrant stays null, the type stays', d9['hyd'] is None and d9['type']=='Draft site' and d9['n']>=3 and abs(d9['first']['lat']-SRC[0])<1e-9 and abs(d9['first']['lng']-SRC[1])<1e-9 and abs(d9['last']['lat']-ADDR2[0])<1e-9, d9)
+    ok('  the status starts: Draft route: draft site to <address>. It follows Test Hill Rd.', d9['text'].startswith('Draft route: draft site to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd.') and 'county hydrant list' not in d9['text'], d9['text'])
+    # a far hydrant: a winding road of about 11,000 ft joins the only hydrant to the address
+    KLAT = 20902260*3.141592653589793/180
+    import math
+    def LL9(xf, yf): return [C[1]+xf/(KLAT*math.cos(C[0]*math.pi/180)), C[0]+yf/KLAT]
+    FARROAD = [LL9(0,0), LL9(4500,0), LL9(4500,2000), LL9(0,2000)]
+    f9 = pathlib.Path('out/test_far.html')
+    f9.write_text(re.sub(r'(id="hydrant-data">).*?(</script>)', lambda m: m.group(1) + json.dumps([[FARROAD[0][0], FARROAD[0][1], 'F-1', 'YKTWN']]) + m.group(2), src, count=1, flags=re.S), encoding='utf-8')
+    w9 = fresh(); w9.goto(f9.resolve().as_uri()); w9.wait_for_timeout(700)
+    GATE['addr'] = (FARROAD[3][1], FARROAD[3][0]); GATE['road'] = FARROAD
+    w9.fill('#geoText', '100 Test Hill Rd'); w9.click('#geoForm button'); w9.wait_for_timeout(700); draft(w9)
+    try: w9.wait_for_function("document.getElementById('status').textContent.startsWith('No road draft')", timeout=8000)
+    except Exception: pass
+    GATE['addr'] = ADDR2; GATE['road'] = None
+    ok('a hydrant more than 1 mile away by road: the exact no-draft status and no route', w9.inner_text('#status')=='No road draft: the nearest hydrant by road is F-1, about 11,000 ft away. That is more than 1 mile. Select a different water source type, or trace the route by hand.' and w9.evaluate('window.__relay.state.points.length')==0 and not w9.evaluate('window.__relay.state.draft'), w9.inner_text('#status'))
+    # a clicked source more than 1 mile away by road
+    w9.select_option('#sourceType', 'Other'); w9.click('#btnDraft'); GATE['addr'] = (FARROAD[3][1], FARROAD[3][0]); GATE['road'] = FARROAD
+    w9.evaluate('window.__relay.map.fire("click",{latlng:{lat:%f,lng:%f}})' % (FARROAD[0][1], FARROAD[0][0]))
+    try: w9.wait_for_function("document.getElementById('status').textContent.startsWith('No road draft')", timeout=8000)
+    except Exception: pass
+    GATE['addr'] = ADDR2; GATE['road'] = None
+    ok('a clicked source more than 1 mile away by road: the exact no-draft status and no route', w9.inner_text('#status')=='No road draft: the water source is about 11,000 ft away by road. That is more than 1 mile. Trace the route by hand.' and w9.evaluate('window.__relay.state.points.length')==0, w9.inner_text('#status'))
+    # a card with no source type prints Not selected
+    GATE['roads'] = False
+    k9 = fresh(); k9.goto(test_html.resolve().as_uri()); k9.wait_for_timeout(700)
+    kb = k9.locator('#map').bounding_box(); kx, ky = kb['x']+kb['width']/2, kb['y']+kb['height']/2
+    k9.click('#layRev'); k9.click('#btnDraw')
+    for dx,dy in ((220,120),(300,170)): k9.mouse.click(kx+dx, ky+dy); k9.wait_for_timeout(100)
+    k9.click('#btnFinish'); k9.wait_for_selector('#flowTable', timeout=8000); k9.click('#btnCard'); k9.wait_for_timeout(500)
+    ok('a card with no source type: the Water source fact reads Not selected', k9.evaluate('window.__relay.state.sourceType')=='' and k9.inner_text('#cardHead .facts4 div:nth-child(1) b')=='Not selected' and k9.inner_text('#cardHead .facts4 div:nth-child(1) span').lower()=='water source', k9.inner_text('#cardHead .facts4 div:nth-child(1)'))
+    # order of the sidebar sections
+    heads = y.evaluate("[...document.querySelectorAll('#side .sec h2')].map(h => h.textContent)")
+    ok('sidebar sections are in the accepted order', heads==['Fire district','1. Find the address','2. Set up the lay','3. Make the route','4. Read the result','Keep the plan','My defaults'], heads)
+    inside = y.evaluate("(() => { const sec = id => document.getElementById(id).closest('.sec').querySelector('h2').textContent; return {six:['sourceType','layRev','setHose','setHosePer','setCap','setRes','setBasis','setSlack'].map(sec), btns:['btnDraft','btnDraw','btnUndo','btnFinish','btnClear','status'].map(sec), res:sec('results'), defs:['btnSaveDefaults','btnResetDefaults','btnCopyDefaults','defaultsStatus'].map(sec), name:sec('planName')}; })()")
+    ok('the settings are inside step 2 (before step 3), the buttons in step 3, the result in step 4, My defaults at the bottom', set(inside['six'])=={'2. Set up the lay'} and set(inside['btns'])=={'3. Make the route'} and inside['res']=='4. Read the result' and set(inside['defs'])=={'My defaults'} and inside['name']=='1. Find the address', inside)
+    ok('the six settings sit in three two-column rows in the mockup order', y.evaluate("[...document.querySelectorAll('#setHose,#setHosePer,#setCap,#setRes,#setBasis,#setSlack')].map(e => e.id).join()")=='setHose,setHosePer,setCap,setRes,setBasis,setSlack' and y.evaluate("[...document.querySelectorAll('#side .sec')][2].querySelectorAll('.row').length")==3)
+    ok('no page errors in the v0.9 phase', not [e for e in errors[e9:] if 'Failed to load resource' not in e], errors[e9:][:3])
     GATE['addr'] = C; GATE['roads'] = False
     ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])
     bad = [e for e in errors if 'Failed to load resource' not in e]

@@ -3,13 +3,14 @@
 This repo is one HTML page that plans a long supply line lay for Yorktown Heights Fire District (YHFD). A repo is a project folder that Git tracks. Git saves each version of the files.
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
-Status: pilot v0.8. Alex approved the v0.2 direction. No field check is done yet.
+Status: pilot v0.9. Alex approved the v0.2 direction. No field check is done yet.
 v0.3 adds a fire district picker for 60 Westchester districts and a road draft. The hydraulic rules are still the YHFD rules.
 v0.4 adds 185 PSI as the default maximum PDP and a "My defaults" box. A user can keep their own start values in the browser or in a saved copy of the page.
 v0.5 shows the county hydrant count for the selected district. It warns when the count is below 50, and the no-draft status gives the reason.
 v0.6 adds the Town of Greenburgh hydrants. They fill Hartsdale FD (417 hydrants) and Fairview FD (678).
 v0.7 adds dual 3 inch supply lines, a road draft that stops on the road for a short driveway, and S and A markers that the user can drag.
 v0.8 shows six flows, 500 to 2,000 GPM. The card prints three: 500, 1,250, and 2,000 GPM. The card preview has the width of the printed page.
+v0.9 drafts a route only on the "Draft route by road" button, after the user sets up the lay. A draft is 1 mile maximum by road.
 The GitHub repo is private. Its name is yhfd-relay-calculator.
 
 ## Files
@@ -24,9 +25,9 @@ The GitHub repo is private. Its name is yhfd-relay-calculator.
 | `scripts/fetch_hydrants.py` | Gets the hydrant list again from the county. |
 | `scripts/fetch_greenburgh_hydrants.py` | Gets the town hydrants again from the Town of Greenburgh. |
 | `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
-| `tests/test_core.js` | 65 math checks: against the chauffeur chart, for the road draft, and for dual 3 inch lines. Runs in Node. |
-| `tests/test_ui.py` | 92 page checks in Chrome through Playwright. No internet needed. |
-| `package.json` | Version 0.8.0. It holds the `build`, `test`, and `test:ui` commands. |
+| `tests/test_core.js` | 68 math checks: against the chauffeur chart, for the road draft, and for dual 3 inch lines. Runs in Node. |
+| `tests/test_ui.py` | 113 page checks in Chrome through Playwright. No internet needed. |
+| `package.json` | Version 0.9.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
 | `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
 | `dist/` | Build output. Git ignores it. |
@@ -50,11 +51,11 @@ No Playwright browser download is necessary. The page test uses the installed Go
 | Command | Result |
 |---|---|
 | `python3 build.py` | Writes `dist/YHFD Relay Pumping Calculator.html`. |
-| `npm test` | Builds, then runs the 65 math checks. |
-| `npm run test:ui` | Builds, then runs the 92 page checks. It calls `.venv/bin/python`. |
+| `npm test` | Builds, then runs the 68 math checks. |
+| `npm run test:ui` | Builds, then runs the 113 page checks. It calls `.venv/bin/python`. |
 
 Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-On 2026-11-27, 65 of 65 math checks and 92 of 92 page checks passed on macOS with Google Chrome 158.
+On 2026-11-27, 68 of 68 math checks and 113 of 113 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 
@@ -68,10 +69,11 @@ On 2026-11-27, 65 of 65 math checks and 92 of 92 page checks passed on macOS wit
 8. After a build, check the SHA-256. The SHA-256 is a fingerprint of a file. It must equal the recorded value below.
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
-Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `3d848a6d0f56ef4a6783cb8ace4d706757b48eedd57201a84e5412413824115a`
-This is the v0.8 build. The v0.5 value was `53160474532b59cd8a433e202782c25fe5a89353ebf57c912d5a66f79baa3332`.
-On 2026-11-26 the copy Alex uses in OneDrive is the v0.7 build (`40fcf9d939d3ec409fe6474a6486e4fda0ac77139e8e18321b1f537fb1493870`).
-Claude replaced that copy four times (v0.3, v0.4, v0.6, and v0.7), each on a direct request from Alex.
+Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `68a96646c4a4b8edbb1a20a60d2abd503ddd6899814985ceebcf806987034683`
+This is the v0.9 build. The v0.5 value was `53160474532b59cd8a433e202782c25fe5a89353ebf57c912d5a66f79baa3332`.
+On 2026-11-27 the copy Alex uses in OneDrive is the v0.8 build (`3d848a6d0f56ef4a6783cb8ace4d706757b48eedd57201a84e5412413824115a`).
+Claude replaced that copy five times (v0.3, v0.4, v0.6, v0.7, and v0.8), each on a direct request from Alex.
+The v0.7 value was `40fcf9d939d3ec409fe6474a6486e4fda0ac77139e8e18321b1f537fb1493870`.
 The v0.6 value was `64ad6939217b90d76a5e0f95e50516bced66a497ffdf12c0e09dcb7efe8f3825`.
 The v0.4 value was `bc20308410d7842a70e7d4f1246dee7f77da2314918be2c45611566eb6a97c15`. Rule 3 still applies.
 The v0.2 value was `21e80ce837c58ff39c76c82a0030220d7f9b859dc50db28cb6cfe615406c2e09`.
@@ -153,6 +155,15 @@ Decisions for v0.8 (Alex, 2026-11-26):
 - The card shows one block for each flow (Alex, 2026-11-27): a large GPM label, only the engines that the flow needs, one large PDP for each engine, and one arrow for each hose section. The arrowhead is where the engine stops and pumps.
 - The card does not show "ft out" or the climb for each section. The planner on the screen keeps them.
 - An Impeccable critique of an earlier draft is in `.impeccable/critique/` on this Mac. Git does not track that folder. Its main lesson: black marks only, because a photocopy loses colour and small marks.
+
+Decisions for v0.9 (Alex, 2026-11-27):
+
+- The address search only finds the address. It makes no route.
+- Step 2, "Set up the lay", holds the water source type, the lay, and the six settings. The user sees them before a draft.
+- The page drafts only on the "Draft route by road" button. The water source type and the lay start empty.
+- A road draft is 5,280 ft maximum by road. Before v0.9 the limit was a search box, and a draft could be longer.
+- For a draft site, a tanker dump site, or other, the user clicks the source on the map. The page drafts by road from that point. Claude added this.
+- These decisions replace two v0.3 decisions: the draft after the address search, and the box of 1 mile.
 
 ## Data sources
 

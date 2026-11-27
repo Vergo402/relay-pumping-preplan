@@ -1,6 +1,6 @@
 # YHFD Relay Pumping Calculator
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.8. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.9. No field check is done yet.
 
 ## What the tool does
 
@@ -49,8 +49,8 @@ The repo has two test sets. Each command builds the page first.
 
 | Command | Checks | Result |
 |---|---|---|
-| `npm test` | 65 math checks. They cover the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI, the road draft, and dual 3 inch lines. | 65 of 65 pass. |
-| `npm run test:ui` | 92 page checks in Chrome through Playwright. | 92 of 92 pass. |
+| `npm test` | 68 math checks. They cover the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI, the road draft, and dual 3 inch lines. | 68 of 68 pass. |
+| `npm run test:ui` | 113 page checks in Chrome through Playwright. | 113 of 113 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
@@ -60,15 +60,16 @@ The results above are from 2026-11-27 on macOS with Google Chrome 158.
 
 1. Open `dist/YHFD Relay Pumping Calculator.html` in a browser.
 2. Select the fire district. Yorktown Hgts FD is the default.
-3. Enter the address and select **Go**.
-4. Look at the draft route. It goes from the nearest hydrant by road to the address.
-5. Drag a point to match the driveway. Click a middle handle or the line to add a point. Right-click a point to remove it.
-6. Select reverse lay or forward lay. The page has no default.
+3. Enter the address and select **Go**. The page finds the address. It makes no route.
+4. In step 2 on the page, select the water source type and reverse lay or forward lay. The page has no default for these two.
+5. Check the six settings in step 2. They show your defaults.
+6. Select **Draft route by road**. For a hydrant, the draft goes from the nearest hydrant by road to the address. For a different source type, click the water source on the map.
+7. Drag a point to match the driveway. Click a middle handle or the line to add a point. Right-click a point to remove it.
 
-With no road or no hydrant in 1 mile, the page makes no draft. Then trace by hand:
+With no road, or with no water source in 1 mile by road, the page makes no draft. Then trace by hand:
 
 1. Select reverse lay or forward lay.
-2. Select **Trace route**.
+2. Select **Trace by hand**.
 3. Click the route on the map. Reverse: click the attack engine first and the water source last. Forward: click in the opposite order.
 4. Select **Finish**.
 
@@ -95,7 +96,7 @@ The user can drag a relay engine. The page then shows the PDPs for that position
 - The page stores the last plan in the browser. A saved plan file (JSON) is the durable copy.
 - No field check is done yet.
 - The draft follows the road centerline. The last leg to the address is a straight line to the tax parcel point. Edit it to match the driveway.
-- The draft uses hydrants only. It does not know draft sites.
+- The page does not know where draft sites are. For a draft site, click the water source on the map.
 - The county hydrant list is not complete. Some districts have few or no hydrants in it. The page shows the count and a warning.
 - The supply hose on each engine is a 1,000 ft placeholder. It now sets the engine count.
 
