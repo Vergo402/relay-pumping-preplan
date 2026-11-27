@@ -99,12 +99,14 @@ td.n,th.n{text-align:right}
 #flowTable tbody tr{cursor:pointer}
 #flowTable tbody tr:hover{background:var(--bg)}
 #flowTable tbody tr.sel{background:#eaf1fa}
+#flowTable tbody tr:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
 #flowTable tbody tr.sel td:first-child{box-shadow:inset 3px 0 0 var(--blue)}
 .pill{display:inline-block;border-radius:10px;padding:1px 8px;font-size:12px;font-weight:600}
 .pill.ok{background:var(--green-soft);color:var(--green)}
 .pill.relay{background:var(--amber-soft);color:#7a4a00}
 .pill.bad{background:var(--red-soft);color:var(--red)}
-.budget{font-size:13px;margin:10px 0;padding:8px 10px;background:var(--bg);border-radius:6px}
+.cf{font-size:13px;margin:0 0 10px;padding:9px 10px;background:var(--red-soft);border:1px solid var(--red);border-radius:6px}
+.cf .row{margin:8px 0 0}
 .warn{font-size:13px;border-left:3px solid var(--amber);background:var(--amber-soft);padding:7px 10px;margin:8px 0;border-radius:0 6px 6px 0}
 .warn.bad{border-color:var(--red);background:var(--red-soft)}
 .eng{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:22px;padding:0 6px;border-radius:11px;color:#fff;font-size:12px;font-weight:700}
@@ -115,12 +117,14 @@ details ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:12.5px}
 .hint{font-size:12px;color:var(--muted);margin:-4px 0 10px}
 .empty{color:var(--muted);font-size:13px;padding:4px 0 12px}
 /* map markers */
-.vx{width:12px;height:12px;border-radius:2px;background:#fff;border:2px solid #111;box-shadow:0 0 0 1px #fff}
+.vx{position:relative;width:18px;height:18px;border-radius:2px;background:#fff;border:2px solid #111;box-shadow:0 0 0 1px #fff}
 .em{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:15px;color:#fff;font:700 12px/1 -apple-system,"Segoe UI",Arial,sans-serif;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6)}
 .em.S{background:var(--blue)} .em.R{background:var(--amber);cursor:grab} .em.A{background:var(--red)}
 .pin{width:24px;height:24px;background:var(--blue);border:2px solid #fff;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 1px 4px rgba(0,0,0,.6)}
 .pin::after{content:'';position:absolute;left:6px;top:6px;width:8px;height:8px;border-radius:4px;background:#fff}
-.mid{width:10px;height:10px;border-radius:5px;background:#fff;border:2px dashed #111;cursor:pointer}
+.mid{position:relative;width:14px;height:14px;border-radius:7px;background:#fff;border:2px dashed #111;cursor:pointer}
+/* a touch screen gets a 44 px hit area around each handle */
+@media (pointer:coarse){.vx::after,.mid::after{content:'';position:absolute;left:50%;top:50%;width:44px;height:44px;transform:translate(-50%,-50%)}}
 .hov{width:12px;height:12px;border-radius:6px;background:#fff;border:3px solid #111}
 .leaflet-container{font:12px/1.4 -apple-system,"Segoe UI",Arial,sans-serif}
 /* card view */
@@ -193,7 +197,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.13 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.14 &middot; Planning aid only. Verify on site.</p></div>
 
     <div class="sec" data-k="dist">
       <button type="button" class="su" aria-expanded="false"><i>District</i><span></span><u>Change</u></button>
@@ -244,9 +248,12 @@ body.card #profile{height:1.47in}
         <button class="btn" id="btnFinish" disabled>Finish</button>
         <button class="btn" id="btnClear" disabled>Clear</button>
       </div>
+      <div class="cf" id="clearBox" role="group" aria-label="Clear the route?" hidden><b>Clear the route?</b> The settings go back to your defaults.
+        <div class="row"><button class="btn primary" id="btnClearYes">Clear route</button><button class="btn" id="btnClearNo">Keep route</button></div>
+      </div>
       <div id="status">Find the address in step 1. Then set up the lay in step 2.</div>
       <ol class="steps" id="steps"></ol>
-      <p class="hint">Drag a point to move it. Click a middle handle or the line to add a point. Right-click a point to remove it.</p>
+      <p class="hint">Drag a point to move it. Click a middle handle or the line to add a point. Click a point to remove it.</p>
       <label class="hint" style="display:block;margin:0 0 10px"><input type="checkbox" id="showHandles" checked> Show edit handles</label>
     </div>
 
@@ -737,28 +744,39 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     var showH = state.drawing || $('showHandles').checked;
     if (showH && !state.drawing) state.points.slice(1).forEach(function (q, i) { // a small handle in the middle of each section adds a point
       var a = state.points[i], mid = { lat: (a.lat + q.lat) / 2, lng: (a.lng + q.lng) / 2 };
-      L.marker([mid.lat, mid.lng], { icon: L.divIcon({ className: '', html: '<div class="mid"></div>', iconSize: [10, 10], iconAnchor: [5, 5] }), title: 'Click to add a point' })
+      L.marker([mid.lat, mid.lng], { icon: L.divIcon({ className: '', html: '<div class="mid"></div>', iconSize: [14, 14], iconAnchor: [7, 7] }), title: 'Click to add a point' })
         .on('click', function () { state.points.splice(i + 1, 0, mid); state.manual = {}; state.draft = false; drawRoute(); compute(); }).addTo(vertexGroup);
     });
     if (showH) state.points.forEach(function (p, i) {
-      var m = L.marker([p.lat, p.lng], { draggable: true, icon: L.divIcon({ className: '', html: '<div class="vx"></div>', iconSize: [12, 12], iconAnchor: [6, 6] }), title: 'Drag to move this point' });
+      var m = L.marker([p.lat, p.lng], { draggable: true, icon: L.divIcon({ className: '', html: '<div class="vx"></div>', iconSize: [18, 18], iconAnchor: [9, 9] }), title: 'Drag to move this point' });
       m.on('dragend', function () {
         var q = m.getLatLng(); state.points[i] = { lat: q.lat, lng: q.lng };
         if (i === 0 && !(state.drawing && state.settings.lay === 'reverse')) snapSource();
         state.manual = {}; state.draft = false; drawRoute(); if (!state.drawing) compute();
       });
-      m.on('contextmenu', function (e) { // right-click removes the point, but a route keeps 2 points
-        L.DomEvent.preventDefault(e.originalEvent);
+      function removePoint() { // a route keeps 2 points
         if (state.points.length <= 2) return;
         state.points.splice(i, 1);
         if (i === 0 && !(state.drawing && state.settings.lay === 'reverse')) snapSource();
         state.manual = {}; state.draft = false; drawRoute(); if (!state.drawing) compute();
+      }
+      m.on('contextmenu', function (e) { L.DomEvent.preventDefault(e.originalEvent); removePoint(); });
+      m.on('click', function () { // a click (not a drag) asks first. A tap has no right-click.
+        var d = document.createElement('div'), n = state.points.length;
+        d.appendChild(document.createTextNode(n <= 2 ? 'A route keeps 2 points.' : 'Point ' + (i + 1) + ' of ' + n + ' '));
+        if (n > 2) {
+          var b = document.createElement('button'); b.className = 'btn small'; b.textContent = 'Remove point';
+          b.onclick = function () { map.closePopup(); removePoint(); };
+          d.appendChild(b);
+        }
+        L.popup({ offset: [0, -6] }).setLatLng(m.getLatLng()).setContent(d).openOn(map);
       });
       m.addTo(vertexGroup);
     });
     $('btnUndo').disabled = !state.drawing || state.points.length === 0;
     $('btnFinish').disabled = !state.drawing || state.points.length < 2;
     $('btnClear').disabled = state.points.length === 0;
+    if (!state.points.length) $('clearBox').hidden = true;
   }
   function insertPoint(e) {
     var n = RelayCore.nearestOnPaths(e.latlng, [state.points.map(function (p) { return [p.lng, p.lat]; })]);
@@ -777,7 +795,11 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   $('layFwd').onclick = function () { setLay('forward'); };
   $('btnUndo').onclick = function () { if (state.settings.lay === 'reverse') state.points.shift(); else state.points.pop(); if (!state.points.length || state.settings.lay === 'reverse') state.sourceHydrant = null; state.manual = {}; state.draft = false; drawRoute(); drawStatus(); };
   $('btnFinish').onclick = finish;
-  $('btnClear').onclick = function () {
+  $('btnClear').onclick = function () { $('clearBox').hidden = false; $('btnClearNo').focus(); };
+  $('btnClearNo').onclick = function () { $('clearBox').hidden = true; $('btnClear').focus(); };
+  $('clearBox').onkeydown = function (e) { if (e.key === 'Escape') $('btnClearNo').click(); };
+  $('btnClearYes').onclick = function () {
+    $('clearBox').hidden = true;
     state.points = []; state.sourceHydrant = null; state.manual = {}; state.draft = false; state.samples = state.elevFt = state.profile = null; state.results = {};
     state.settings.lay = null; // no default lay: select it for each new route
     state.sourceType = ''; awaitSrc = false; found = null; if (geoMarker) { map.removeLayer(geoMarker); geoMarker = null; }
@@ -919,15 +941,19 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     h += '<table id="flowTable"><thead><tr><th>Flow</th><th class="n">FL/100 ft</th><th>Layout</th><th class="n">Top PDP</th></tr></thead><tbody>';
     FLOWS.forEach(function (q) {
       var x = state.results[q];
-      h += '<tr data-q="' + q + '" class="' + (q === state.flow ? 'sel' : '') + '"><td><b>' + fmt(q) + '</b> GPM</td><td class="n">' + (Math.round(x.fl100 * 10) / 10) + ' PSI</td><td>' + verdict(x) + '</td><td class="n"><b>' + x.maxPdp + '</b></td></tr>';
+      h += '<tr data-q="' + q + '" tabindex="0" aria-selected="' + (q === state.flow) + '" class="' + (q === state.flow ? 'sel' : '') + '"><td><b>' + fmt(q) + '</b> GPM</td><td class="n">' + (Math.round(x.fl100 * 10) / 10) + ' PSI</td><td>' + verdict(x) + '</td><td class="n"><b>' + x.maxPdp + '</b></td></tr>';
     });
     h += '</tbody></table>';
     h += '<h3 class="sub">Engines at ' + fmt(state.flow) + ' GPM</h3>' + engineRows(r);
-    h += '<div class="budget"><b>' + fmt(state.flow) + ' GPM pressure demand:</b> friction ' + Math.round(r.frictionAll) + ' + climb ' + Math.round(r.climbAll) + ' + intake ' + s.residual + ' = <b>' + Math.round(r.frictionAll + r.climbAll + s.residual) + ' PSI</b>. One engine gives ' + s.cap + ' PSI and lays a maximum of ' + fmt(s.hosePerEngine) + ' ft.</div>';
     h += layBlock(r);
     h += warnings(r, st);
     el.innerHTML = h;
-    Array.prototype.forEach.call(el.querySelectorAll('#flowTable tbody tr'), function (tr) { tr.onclick = function () { state.flow = +tr.getAttribute('data-q'); render(); }; });
+    Array.prototype.forEach.call(el.querySelectorAll('#flowTable tbody tr'), function (tr) { tr.onclick = function () { state.flow = +tr.getAttribute('data-q'); render(); };
+      tr.onkeydown = function (e) { // Enter or Space picks the flow. Then the table is new, so the same row gets the focus back.
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault(); tr.click(); el.querySelector('tr[data-q="' + tr.getAttribute('data-q') + '"]').focus();
+      };
+    });
     var ba = $('btnAuto'); if (ba) ba.onclick = function () { delete state.manual[state.flow]; recalc(); };
   }
   function nearestSample(latlng) {

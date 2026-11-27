@@ -46,6 +46,8 @@ def unfold(q):  # v0.13: a result folds the four setup sections. Open them befor
     q.evaluate("document.querySelectorAll('#side .su[aria-expanded=false]').forEach(b => b.click())")
 def draft(q, kind='Hydrant', lay='#layRev'):  # v0.9: the draft needs the type and the lay, then the button
     unfold(q); q.select_option('#sourceType', kind); q.click(lay); unfold(q); q.click('#btnDraft')
+def clear(q):  # v0.14: Clear asks first. Confirm it.
+    q.click('#btnClear'); q.click('#btnClearYes')
 SNAP = '''() => { const s=window.__relay.state; return {lay:s.settings.lay, pts:s.points.length, first:s.points[0], last:s.points[s.points.length-1], hyd:s.sourceHydrant, hose:s.profile?s.profile.h[s.profile.n-1]:null,
   net:s.profile?s.profile.z[s.profile.n-1]-s.profile.z[0]:null, res:s.profile?[500,750,1000,1250,1500,2000].map(q=>({q, relays:s.results[q].relays.length, pdps:s.results[q].segs.map(x=>x.pdp), secs:s.results[q].segs.map(x=>Math.round(x.hose)), over:s.results[q].over, overHose:s.results[q].overHose})):null}; }'''
 # The card blocks. Each block gives its label, mark, engine texts, arrowhead counts, "Lays" values, and the planner lay values for the same flow.
@@ -182,7 +184,7 @@ with sync_playwright() as p:
     ok('v0.12: on the card, every engine marker is inside the map and the markers span more than the map size minus 90 px', fit['n']>=2 and fit['inside'] and fit['span'] > fit['size']-90, fit)
     pg.click('#btnBack'); pg.wait_for_timeout(200)
     # ---- clear: lay must be picked again ----
-    unfold(pg); pg.click('#btnClear'); pg.wait_for_timeout(150)
+    unfold(pg); clear(pg); pg.wait_for_timeout(150)
     ok('clear resets the lay and locks Trace by hand', pg.evaluate('window.__relay.state.settings.lay')==None and pg.is_disabled('#btnDraw'), pg.inner_text('#status'))
     # ---- forward lay: source first ----
     pg.evaluate('window.__relay.map.setView([%f,%f],16,{animate:false})' % C); pg.wait_for_timeout(400)
@@ -194,7 +196,7 @@ with sync_playwright() as p:
     unfold(pg); pg.select_option('#setCap', '200'); unfold(pg); pg.fill('#setHosePer', '1500'); unfold(pg); pg.dispatch_event('#setHosePer', 'change'); pg.wait_for_timeout(200)
     r3 = pg.evaluate(SNAP)['res']; ok('1,500 ft per engine and 200 PSI lowers the engine count', sum(len(x['secs']) for x in r3) < sum(len(x['secs']) for x in rev['res']), [x['secs'] for x in r3])
     # ---- v0.3 phase: district picker, road draft, handles. It runs last so the old checks keep their state. ----
-    unfold(pg); pg.click('#btnClear'); pg.wait_for_timeout(150)
+    unfold(pg); clear(pg); pg.wait_for_timeout(150)
     CEN = 'JSON.stringify(window.__relay.map.getCenter())'
     c0 = json.loads(pg.evaluate(CEN)); unfold(pg); pg.select_option('#setDistrict', '226'); pg.wait_for_timeout(500); c1 = json.loads(pg.evaluate(CEN))
     nm = pg.evaluate("document.querySelector('#setDistrict').selectedOptions[0].textContent")
@@ -262,7 +264,7 @@ with sync_playwright() as p:
     unfold(q); q.fill('#geoText', '100 Test Hill Rd'); unfold(q); q.click('#geoForm button'); q.wait_for_timeout(500); draft(q)
     try: q.wait_for_function('window.__relay.state.draft === true', timeout=8000); q.wait_for_selector('#flowTable', timeout=8000)
     except Exception: pass
-    unfold(q); q.select_option('#setCap', '150'); q.wait_for_timeout(200); unfold(q); q.click('#btnClear'); q.wait_for_timeout(300)
+    unfold(q); q.select_option('#setCap', '150'); q.wait_for_timeout(200); unfold(q); clear(q); q.wait_for_timeout(300)
     ok('Clear after a changed setting returns the settings to the saved defaults', inputs(q)==['226','4','200','50','5','1500'] and q.evaluate('window.__relay.state.settings.cap')==200 and q.evaluate('window.__relay.state.settings.lay')==None, inputs(q))
     unfold(q); q.fill('#geoText', '100 Test Hill Rd'); unfold(q); q.click('#geoForm button'); q.wait_for_timeout(500); draft(q)  # a live route, so the copy check proves the route is left out
     try: q.wait_for_function('window.__relay.state.draft === true', timeout=8000)
@@ -392,7 +394,7 @@ with sync_playwright() as p:
     ok('hydrant draft after the button equals the old draft: hydrant T-102 first, the address last, the same status text', d9['hyd'] and d9['hyd']['num']=='T-102' and d9['n']>=3 and abs(d9['first']['lat']-(C[0]+0.001))<1e-9 and abs(d9['first']['lng']-(C[1]+0.002))<1e-9 and abs(d9['last']['lat']-ADDR2[0])<1e-9 and abs(d9['last']['lng']-ADDR2[1])<1e-9 and d9['text']=='Draft route: hydrant T-102 to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd. Drag a point to match the driveway. Click the line to add a point. The county hydrant list can be incomplete here. A nearer hydrant can exist.', d9)
     y.screenshot(path='out/v09-after-draft.png')
     unfold(y); y.click('#btnDraft'); ok('draft button with a route: Clear the route first. The draft needs an empty route.', y.inner_text('#status')=='Clear the route first. The draft needs an empty route.' and y.evaluate('window.__relay.state.points.length')==d9['n'], y.inner_text('#status'))
-    unfold(y); y.click('#btnClear'); y.wait_for_timeout(300)
+    unfold(y); clear(y); y.wait_for_timeout(300)
     ok('Clear empties the source type, the lay, and the pin; the draft then asks for the address', y.input_value('#sourceType')=='' and y.evaluate('window.__relay.state.sourceType')=='' and y.evaluate('window.__relay.state.settings.lay')==None and y.locator('.pin').count()==0, y.input_value('#sourceType'))
     unfold(y); y.click('#btnDraft'); ok('after Clear the draft button says Find the address first.', y.inner_text('#status')=='Find the address first.', y.inner_text('#status'))
     # a non-hydrant type: the page asks for a click on the map, then drafts from the click
@@ -446,7 +448,7 @@ with sync_playwright() as p:
     e10 = len(errors)
     GATE['roads'] = False; GATE['addr'] = C
     t10 = fresh(); t10.goto(test_html.resolve().as_uri()); t10.wait_for_timeout(700)
-    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.13', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.inner_text('#side') and 'Pilot v0.13' in t10.inner_text('.brand'))
+    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.14', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.inner_text('#side') and 'Pilot v0.14' in t10.inner_text('.brand'))
     ok('v0.10: the status line lists six values', t10.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==6, t10.inner_text('#defaultsStatus'))
     t10.click('#side details summary'); rules = t10.inner_text('#side details')
     ok('v0.10: the rules list states the one friction rule and the round-up rule', 'one rule' in rules and '0.08' in rules and 'rounds up to the next 5 PSI' in rules and 'chart table' not in rules.lower() and 'formula option' not in rules.lower(), rules[:200])
@@ -490,7 +492,7 @@ with sync_playwright() as p:
     with t11.expect_download() as dl: t11.click('#btnSave')
     saved = json.loads(pathlib.Path(dl.value.path()).read_text())
     ok('plan file keeps the found address', saved.get('addr', {}).get('label') == '100 TEST HILL RD, YORKTOWN HEIGHTS' and abs(saved['addr']['lat'] - C[0]) < 1e-6, saved.get('addr'))
-    unfold(t11); t11.click('#btnClear'); t11.wait_for_timeout(300)
+    unfold(t11); clear(t11); t11.wait_for_timeout(300)
     ok('card name: Clear forgets the address and its pin', t11.evaluate(NAME) == today + '_Drill A' and t11.evaluate('window.__relay.found()') is None and t11.locator('.pin').count() == 0, t11.evaluate(NAME))
     unfold(t11); t11.fill('#planName', ''); ok('card name: with neither plan name nor address it is the date and Relay pre-plan', t11.evaluate(NAME) == today + '_Relay pre-plan', t11.evaluate(NAME))
     t11.set_input_files('#fileOpen', files=[{'name':'p.json','mimeType':'application/json','buffer':json.dumps(saved).encode()}]); t11.wait_for_timeout(600)
@@ -517,7 +519,7 @@ with sync_playwright() as p:
     ok('v0.13: a setting change keeps the section open and updates its summary', f13.is_visible('#setCap') and f13.inner_text('#side .su >> nth=2 >> span').endswith('150 PSI'))
     f13.click('#side .su >> nth=2')
     ok('v0.13: a second click folds the section again', not f13.is_visible('#layRev') and f13.locator('#side .su >> nth=2').get_attribute('aria-expanded')=='false')
-    f13.click('#side .su >> nth=3'); f13.click('#btnClear'); f13.wait_for_timeout(300)
+    f13.click('#side .su >> nth=3'); clear(f13); f13.wait_for_timeout(300)
     ok('v0.13: Clear opens all four sections and hides the rows', f13.locator('#side .su:visible').count()==0 and f13.evaluate(SEC+".every(s => !s.classList.contains('fold'))") and f13.is_visible('#setDistrict') and f13.is_visible('#geoText') and f13.is_visible('#layRev'))
     f13.fill('#geoText', '100 Test Hill Rd'); f13.click('#geoForm button'); f13.wait_for_timeout(600); draft(f13); f13.wait_for_selector('#flowTable', timeout=8000)
     en = f13.evaluate("""(() => { const r = window.__relay.state.results[window.__relay.state.flow], pd = [...document.querySelectorAll('#results .en .pd b')]; const sz = e => parseFloat(getComputedStyle(e).fontSize);
@@ -525,12 +527,53 @@ with sync_playwright() as p:
       return {rows: document.querySelectorAll('#results .en').length, engines: r.segs.length + 1, pdps: pd.slice(0, -1).map(e => +e.textContent), want: r.segs.map(g => g.pdp), sizes: pd.map(sz), max: Math.max(...all), intake: pd[pd.length-1].textContent, lines: [...document.querySelectorAll('#results .en small')].map(e => e.textContent)}; })()""")
     ok('v0.13: the engines list has one row per engine with its PDP', en['rows']==en['engines'] and en['pdps']==en['want'] and en['intake'].endswith(' PSI') and en['lines'][0].startswith('at the source') and ' lays ' in en['lines'][1], en)
     ok('v0.13: the PDP is 30 px and the largest font size in the sidebar', all(z==30 for z in en['sizes'][:-1]) and en['max']==30, en)
-    ok('v0.13: the pressure demand box sits below the engines list', f13.evaluate("(() => { const b = document.querySelector('#results .budget'), e = [...document.querySelectorAll('#results .en')].pop(); return !!(b.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_PRECEDING); })()"))
     ph = fresh(); ph.set_viewport_size({'width':390,'height':800}); ph.goto(test_html.resolve().as_uri()); ph.wait_for_timeout(700)
     GATE['addr'] = ADDR2; ph.fill('#geoText', '100 Test Hill Rd'); ph.click('#geoForm button'); ph.wait_for_timeout(600); draft(ph); ph.wait_for_selector('#flowTable', timeout=8000); ph.wait_for_timeout(500)
     box = ph.evaluate("(() => { const r = [...document.querySelectorAll('#side h2')].filter(h => h.textContent.startsWith('4.'))[0].getBoundingClientRect(); return [r.top, r.bottom, innerHeight]; })()")
     ok('v0.13: on a 390 px screen the result heading is in view after a draft', 0 <= box[0] and box[1] <= box[2], box)
     ph.close()
+    # ---- v0.14 phase: Clear asks first, larger handles, click a point to remove it, flow rows from the keyboard ----
+    e14 = len(errors)
+    v = fresh(); v.set_viewport_size({'width':1280,'height':800}); v.goto(test_html.resolve().as_uri()); v.wait_for_timeout(700)
+    GATE['addr'] = ADDR2; v.fill('#geoText', '100 Test Hill Rd'); v.click('#geoForm button'); v.wait_for_timeout(600); draft(v); v.wait_for_selector('#flowTable', timeout=8000); v.wait_for_timeout(500)
+    PTS = 'window.__relay.state.points.length'; BOX = "document.getElementById('clearBox').hidden"
+    unfold(v); v.click('#btnClear')
+    ok('v0.14: Clear shows the box and keeps the route; focus is on Keep route', v.evaluate(BOX) is False and v.evaluate(PTS)>=3 and v.evaluate('document.activeElement.id')=='btnClearNo' and v.get_attribute('#clearBox','role')=='group' and v.get_attribute('#clearBox','aria-label')=='Clear the route?' and v.inner_text('#clearBox').startswith('Clear the route? The settings go back to your defaults.'), v.inner_text('#clearBox'))
+    v.click('#btnClearNo')
+    ok('v0.14: Keep route hides the box, keeps the route, and returns focus to Clear', v.evaluate(BOX) is True and v.evaluate(PTS)>=3 and v.evaluate('document.activeElement.id')=='btnClear')
+    v.click('#btnClear'); v.keyboard.press('Escape')
+    ok('v0.14: Escape in the box acts as Keep route', v.evaluate(BOX) is True and v.evaluate(PTS)>=3 and v.evaluate('document.activeElement.id')=='btnClear')
+    v.click('#btnClear'); v.click('#btnClearYes'); v.wait_for_timeout(300)
+    ok('v0.14: Clear route clears the route and hides the box', v.evaluate(BOX) is True and v.evaluate(PTS)==0)
+    unfold(v); v.fill('#geoText', '100 Test Hill Rd'); v.click('#geoForm button'); v.wait_for_timeout(600); draft(v); v.wait_for_selector('#flowTable', timeout=8000); v.wait_for_timeout(500)
+    sz = v.evaluate("[getComputedStyle(document.querySelector('.vx')).width, getComputedStyle(document.querySelector('.vx')).height, getComputedStyle(document.querySelector('.mid')).width, getComputedStyle(document.querySelector('.mid')).height]")
+    ok('v0.14: a point handle is 18 px and a middle handle is 14 px', sz==['18px','18px','14px','14px'], sz)
+    cen = v.evaluate("(() => { const m = window.__relay.map, r = m.getContainer().getBoundingClientRect(); return window.__relay.state.points.map((p, i) => { const q = m.latLngToContainerPoint(p), b = document.querySelectorAll('.vx')[i].getBoundingClientRect(); return Math.hypot(b.x + b.width/2 - r.x - q.x, b.y + b.height/2 - r.y - q.y); }); })()")
+    ok('v0.14: each point handle is centred on its route point within 1 px', len(cen)>=3 and max(cen)<1, cen)
+    n = v.evaluate(PTS); v.locator('.vx').nth(1).click(); v.wait_for_timeout(300)
+    pt = v.inner_text('.leaflet-popup-content')
+    ok('v0.14: a click on a point opens a popup with the point number and Remove point; no point is added', pt.startswith('Point 2 of %d' % n) and 'Remove point' in pt and v.evaluate(PTS)==n, pt)
+    v.click('.leaflet-popup-content button'); v.wait_for_timeout(600)
+    ok('v0.14: Remove point removes that point, closes the popup, and the result recomputes', v.evaluate(PTS)==n-1 and v.locator('.leaflet-popup').count()==0 and v.evaluate('window.__relay.state.results[500].relays.length>=0') and v.is_visible('#flowTable'))
+    v.locator('.vx').nth(1).click(button='right'); v.wait_for_timeout(500)
+    ok('v0.14: right-click still removes a point', v.evaluate(PTS)==n-2, v.evaluate(PTS))
+    bx = v.locator('.vx').nth(1).bounding_box(); v.mouse.move(bx['x']+9, bx['y']+9); v.mouse.down(); v.mouse.move(bx['x']+60, bx['y']+40, steps=8); v.mouse.up(); v.wait_for_timeout(500)
+    ok('v0.14: a drag opens no popup', v.locator('.leaflet-popup').count()==0 and v.evaluate(PTS)==n-2)
+    while v.evaluate(PTS)>2: v.locator('.vx').nth(1).click(button='right'); v.wait_for_timeout(400)
+    v.locator('.vx').nth(1).dispatch_event('click'); v.wait_for_timeout(300)  # the attack engine icon covers this handle
+    ok('v0.14: with 2 points the popup says A route keeps 2 points. and has no button', v.inner_text('.leaflet-popup-content')=='A route keeps 2 points.' and v.locator('.leaflet-popup-content button').count()==0 and v.evaluate(PTS)==2, v.inner_text('.leaflet-popup-content'))
+    v.close()
+    k14 = fresh(); k14.set_viewport_size({'width':1280,'height':800}); k14.goto(test_html.resolve().as_uri()); k14.wait_for_timeout(700)
+    GATE['addr'] = ADDR2; k14.fill('#geoText', '100 Test Hill Rd'); k14.click('#geoForm button'); k14.wait_for_timeout(600); draft(k14); k14.wait_for_selector('#flowTable', timeout=8000); k14.wait_for_timeout(500)
+    ROWS = "[...document.querySelectorAll('#flowTable tbody tr')]"
+    ok('v0.14: every flow row has tabindex 0 and the selected one has aria-selected true', k14.evaluate(ROWS+".every(r => r.tabIndex === 0)") and k14.evaluate(ROWS+".map(r => r.getAttribute('aria-selected')).join()")==('true,'+','.join(['false']*5) if k14.evaluate('window.__relay.state.flow')==500 else k14.evaluate(ROWS+".map(r => String(r.classList.contains('sel'))).join()")))
+    for key, q in (('Enter', 1000), ('Space', 1500)):
+        k14.focus('#flowTable tbody tr[data-q="%d"]' % q); y0 = k14.evaluate('scrollY'); k14.keyboard.press(key); k14.wait_for_timeout(200)
+        st = k14.evaluate("({flow: window.__relay.state.flow, focus: document.activeElement.getAttribute('data-q'), aria: " + ROWS + ".map(r => r.getAttribute('aria-selected') + ':' + r.getAttribute('data-q')).filter(x => x.startsWith('true')), y: scrollY})")
+        ok('v0.14: %s on a focused row selects it, keeps focus on it, and sets aria-selected' % key, st['flow']==q and st['focus']==str(q) and st['aria']==['true:%d' % q] and st['y']==y0, st)
+    ok('v0.14: the result holds no pressure demand text', 'pressure demand' not in k14.inner_text('#results').lower() and k14.locator('#results .budget').count()==0)
+    k14.close()
+    ok('no page errors in the v0.14 phase', not [e for e in errors[e14:] if 'Failed to load resource' not in e], errors[e14:][:3])
     ok('no page errors in the v0.13 phase', not [e for e in errors[e13:] if 'Failed to load resource' not in e], errors[e13:][:3])
     ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])
     bad = [e for e in errors if 'Failed to load resource' not in e]
