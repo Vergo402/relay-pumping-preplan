@@ -1,5 +1,5 @@
 {
-  "name": "yhfd-relay-calculator",
+  "name": "relay-pumping-preplan",
   "version": "0.19.0",
   "private": true,
   "description": "Relay pumping pre-plan: one HTML page that plans a long supply line lay with relay engines.",

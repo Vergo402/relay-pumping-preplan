@@ -1,10 +1,12 @@
-# YHFD Relay Pumping Calculator
+# Relay Pumping Pre-plan
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.10. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.19. No field check is done yet.
+
+Live page: https://vergo402.github.io/relay-pumping-preplan/
 
 ## What the tool does
 
-The tool is one HTML page, a web page in one file. It is for Yorktown Heights Fire District (YHFD). A user can select any of 60 Westchester fire districts, but the hydraulic rules are the YHFD rules.
+The tool is one HTML page, a web page in one file. A user selects one of 60 Westchester fire districts. The hydraulic rules come from the Yorktown Heights Fire District (YHFD) chauffeur chart.
 The problem: long driveways that climb hills. Hose length and elevation loss make relay pumping hard to plan.
 
 You trace a hose route on a map. The page reads the ground height along the route. It then shows these items:
@@ -41,7 +43,9 @@ Build:
 1. Run `python3 build.py`.
 
 The build puts Leaflet, the district boundary, and the hydrant list into the page source `src/calculator.html`. It writes one file:
-`dist/YHFD Relay Pumping Calculator.html`
+`dist/Relay Pumping Pre-plan.html`
+
+GitHub builds and publishes the live page after each push to `main`.
 
 ## How to test it
 
@@ -50,7 +54,7 @@ The repo has two test sets. Each command builds the page first.
 | Command | Checks | Result |
 |---|---|---|
 | `npm test` | 70 math checks. They cover the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI, the road draft, and dual 3 inch lines. | 70 of 70 pass. |
-| `npm run test:ui` | 135 page checks in Chrome through Playwright. | 135 of 135 pass. |
+| `npm run test:ui` | 233 page checks in Chrome through Playwright. | 233 of 233 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
@@ -58,13 +62,13 @@ The results above are from 2026-11-27 on macOS with Google Chrome 158.
 
 ## How to use the built page
 
-1. Open `dist/YHFD Relay Pumping Calculator.html` in a browser.
-2. Select the fire district. Yorktown Hgts FD is the default.
+1. Open the live page, or open `dist/Relay Pumping Pre-plan.html` in a browser.
+2. Select the fire district. The page has no default district.
 3. Enter the address and select **Go**. The page finds the address. It makes no route.
 4. In step 2 on the page, select the water source type and reverse lay or forward lay. The page has no default for these two.
 5. Check the five settings in step 2. They show your defaults.
 6. Select **Draft route by road**. For a hydrant, the draft goes from the nearest hydrant by road to the address. For a different source type, click the water source on the map.
-7. Drag a point to match the driveway. Click a middle handle or the line to add a point. Right-click a point to remove it.
+7. Drag a point to match the driveway. Click a middle handle or the line to add a point. Click a point and select **Remove point** to remove it.
 
 With no road, or with no water source in 1 mile by road, the page makes no draft. Then trace by hand:
 
@@ -77,7 +81,7 @@ The page needs an internet connection.
 
 To keep your own start values:
 
-1. Set the fire district and the values in **Settings**.
+1. Select the gear in the header. Set the values in **My defaults**.
 2. Select **Save as my defaults** to keep them in this browser.
 3. Select **Save a copy of this page with my defaults** to get a file that starts with them on any device.
 
@@ -91,7 +95,7 @@ The user can drag a relay engine. The page then shows the PDPs for that position
 - Dual 3 inch lines use the chart rule: half of the flow in each line. The 250 PSI limit for 3 inch hose is not from the chart.
 - When the address is less than 100 ft from the road, the draft stops on the road. Drag the A marker to move the attack engine.
 - The county hydrant data is from 2015. The county dates it October 5, 2015.
-- The Town of Greenburgh hydrant data is from 2026. It shows no licence text. Ask the town before you share the page outside YHFD.
+- The Town of Greenburgh hydrant data is from 2026. It shows no licence text. The terms of the town are not checked.
 - A forward lay needs one more engine at the water source. That engine lays no supply hose. The page says this in a note. It does not add it to an engine count.
 - The page stores the last plan in the browser. A saved plan file (JSON) is the durable copy.
 - No field check is done yet.
