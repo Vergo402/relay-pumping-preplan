@@ -1,5 +1,5 @@
 // Math test for the relay calculator. It runs the hydraulics code from the built page.
-// Usage: node tests/test_core.js "dist/YHFD Relay Pumping Calculator.html"
+// Usage: node tests/test_core.js "dist/Relay Pumping Pre-plan.html"
 // The expected values come from the YHFD chauffeur reference chart (PDF).
 const fs=require('fs');
 const html=fs.readFileSync(process.argv[2],'utf8');

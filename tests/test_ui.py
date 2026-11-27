@@ -1,6 +1,6 @@
 """Page test for the relay calculator. It drives the built page in Chrome.
 
-Usage: python3 tests/test_ui.py "dist/YHFD Relay Pumping Calculator.html"
+Usage: python3 tests/test_ui.py "dist/Relay Pumping Pre-plan.html"
 Needs: pip install playwright, and Google Chrome.
 Set CHROME_PATH to the Chrome program if Playwright cannot find Chrome.
 
@@ -83,7 +83,7 @@ with sync_playwright() as p:
     pg.screenshot(path='out/v2_start.png')
     pick(pg); open_sec(pg, 'dist')
     opts = pg.evaluate("[...document.querySelectorAll('#setDistrict option')].map(o => o.textContent)")
-    ok('district picker: Select district plus 60 districts, Yorktown Hgts FD (253) picked, hint right', len(opts)==61 and opts[0]=='Select district' and pg.input_value('#setDistrict')=='253' and 'Yorktown Hgts FD' in pg.evaluate("document.querySelector('#setDistrict').selectedOptions[0].textContent") and pg.evaluate('window.__relay.state.settings.district')==253 and pg.inner_text('#distHint')=='60 county districts. Hydraulic rules: YHFD chauffeur chart.', pg.inner_text('#distHint'))
+    ok('district picker: Select district plus 60 districts, Yorktown Hgts FD (253) picked, hint right', len(opts)==61 and opts[0]=='Select district' and pg.input_value('#setDistrict')=='253' and 'Yorktown Hgts FD' in pg.evaluate("document.querySelector('#setDistrict').selectedOptions[0].textContent") and pg.evaluate('window.__relay.state.settings.district')==253 and pg.inner_text('#distHint')=='60 county districts. Hydraulic rules: chauffeur chart.', pg.inner_text('#distHint'))
     open_sec(pg, 'addr'); pg.fill('#geoText', '100 Test Hill Rd'); open_sec(pg, 'addr'); pg.click('#geoForm button'); pg.wait_for_timeout(600); draft(pg)
     try: pg.wait_for_function("document.getElementById('status').textContent.includes('No road draft')", timeout=5000)
     except Exception: pass
@@ -279,7 +279,7 @@ with sync_playwright() as p:
     ok('Maximum PDP list is 150, 175, 185, 200', caps==['150','175','185','200'], caps)
     st = q.evaluate('window.__relay.state.settings')
     ok('a fresh page starts at 185 PSI and 1,000 ft', st['cap']==185 and st['hosePerEngine']==1000 and q.input_value('#setCap')=='185' and q.input_value('#setHosePer')=='1000', (st['cap'], st['hosePerEngine']))
-    ok('status reads Defaults in use: YHFD, with the summary', q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', q.inner_text('#defaultsStatus'))
+    ok('status reads Defaults in use: built-in, with the summary', q.inner_text('#defaultsStatus')=='Defaults in use: built-in (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', q.inner_text('#defaultsStatus'))
     ok('the hose hint has no placeholder wording', 'placeholder' not in q.text_content('#side').lower() and q.text_content('#side').count('These are your defaults. Change them for this plan if necessary.')==1)
     setall(q); to_set(q); q.click('#btnSaveDefaults')
     ok('Save as my defaults: status says yours with the new summary', q.inner_text('#defaultsStatus')=='Saved in this browser. Defaults in use: yours ('+VSUM+').', q.inner_text('#defaultsStatus'))
@@ -297,7 +297,7 @@ with sync_playwright() as p:
     to_set(q)
     with q.expect_download() as dl: q.click('#btnCopyDefaults')
     dl.value.save_as('out/copy.html'); cp = pathlib.Path('out/copy.html').read_text(encoding='utf-8')
-    ok('Save a copy: file name and status', dl.value.suggested_filename=='Relay Pumping Calculator (my defaults).html' and q.inner_text('#defaultsStatus')=='Saved "Relay Pumping Calculator (my defaults).html". Look in your Downloads folder. That copy starts with: '+VSUM+'.', q.inner_text('#defaultsStatus'))
+    ok('Save a copy: file name and status', dl.value.suggested_filename=='Relay Pumping Pre-plan (my defaults).html' and q.inner_text('#defaultsStatus')=='Saved "Relay Pumping Pre-plan (my defaults).html". Look in your Downloads folder. That copy starts with: '+VSUM+'.', q.inner_text('#defaultsStatus'))
     blk = lambda t, i: re.search(r'id="' + i + r'">(.*?)</script>', t, re.S).group(1)
     ok('the copy holds the 6 chosen values in the user-defaults block', json.loads(blk(cp, 'user-defaults'))==VALS, blk(cp, 'user-defaults')[:120])
     ok('the copy keeps the hydrant-data and district-data blocks byte for byte', blk(cp, 'hydrant-data')==blk(src, 'hydrant-data') and blk(cp, 'district-data')==blk(src, 'district-data') and len(blk(cp, 'district-data'))>1000)
@@ -310,7 +310,7 @@ with sync_playwright() as p:
     dl2.value.save_as('out/copy2.html')
     ok('the copy can make a further copy with the same values', json.loads(blk(pathlib.Path('out/copy2.html').read_text(encoding='utf-8'), 'user-defaults'))==VALS)
     to_set(q); q.click('#btnResetDefaults'); q.wait_for_timeout(400)
-    ok('Reset removes the browser key, returns 185 PSI and 1,000 ft, and the status says YHFD', q.evaluate(LS, 'yhfd-relay-defaults-v1') is None and inputs(q)==['253','5','185','20','10','1000'] and q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', (inputs(q), q.inner_text('#defaultsStatus')))
+    ok('Reset removes the browser key, returns 185 PSI and 1,000 ft, and the status says built-in', q.evaluate(LS, 'yhfd-relay-defaults-v1') is None and inputs(q)==['253','5','185','20','10','1000'] and q.inner_text('#defaultsStatus')=='Defaults in use: built-in (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', (inputs(q), q.inner_text('#defaultsStatus')))
     # ---- v0.5 phase: hydrant count line and the reason for no draft ----
     v = fresh(); load(v)
     def cnt():
@@ -370,7 +370,7 @@ with sync_playwright() as p:
     ok('Dual 3 inch lines: friction is 5, 11.25, 20, 31.25, 45, 80 PSI per 100 ft, the results change, and the hint shows', fl==[5,11.25,20,31.25,45,80] and after!=before and x.is_visible('#dualHint') and x.inner_text('#dualHint')=='For dual lines, enter the length of dual line that one engine lays.', (fl, before, after))
     open_sec(x, 'lay'); x.click('#layRev'); x.click('#btnCard'); x.wait_for_timeout(500)
     foot = x.inner_text('#cardBody .foot')
-    ok('card footer says dual 3" lines, not 3" LDH', foot.startswith('Rules: dual 3" lines, friction loss from the YHFD chauffeur chart coefficients, 0.5 PSI') and '3" LDH' not in foot and 'chart table' not in foot and '(formula)' not in foot, foot[:60])
+    ok('card footer says dual 3" lines, not 3" LDH', foot.startswith('Rules: dual 3" lines, friction loss from the chauffeur chart coefficients, 0.5 PSI') and '3" LDH' not in foot and 'chart table' not in foot and '(formula)' not in foot, foot[:60])
     x.click('#btnBack'); x.wait_for_timeout(300)
     open_sec(x, 'lay'); x.select_option('#setHose', '5'); x.wait_for_timeout(300)
     ok('the hint hides again for 5 inch', not x.is_visible('#dualHint'))
@@ -480,8 +480,9 @@ with sync_playwright() as p:
     e10 = len(errors)
     GATE['roads'] = False; GATE['addr'] = C
     t10 = fresh(); load(t10)
-    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.18' in t10.inner_text('.brand'))
-    ok('v0.16: the status line lists five values (no district)', t10.inner_text('#defaultsStatus')=='Defaults in use: YHFD (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==5, t10.inner_text('#defaultsStatus'))
+    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.19' in t10.inner_text('.brand'))
+    ok('v0.19: the name is Relay Pumping Pre-plan in the tab and the header, and the page text does not say YHFD', t10.title()=='Relay Pumping Pre-plan' and t10.inner_text('.brand h1')=='Relay Pumping Pre-plan' and 'YHFD' not in t10.evaluate("document.getElementById('side').textContent + document.getElementById('cardHead').textContent"), t10.title())
+    ok('v0.16: the status line lists five values (no district)', t10.inner_text('#defaultsStatus')=='Defaults in use: built-in (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==5, t10.inner_text('#defaultsStatus'))
     to_set(t10); rules = t10.inner_text('#setView ul')
     ok('v0.10: the rules list states the one friction rule and the round-up rule', 'one rule' in rules and '0.08' in rules and 'rounds up to the next 5 PSI' in rules and 'chart table' not in rules.lower() and 'formula option' not in rules.lower(), rules[:200])
     PLAN = {'name':'Old plan','notes':'','sourceType':'Hydrant','sourceHydrant':None,'flow':750,'manual':{},
@@ -676,7 +677,7 @@ with sync_playwright() as p:
     d16.evaluate("localStorage.setItem('yhfd-relay-defaults-v1', JSON.stringify({district:226, hose:4, cap:200}))"); d16.reload(); d16.wait_for_timeout(800)
     ok('v0.16: a stored old default with a district sets no district; its other values still apply', d16.input_value('#setDistrict')=='' and d16.evaluate('window.__relay.state.settings.district')==None and d16.input_value('#setHose')=='4' and d16.input_value('#setCap')=='200' and d16.inner_text('#defaultsStatus')=='Defaults in use: yours (4 inch, 200 PSI, 20 PSI, 10%, 1,000 ft).', d16.inner_text('#defaultsStatus'))
     d16.evaluate("localStorage.setItem('yhfd-relay-defaults-v1', JSON.stringify({district:226}))"); d16.reload(); d16.wait_for_timeout(800)
-    ok('v0.16: a stored default that holds only a district counts as no saved default', d16.input_value('#setDistrict')=='' and d16.inner_text('#defaultsStatus')=='Defaults in use: YHFD (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', d16.inner_text('#defaultsStatus'))
+    ok('v0.16: a stored default that holds only a district counts as no saved default', d16.input_value('#setDistrict')=='' and d16.inner_text('#defaultsStatus')=='Defaults in use: built-in (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', d16.inner_text('#defaultsStatus'))
     d16.close()
     fd = pathlib.Path('out/test_fd.html'); fd.write_text(re.sub(r'(id="user-defaults">).*?(</script>)', lambda m: m.group(1) + '{"district":226,"hose":4}' + m.group(2), src, count=1, flags=re.S), encoding='utf-8')
     d16 = fresh(); d16.goto(fd.resolve().as_uri()); d16.wait_for_timeout(800)
@@ -785,7 +786,7 @@ with sync_playwright() as p:
     g.click('#btnSettings'); g.wait_for_timeout(100)
     # d: the defaults checks above run through to_set(). Here, Save and Reset from the Settings view show the same status text.
     to_set(g); g.click('#btnSaveDefaults'); sv = g.inner_text('#defaultsStatus'); g.click('#btnResetDefaults'); g.wait_for_timeout(300); rs = g.inner_text('#defaultsStatus')
-    ok('v0.17 d: Save as my defaults and Reset work from the Settings view (status text, browser key)', sv.startswith('Saved in this browser. Defaults in use: yours (') and rs.startswith('Defaults in use: YHFD (') and g.evaluate(LS, 'yhfd-relay-defaults-v1') is None, (sv, rs))
+    ok('v0.17 d: Save as my defaults and Reset work from the Settings view (status text, browser key)', sv.startswith('Saved in this browser. Defaults in use: yours (') and rs.startswith('Defaults in use: built-in (') and g.evaluate(LS, 'yhfd-relay-defaults-v1') is None, (sv, rs))
     to_plan(g)
     g.click('#btnSettings'); g.evaluate("document.getElementById('btnCard').click()"); g.wait_for_timeout(500)  # the button is hidden in Settings, so click it by script
     cardv = g.evaluate("document.body.classList.contains('card')") and g.evaluate(VIS, '#cardBody') and not g.evaluate(VIS, '#side')

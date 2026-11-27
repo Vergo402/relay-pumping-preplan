@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>YHFD Relay Pumping Calculator</title>
+<title>Relay Pumping Pre-plan</title>
 <style>/*LEAFLET_CSS*/</style>
 <style>
 :root{
@@ -215,7 +215,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><div><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.18 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><div><h1>Relay Pumping Pre-plan</h1><p>Pilot v0.19 &middot; Planning aid only. Verify on site.</p></div>
       <button type="button" id="btnSettings" aria-label="Settings" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div id="setView">
       <div class="bk"><button type="button" id="btnSettingsBack">&larr; Back to the plan</button><span>Settings</span></div>
@@ -223,7 +223,7 @@ body.card #profile{height:1.47in}
         <h2>My defaults</h2>
         <p class="hint">A new route starts with these values. Select the fire district for each new route.</p>
         <button class="btn" id="btnSaveDefaults">Save as my defaults</button>
-        <button class="btn" id="btnResetDefaults">Reset to YHFD defaults</button>
+        <button class="btn" id="btnResetDefaults">Reset to built-in defaults</button>
         <button class="btn" id="btnCopyDefaults">Save a copy of this page with my defaults</button>
         <p class="hint" id="defaultsStatus" style="margin:0 0 10px"></p>
       </div>
@@ -692,7 +692,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     renderFold();
   }
   $('setDistrict').innerHTML = '<option value="">Select district</option>' + districts.map(function (f) { return '<option value="' + f.properties.id + '">' + esc(f.properties.name) + '</option>'; }).join('');
-  $('distHint').textContent = districts.length + ' county districts. Hydraulic rules: YHFD chauffeur chart.';
+  $('distHint').textContent = districts.length + ' county districts. Hydraulic rules: chauffeur chart.';
   L.control.scale({ metric: false, maxWidth: 160 }).addTo(map);
 
   var routeGroup = L.layerGroup().addTo(map), engineGroup = L.layerGroup().addTo(map), vertexGroup = L.layerGroup().addTo(map);
@@ -1119,7 +1119,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   function renderCard() {
     var p = state.profile; if (!p) { $('cardHead').innerHTML = $('cardBody').innerHTML = ''; return; }
     var st = RelayCore.stats(p), s = state.settings, today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    $('cardHead').innerHTML = '<div class="t"><div><div class="k">YHFD relay pumping pre-plan</div><h1>' + esc(state.name || 'Unnamed location') + '</h1></div><div class="k" style="text-align:right">Pilot. Verify on site.<br>Made ' + today + '</div></div>' +
+    $('cardHead').innerHTML = '<div class="t"><div><div class="k">Relay pumping pre-plan</div><h1>' + esc(state.name || 'Unnamed location') + '</h1></div><div class="k" style="text-align:right">Pilot. Verify on site.<br>Made ' + today + '</div></div>' +
       '<div class="facts4"><div><span>Water source</span><b>' + esc(sourceLabel()) + '</b></div><div><span>Supply line lay</span><b>' + (s.lay ? LAY[s.lay].name : 'Not selected') + '</b></div><div><span>Supply hose to lay</span><b>' + fmt(up100(st.hoseFt)) + ' ft of ' + (s.hose === 3 ? 'dual 3" line' : s.hose + '"') + '</b></div>' +
       '<div><span>Climb, source to attack</span><b>' + sign(st.net) + ' ft</b></div><div><span>Steepest grade</span><b>' + Math.round(Math.abs(st.grade) * 100) + '%</b></div></div>';
     var h = '';
@@ -1145,7 +1145,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     });
     if (s.lay) h += '<p class="key">The arrow shows the way each engine drives as it lays hose. The arrowhead is where that engine stops and pumps.' + (s.lay === 'forward' ? ' The source engine lays no hose.' : '') + '</p>';
     h += '<div class="notes"><b>Notes:</b> ' + esc(state.notes) + '</div>';
-    h += '<div class="foot">Rules: ' + (s.hose === 3 ? 'dual 3" lines' : s.hose + '" LDH') + ', friction loss from the YHFD chauffeur chart coefficients, 0.5 PSI for each foot of climb, maximum PDP ' + s.cap + ' PSI, intake ' + s.residual + ' PSI, hose slack ' + s.slack + '%, one engine lays each section, maximum ' + fmt(s.hosePerEngine) + ' ft. ' +
+    h += '<div class="foot">Rules: ' + (s.hose === 3 ? 'dual 3" lines' : s.hose + '" LDH') + ', friction loss from the chauffeur chart coefficients, 0.5 PSI for each foot of climb, maximum PDP ' + s.cap + ' PSI, intake ' + s.residual + ' PSI, hose slack ' + s.slack + '%, one engine lays each section, maximum ' + fmt(s.hosePerEngine) + ' ft. ' +
       (s.lay === 'reverse' ? 'Reverse lay: each engine starts at the attack end of its section, lays hose back to its position, and pumps there. ' : s.lay === 'forward' ? 'Forward lay: each engine starts at the source end of its section and lays hose to its position. One more engine pumps at the source. ' : '') +
       'Ground heights: USGS 3DEP LiDAR. Hydrants: Westchester County GIS, 2015, and Town of Greenburgh, 2026. This card does not show the flow the water source can give. Planning aid only. The pump operator sets pressures from the gauges on scene.</div>';
     $('cardBody').innerHTML = h;
@@ -1231,7 +1231,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     syncInputs(keepMap);
   }
   function showDefaults(prefix) {
-    $('defaultsStatus').textContent = (prefix || '') + 'Defaults in use: ' + (has(browserDefaults()) ? 'yours' : has(fileDefaults) ? 'this file' : 'YHFD') + ' (' + summary(effDefaults()) + ').';
+    $('defaultsStatus').textContent = (prefix || '') + 'Defaults in use: ' + (has(browserDefaults()) ? 'yours' : has(fileDefaults) ? 'this file' : 'built-in') + ' (' + summary(effDefaults()) + ').';
   }
   $('btnSaveDefaults').onclick = function () {
     try { localStorage.setItem(DKEY, JSON.stringify(current())); } catch (e) { $('defaultsStatus').textContent = 'This browser did not allow the save.'; return; }
@@ -1242,7 +1242,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     useDefaults(true); state.manual = {}; recalc(); autosave(); showDefaults();
   };
   $('btnCopyDefaults').onclick = function () {
-    var d = current(), name = 'Relay Pumping Calculator (my defaults).html', a = document.createElement('a');
+    var d = current(), name = 'Relay Pumping Pre-plan (my defaults).html', a = document.createElement('a');
     // function form of replace: the JSON is never read as a replacement pattern
     var html = PRISTINE.replace(/(id="user-defaults">)[\s\S]*?(<\/script>)/, function (m, x, y) { return x + JSON.stringify(d).replace(/</g, '\\u003c') + y; });
     a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' })); a.download = name;

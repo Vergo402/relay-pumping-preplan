@@ -1,10 +1,10 @@
-# YHFD Relay Pumping Calculator
+# Relay Pumping Pre-plan
 
 This repo is one HTML page that plans a long supply line lay for Yorktown Heights Fire District (YHFD). A repo is a project folder that Git tracks. Git saves each version of the files.
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
-Status: pilot v0.18. Alex approved the v0.2 direction. No field check is done yet. The history of each version, v0.3 to v0.18, is in `docs/handoff-2026-11-24.md`.
-The GitHub repo is private. Its name is yhfd-relay-calculator.
+Status: pilot v0.19. Alex approved the v0.2 direction. No field check is done yet. The history of each version, v0.3 to v0.19, is in `docs/handoff-2026-11-24.md`.
+The GitHub repo is private. Its name is relay-pumping-preplan (renamed from yhfd-relay-calculator on 2026-11-27). The folder on this Mac keeps the old name.
 
 ## Files
 
@@ -19,8 +19,8 @@ The GitHub repo is private. Its name is yhfd-relay-calculator.
 | `scripts/fetch_greenburgh_hydrants.py` | Gets the town hydrants again from the Town of Greenburgh. |
 | `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
 | `tests/test_core.js` | 70 math checks: against the chauffeur chart, for the road draft, and for dual 3 inch lines. Runs in Node. |
-| `tests/test_ui.py` | 232 page checks in Chrome through Playwright. No internet needed. |
-| `package.json` | Version 0.18.0. It holds the `build`, `test`, and `test:ui` commands. |
+| `tests/test_ui.py` | 233 page checks in Chrome through Playwright. No internet needed. |
+| `package.json` | Version 0.19.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
 | `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
 | `dist/` | Build output. Git ignores it. |
@@ -43,17 +43,17 @@ No Playwright browser download is necessary. The page test uses the installed Go
 
 | Command | Result |
 |---|---|
-| `python3 build.py` | Writes `dist/YHFD Relay Pumping Calculator.html`. |
+| `python3 build.py` | Writes `dist/Relay Pumping Pre-plan.html`. |
 | `npm test` | Builds, then runs the 70 math checks. |
-| `npm run test:ui` | Builds, then runs the 232 page checks. It calls `.venv/bin/python`. |
+| `npm run test:ui` | Builds, then runs the 233 page checks. It calls `.venv/bin/python`. |
 
-Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome. On 2026-11-27, 70 of 70 math checks and 232 of 232 page checks passed on macOS with Google Chrome 158.
+Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome. On 2026-11-27, 70 of 70 math checks and 233 of 233 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 
 1. Show the plan first. Wait for Alex to approve it before each change.
 2. Do not change `src/calculator.html`, the hydraulic rules, or the data files. Change them only when Alex asks for it in that session.
-3. Never write to the OneDrive YHFD folder. Alex uses this copy: `~/Library/CloudStorage/OneDrive-Personal/02 - YHFD (Yorktown Heights Engine Co 1)/Operations/Water Supply Pre-Plans/YHFD Relay Pumping Calculator.html`
+3. Never write to the OneDrive YHFD folder. Alex uses this copy: `~/Library/CloudStorage/OneDrive-Personal/02 - YHFD (Yorktown Heights Engine Co 1)/Operations/Water Supply Pre-Plans/Relay Pumping Pre-plan.html`
 4. Keep the repo out of OneDrive. OneDrive sync caused problems for Alex before. Code lives in `~/Developer`.
 5. Do not make `MEMORY.md` files. Put lasting facts in this file.
 6. Write all documents in ASD-STE100. This is a controlled form of English with short, plain sentences.
@@ -61,8 +61,8 @@ Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome. On 202
 8. After a build, check the SHA-256. The SHA-256 is a fingerprint of a file. It must equal the recorded value below.
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
-Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `1887eb2f63ce84bc18387a3ac71288526e8af5a1953b35dc71f91060a830a9ba`
-This is the v0.18 build. Older values are in `docs/handoff-2026-11-24.md`. On 2026-11-27 the copy Alex uses in OneDrive is the v0.18 build. Claude replaced that copy thirteen times (v0.3, v0.4, v0.6 to v0.10, and v0.13 to v0.18), each on a direct request from Alex. Rule 3 still applies.
+Recorded SHA-256 of `dist/Relay Pumping Pre-plan.html`: `2d802474d3654f4e66bd2251562791ac40986fb684d1c137e1eab8fa43f53cd6`
+This is the v0.19 build. Older values are in `docs/handoff-2026-11-24.md`. On 2026-11-27 the copy Alex uses in OneDrive is the v0.19 build, renamed to `Relay Pumping Pre-plan.html`. Claude replaced that copy fourteen times (v0.3, v0.4, v0.6 to v0.10, and v0.13 to v0.19), each on a direct request from Alex. Rule 3 still applies.
 
 ## Hydraulic rules
 
@@ -102,7 +102,7 @@ The route points are always stored in water order: source first, attack engine l
 
 Decisions for v0.3 (Alex, 2026-11-26):
 
-- Any Westchester district can be selected. From v0.16 the page starts on "Select district", with no default. The page keeps the YHFD chart and title.
+- Any Westchester district can be selected. From v0.16 the page starts on "Select district", with no default. The page keeps the YHFD chart rules. From v0.19 the name is "Relay Pumping Pre-plan" and the page text does not say YHFD.
 - After the address search, the page drafts a route from the nearest hydrant by road to the address. The user edits the draft.
 - The draft shows only when the route is empty. With no road or no hydrant in 1 mile, the user traces by hand.
 - The page holds all county hydrants. The picker lists the 60 named districts.
@@ -165,7 +165,7 @@ Decisions for v0.11 to v0.15 (Alex, 2026-11-27). All came from an Impeccable cri
 - v0.14: Clear asks first. Route handles are larger. A click on a point offers "Remove point". Flow rows work from the keyboard. The pressure demand box is gone.
 - v0.15: the hose lay order table has one line for each lay. On a phone the map layer list starts closed. No real phone check is done.
 - v0.16 (direct request, not the critique): the setup lines are always folded, one open at a time, with an animation. District, source type, and lay are required and show red until set. PDP is 14 px, square points 12 px. The map has a one-level Undo. Details are in the handoff notes.
-- v0.17 (Impeccable live mode): each engine PDP sits in a grey box. A gear in the header opens a Settings view with "My defaults" and "Rules this page uses". The planner does not show them. On a desktop the header stays in view. v0.18 (bug fix): the print step does not fit the card map again, because that made the street map print blank.
+- v0.17 (Impeccable live mode): each engine PDP sits in a grey box. A gear in the header opens a Settings view with "My defaults" and "Rules this page uses". The planner does not show them. On a desktop the header stays in view. v0.18 (bug fix): the print step does not fit the card map again, because that made the street map print blank. v0.19: Alex renamed the product and the file to "Relay Pumping Pre-plan". "YHFD defaults" reads "built-in defaults". The storage keys and the plan file id keep the old names.
 
 ## Data sources
 

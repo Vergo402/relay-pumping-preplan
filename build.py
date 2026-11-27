@@ -44,7 +44,7 @@ def main():
     ap.add_argument('--hydrants', default=os.path.join(ROOT, 'data', 'hydrants.json'))
     ap.add_argument('--town-hydrants', default=os.path.join(ROOT, 'data', 'hydrants-greenburgh.json'))
     ap.add_argument('--no-hydrants', action='store_true', help='build with an empty hydrant list')
-    ap.add_argument('--out', default=os.path.join(ROOT, 'dist', 'YHFD Relay Pumping Calculator.html'))
+    ap.add_argument('--out', default=os.path.join(ROOT, 'dist', 'Relay Pumping Pre-plan.html'))
     a = ap.parse_args()
 
     src = open(a.src, encoding='utf-8').read()

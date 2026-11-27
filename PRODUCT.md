@@ -58,7 +58,7 @@ A paper chart gives the pressure for a hose length. It does not know the hill or
 
 ## Brand Commitments
 
-- Name: YHFD Relay Pumping Calculator.
+- Name: Relay Pumping Pre-plan (until 2026-11-27: YHFD Relay Pumping Calculator).
 - Voice: plain language that a firefighter uses. No developer terms on the screen.
 - Documents use ASD-STE100 Simplified Technical English.
 

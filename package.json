@@ -1,12 +1,12 @@
 {
   "name": "yhfd-relay-calculator",
-  "version": "0.18.0",
+  "version": "0.19.0",
   "private": true,
-  "description": "YHFD relay pumping calculator: one HTML page that plans a long supply line lay with relay engines.",
+  "description": "Relay pumping pre-plan: one HTML page that plans a long supply line lay with relay engines.",
   "scripts": {
     "build": "python3 build.py",
-    "test": "python3 build.py && node tests/test_core.js \"dist/YHFD Relay Pumping Calculator.html\"",
-    "test:ui": "python3 build.py && .venv/bin/python tests/test_ui.py \"dist/YHFD Relay Pumping Calculator.html\""
+    "test": "python3 build.py && node tests/test_core.js \"dist/Relay Pumping Pre-plan.html\"",
+    "test:ui": "python3 build.py && .venv/bin/python tests/test_ui.py \"dist/Relay Pumping Pre-plan.html\""
   },
   "dependencies": {
     "leaflet": "1.9.4"
