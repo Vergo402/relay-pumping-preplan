@@ -17,13 +17,18 @@ ok('FL formula 5in', Math.abs(C.flPer100(5,750,'formula')-4.5)<1e-9&&Math.abs(C.
 ok('FL dual 3in chart', C.flPer100(3,500,'chart')===6&&C.flPer100(3,750,'chart')===11.25&&C.flPer100(3,1000,'chart')===20);
 ok('FL dual 3in formula', Math.abs(C.flPer100(3,500,'formula')-5)<1e-9&&Math.abs(C.flPer100(3,750,'formula')-11.25)<1e-9&&Math.abs(C.flPer100(3,1000,'formula')-20)<1e-9&&Math.abs(C.flPer100(3,750,'formula')-0.8*Math.pow(750/2/100,2))<1e-9);
 ok('FL 4in', C.flPer100(4,1000,'chart')===20&&Math.abs(C.flPer100(4,750,'formula')-11.25)<1e-9);
+// 1,500 and 2,000 GPM: chart rows, and the formula on both bases. Hose 4 at 1,500 GPM is the formula value 45 (owner decision, no chart row).
+ok('FL chart 1500 and 2000 GPM', C.flPer100(5,1500,'chart')===20&&C.flPer100(5,2000,'chart')===30&&C.flPer100(4,1500,'chart')===45&&C.flPer100(4,2000,'chart')===80&&C.flPer100(3,1500,'chart')===44&&C.flPer100(3,2000,'chart')===80);
+ok('FL formula 1500 and 2000 GPM', Math.abs(C.flPer100(5,1500,'formula')-18)<1e-9&&Math.abs(C.flPer100(5,2000,'formula')-32)<1e-9&&Math.abs(C.flPer100(4,1500,'formula')-45)<1e-9&&Math.abs(C.flPer100(4,2000,'formula')-80)<1e-9&&Math.abs(C.flPer100(3,1500,'formula')-45)<1e-9&&Math.abs(C.flPer100(3,2000,'formula')-80)<1e-9);
+// 1,250 GPM has no chart row, so the chart basis uses the formula too.
+ok('FL 1250 GPM: 12.5, 31.25, 31.25 on both bases', ['chart','formula'].every(b=>Math.abs(C.flPer100(5,1250,b)-12.5)<1e-9&&Math.abs(C.flPer100(4,1250,b)-31.25)<1e-9&&Math.abs(C.flPer100(3,1250,b)-31.25)<1e-9));
 let p=flat(2600), r=S(p,750,150);
 ok('flat 2600ft 750gpm cap150 chart: no relay, PDP 150', r.relays.length===0&&r.maxPdp===150&&!r.over, `relays ${r.relays.length} pdp ${r.maxPdp} hose ${p.h[p.n-1].toFixed(1)}`);
 r=S(flat(2700),750,150); ok('flat 2700ft 750gpm cap150: 1 relay', r.relays.length===1&&!r.over, `pdps ${r.segs.map(s=>s.pdp)} at ${r.segs.map(s=>Math.round(s.at))}`);
 ok('  balanced: PDPs within 5 PSI', Math.abs(r.segs[0].pdp-r.segs[1].pdp)<=5, `${r.segs.map(s=>s.pdp)}`);
 // chart Max Relay Distance table (formula basis, 20 PSI intake)
-const tbl={150:{500:6500,750:2850,1000:1625},200:{500:9000,750:4000,1000:2250}};
-for(const cap of [150,200]) for(const q of [500,750,1000]){ const d=tbl[cap][q];
+const tbl={150:{500:6500,750:2850,1000:1625,1500:700,2000:400},200:{500:9000,750:4000,1000:2250,1500:1000,2000:550}};
+for(const cap of [150,200]) for(const q of [500,750,1000,1500,2000]){ const d=tbl[cap][q];
   const a=S(flat(Math.floor(d*0.97/25)*25),q,cap,'formula'), b=S(flat(Math.ceil(d*1.04/25)*25),q,cap,'formula');
   ok(`chart max relay ${q}gpm @${cap}: ${d}ft is the edge`, a.relays.length===0 && b.relays.length===1, `below ${a.relays.length} (pdp ${a.maxPdp}), above ${b.relays.length}`); }
 // worked example: 1500 ft, 120 ft climb

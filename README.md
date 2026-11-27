@@ -1,6 +1,6 @@
 # YHFD Relay Pumping Calculator
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.7. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.8. No field check is done yet.
 
 ## What the tool does
 
@@ -15,7 +15,7 @@ You trace a hose route on a map. The page reads the ground height along the rout
 - each engine position
 - each pump discharge pressure (PDP)
 
-The page shows 500, 750, and 1,000 GPM side by side. It also makes a one-page pre-plan card to print.
+The page shows six flows from 500 to 2,000 GPM side by side. It also makes a one-page pre-plan card to print, with 500, 1,250, and 2,000 GPM.
 
 The tool has a three-part plan:
 
@@ -49,12 +49,12 @@ The repo has two test sets. Each command builds the page first.
 
 | Command | Checks | Result |
 |---|---|---|
-| `npm test` | 58 math checks. They cover the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI, the road draft, and dual 3 inch lines. | 58 of 58 pass. |
-| `npm run test:ui` | 74 page checks in Chrome through Playwright. | 74 of 74 pass. |
+| `npm test` | 65 math checks. They cover the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI, the road draft, and dual 3 inch lines. | 65 of 65 pass. |
+| `npm run test:ui` | 92 page checks in Chrome through Playwright. | 92 of 92 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-The results above are from 2026-11-26 on macOS with Google Chrome 158.
+The results above are from 2026-11-27 on macOS with Google Chrome 158.
 
 ## How to use the built page
 

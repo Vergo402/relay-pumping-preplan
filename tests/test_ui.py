@@ -43,7 +43,14 @@ def ok(name, cond, info=''):
     print(('PASS ' if cond else 'FAIL ') + name + ('  -> ' + str(info) if info != '' else ''))
     if not cond: fails.append(name)
 SNAP = '''() => { const s=window.__relay.state; return {lay:s.settings.lay, pts:s.points.length, first:s.points[0], last:s.points[s.points.length-1], hyd:s.sourceHydrant, hose:s.profile?s.profile.h[s.profile.n-1]:null,
-  net:s.profile?s.profile.z[s.profile.n-1]-s.profile.z[0]:null, res:s.profile?[500,750,1000].map(q=>({q, relays:s.results[q].relays.length, pdps:s.results[q].segs.map(x=>x.pdp), secs:s.results[q].segs.map(x=>Math.round(x.hose)), over:s.results[q].over, overHose:s.results[q].overHose})):null}; }'''
+  net:s.profile?s.profile.z[s.profile.n-1]-s.profile.z[0]:null, res:s.profile?[500,750,1000,1250,1500,2000].map(q=>({q, relays:s.results[q].relays.length, pdps:s.results[q].segs.map(x=>x.pdp), secs:s.results[q].segs.map(x=>Math.round(x.hose)), over:s.results[q].over, overHose:s.results[q].overHose})):null}; }'''
+# The card blocks. Each block gives its label, mark, engine texts, arrowhead counts, "Lays" values, and the planner lay values for the same flow.
+CARD = """() => { const up=n=>Math.ceil((n-0.5)/100)*100, st=window.__relay.state;
+  return [...document.querySelectorAll('#cardBody .blk')].map(b => { const q=+b.querySelector('.fl b').textContent.replace(',',''), segs=st.results[q].segs;
+    return { label:b.querySelector('.fl b').textContent, mark:b.querySelector('.fl').innerText.includes('On the map'), layout:b.querySelector('.fl small').textContent,
+      engines:[...b.querySelectorAll('.e')].map(e=>e.innerText.replace(/\\n/g,' | ')), pumps:segs.length, hl:b.querySelectorAll('.hl').length, hr:b.querySelectorAll('.hr').length, sections:b.querySelectorAll('.s').length,
+      lays:[...b.querySelectorAll('.s b')].map(e=>e.textContent), plan:segs.map(g=>up(g.hose).toLocaleString('en-US')+' ft'), text:b.innerText }; }); }"""
+CARDMAP = "[...document.querySelectorAll('#cardBody .blk')].map(b => b.querySelector('.fl').innerText.includes('On the map') ? b.querySelector('.fl b').textContent : '').filter(Boolean)"
 UP = [(4,3),(120,-90),(160,-220),(60,-300)]   # source (hydrant at the centre) first, then uphill
 with sync_playwright() as p:
     chrome = os.environ.get('CHROME_PATH')
@@ -93,11 +100,58 @@ with sync_playwright() as p:
     pg.fill('#planNotes', 'Gate at the road. Turnaround at 900 ft.')
     pg.click('#btnCard'); pg.wait_for_timeout(700); pg.screenshot(path='out/v2_card_forward.png', full_page=True)
     pg.pdf(path='out/card_forward.pdf', format='Letter', print_background=True, prefer_css_page_size=True)
-    ok('card shows the lay', 'Forward lay' in pg.inner_text('#cardHead') and 'Last lay' in pg.inner_text('#cardBody'))
+    fc = pg.evaluate(CARD)
+    ok('forward card: right arrowheads, no left ones, Lays values equal the planner values, the key line says that the source engine lays no hose', 'Forward lay' in pg.inner_text('#cardHead') and all(b['hr']==b['sections']==b['pumps'] and b['hl']==0 and b['lays']==b['plan'] and 'Lays no hose' not in b['text'] for b in fc) and pg.inner_text('#cardBody .key').endswith('The source engine lays no hose.'), fc[0])
+    ok('forward card: the key line shows', pg.inner_text('#cardBody .key').startswith('The arrow shows the way each engine drives as it lays hose.'))
+    pg.locator('#right').screenshot(path='out/v08-card-forward-preview.png')
     pg.click('#btnBack'); pg.click('#layRev'); pg.click('#btnCard'); pg.wait_for_timeout(600)
     pg.pdf(path='out/card_reverse.pdf', format='Letter', print_background=True, prefer_css_page_size=True)
-    ok('reverse card: engines lay back to their positions', 'Reverse lay' in pg.inner_text('#cardHead') and 'back to here' in pg.inner_text('#cardBody'))
+    rc = pg.evaluate(CARD)
+    ok('reverse card: left arrowheads, no right ones, Lays values equal the planner values, no "Lays no hose"', 'Reverse lay' in pg.inner_text('#cardHead') and all(b['hl']==b['sections']==b['pumps'] and b['hr']==0 and b['lays']==b['plan'] and 'Lays no hose' not in b['text'] for b in rc), rc[0])
+    ok('reverse card: the key line shows', pg.locator('#cardBody .key').count()==1)
+    # ---- v0.8: six flows in the planner, three on the card ----
+    cb = pg.evaluate(CARD)
+    ok('card has exactly three blocks: 500, 1,250, 2,000 (1,000 was selected, so 1,250 is on the map)', [b['label'] for b in cb]==['500','1,250','2,000'] and pg.evaluate(CARDMAP)==['1,250'] and pg.evaluate('window.__relay.state.flow')==1250, [b['label'] for b in cb])
+    ok('each block shows pumps + 1 engines, the card has no "Not needed", no "(on the map)", no "back to here"', all(len(b['engines'])==b['pumps']+1 for b in cb) and [len(b['engines']) for b in cb]==[b['pumps']+1 for b in cb] and 'Not needed' not in pg.inner_text('#cardBody') and '(on the map)' not in pg.inner_text('#cardBody') and 'to here' not in pg.inner_text('#cardBody'), [(b['label'], b['pumps']) for b in cb])
+    ok('no block has "ft out" or "climb" text, and the layout line uses the planner words', all('ft out' not in b['text'] and 'climb' not in b['text'].lower() for b in cb) and all(b['layout']==('Source engine alone' if b['pumps']==1 else str(b['pumps']-1)+' relay engine'+('s' if b['pumps']>2 else '')) for b in cb), [b['layout'] for b in cb])
+    cw = pg.evaluate("(() => { const e=document.getElementById('right'), c=getComputedStyle(e); return e.clientWidth - parseFloat(c.paddingLeft) - parseFloat(c.paddingRight); })()")
+    ok('card preview content width is 7.6 in (729.6 CSS px), the width of the printed page', abs(cw-729.6)<=1, cw)
+    mh = pg.evaluate("document.getElementById('map').getBoundingClientRect().height")
+    ch = pg.evaluate("document.getElementById('right').scrollHeight - 57.6")
+    print('CARD MAP HEIGHT (worst-case stand-in route, reverse lay):', mh, 'px =', round(mh/96, 2), 'in; card content', ch, 'px')
+    ok('long card: the map gets shorter (measured 2.2 in; allowed 2.2 in to 2.5 in) and the card fits one page (10.1 in)', 211.2<=mh<=240 and ch<=969.6, (mh, ch))
+    pg.locator('#right').screenshot(path='out/v08-card-preview.png')
+    pg.pdf(path='out/v08-card.pdf', format='Letter', print_background=True, prefer_css_page_size=True)
+    pg.hover('.em.A'); pg.wait_for_timeout(400)
+    ok('no hover tooltip shows on the card with the mouse over A', pg.evaluate("[...document.querySelectorAll('.leaflet-tooltip')].filter(e => getComputedStyle(e).display !== 'none').length")==0)
+    pg.mouse.move(5, 5)
+    pg.click('#btnBack'); pg.wait_for_timeout(300)
+    ok('Back to planner returns the selected flow (1,000)', pg.evaluate('window.__relay.state.flow')==1000)
+    trows = pg.evaluate("[...document.querySelectorAll('#flowTable tbody tr')].map(r => [r.cells[0].innerText, r.cells[1].innerText])")
+    ok('planner table has six rows with the right FL/100 values (5 inch chart, 1,250 by formula)', trows==[['500 GPM','2 PSI'],['750 GPM','5 PSI'],['1,000 GPM','10 PSI'],['1,250 GPM','12.5 PSI'],['1,500 GPM','20 PSI'],['2,000 GPM','30 PSI']], trows)
+    pg.locator('#flowTable').screenshot(path='out/v08-table.png')
+    pg.locator('#flowTable tbody tr').nth(4).click(); pg.wait_for_timeout(200)
+    ok('a click on the 1,500 row selects it', pg.evaluate('window.__relay.state.flow')==1500 and 'sel' in (pg.locator('#flowTable tbody tr').nth(4).get_attribute('class') or ''))
+    # 750 selected: drag a relay, open the card, go back. The drag must survive.
+    pg.locator('#flowTable tbody tr').nth(1).click(); pg.wait_for_timeout(200)
+    rel = pg.locator('.em.R').first; rb = rel.bounding_box(); pg.mouse.move(rb['x']+15, rb['y']+15); pg.mouse.down(); pg.mouse.move(rb['x']-20, rb['y']+30, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
+    man = pg.evaluate('JSON.stringify(window.__relay.state.manual[750])')
+    ok('a dragged relay at 750 GPM is kept as a manual position', man not in (None, 'null', 'undefined'), man)
+    pg.click('#btnCard'); pg.wait_for_timeout(500)
+    ok('750 selected: the card marks 1,250 as on the map', pg.evaluate(CARDMAP)==['1,250'] and pg.evaluate('window.__relay.state.flow')==1250, pg.evaluate(CARDMAP))
+    pg.click('#btnBack'); pg.wait_for_timeout(300)
+    ok('after Back to planner the selected flow is 750 again and the dragged relays are kept', pg.evaluate('window.__relay.state.flow')==750 and pg.evaluate('JSON.stringify(window.__relay.state.manual[750])')==man and pg.evaluate("document.querySelector('#flowTable tbody tr.sel').dataset.q")=='750', pg.evaluate('window.__relay.state.flow'))
+    pg.click('#btnAuto'); pg.wait_for_timeout(200)
+    pg.locator('#flowTable tbody tr').nth(5).click(); pg.wait_for_timeout(200); pg.click('#btnCard'); pg.wait_for_timeout(500)
+    ok('2,000 selected: the card marks 2,000 as on the map', pg.evaluate(CARDMAP)==['2,000'] and pg.evaluate('window.__relay.state.flow')==2000, pg.evaluate(CARDMAP))
     pg.click('#btnBack'); pg.wait_for_timeout(200)
+    ok('after Back to planner 2,000 is still selected', pg.evaluate('window.__relay.state.flow')==2000)
+    # no lay selected: plain lines, hose length, no arrowheads, no key line
+    pg.evaluate("window.__relay.state.settings.lay = null"); pg.click('#btnCard'); pg.wait_for_timeout(500); nl = pg.evaluate(CARD)
+    ok('no lay selected: no arrowheads, plain hose lengths, no key line, no "Lays"', all(b['hl']==0 and b['hr']==0 and b['sections']==b['pumps'] and b['lays']==b['plan'] and 'Lays' not in b['text'] for b in nl) and pg.locator('#cardBody .key').count()==0, nl[0])
+    pg.click('#btnBack'); pg.wait_for_timeout(200)
+    pg.evaluate("window.__relay.state.settings.lay = 'reverse'")
+    pg.locator('#flowTable tbody tr').nth(2).click(); pg.wait_for_timeout(200)
     pg.reload(); pg.wait_for_selector('#flowTable', timeout=8000); ok('reload keeps the route and its lay', pg.evaluate('window.__relay.state.settings.lay')=='reverse')
     # ---- clear: lay must be picked again ----
     pg.click('#btnClear'); pg.wait_for_timeout(150)
@@ -253,8 +307,8 @@ with sync_playwright() as p:
     ok('  no dashed leg is drawn', sd['yellow']==1 and sd['dash']==0, (sd['yellow'], sd['dash']))
     # dual 3 inch lines
     before = x.evaluate(SNAP)['res']; x.select_option('#setHose', '3'); x.wait_for_timeout(300)
-    after = x.evaluate(SNAP)['res']; fl = x.evaluate('[500,750,1000].map(q => window.__relay.state.results[q].fl100)')
-    ok('Dual 3 inch lines: friction is 6, 11.25, 20 PSI per 100 ft, the results change, and the hint shows', fl==[6,11.25,20] and after!=before and x.is_visible('#dualHint') and x.inner_text('#dualHint')=='For dual lines, enter the length of dual line that one engine lays.', (fl, before, after))
+    after = x.evaluate(SNAP)['res']; fl = x.evaluate('[500,750,1000,1250,1500,2000].map(q => window.__relay.state.results[q].fl100)')
+    ok('Dual 3 inch lines: friction is 6, 11.25, 20, 31.25, 44, 80 PSI per 100 ft, the results change, and the hint shows', fl==[6,11.25,20,31.25,44,80] and after!=before and x.is_visible('#dualHint') and x.inner_text('#dualHint')=='For dual lines, enter the length of dual line that one engine lays.', (fl, before, after))
     x.click('#layRev'); x.click('#btnCard'); x.wait_for_timeout(500)
     foot = x.inner_text('#cardBody .foot')
     ok('card footer says dual 3" lines, not 3" LDH', foot.startswith('Rules: dual 3" lines, friction loss') and '3" LDH' not in foot, foot[:60])
@@ -290,7 +344,7 @@ with sync_playwright() as p:
     bad = [e for e in errors if 'Failed to load resource' not in e]
     ok('no console errors except the aborted requests', not bad, bad[:3])
     b.close()
-for f in ('out/card_forward.pdf','out/card_reverse.pdf'):
+for f in ('out/card_forward.pdf','out/card_reverse.pdf','out/v08-card.pdf'):
     n = len(re.findall(rb'/Type\s*/Page(?![a-zA-Z])', pathlib.Path(f).read_bytes()))
     ok(f+' prints on one page', n==1, n)
 print('console errors:', errors[:6]); print('\nFAILED: '+str(fails) if fails else '\nALL UI CHECKS PASS')

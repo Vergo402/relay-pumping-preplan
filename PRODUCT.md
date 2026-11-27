@@ -22,7 +22,7 @@ Open decision: the role of the on-scene user (officer, chauffeur, or other) is n
 The page plans a supply hose lay for a long driveway that climbs a hill.
 The user enters an address. The page drafts a hose route from the nearest hydrant by road. The user corrects the route.
 The page reads the ground height along the route. It then shows the hose to lay, the climb, the relay engines, each engine position, and each pump discharge pressure (PDP).
-It shows 500, 750, and 1,000 GPM together. It also makes a one-page pre-plan card to print.
+It shows six flows from 500 to 2,000 GPM together. It also makes a one-page pre-plan card to print, with 500, 1,250, and 2,000 GPM.
 
 Success: the numbers agree with the YHFD chauffeur chart and with the results that the chauffeurs get in the field.
 
@@ -49,7 +49,7 @@ A paper chart gives the pressure for a hose length. It does not know the hill or
 - The road draft uses hydrants only. It makes no draft when no hydrant is in 1 mile by road.
 - A change to the hydraulic rules, the defaults, or the data needs approval from Alex.
 - Terms: supply line, reverse lay, forward lay, relay engine, attack engine, water source, PDP, LDH, GPM, PSI, chauffeur.
-- Status: pilot v0.7. No field check is done yet.
+- Status: pilot v0.8. No field check is done yet.
 - The county hydrant list is not complete for some districts. The page shows the count for the selected district and warns below 50.
 - The page adds the Town of Greenburgh hydrants (2026). They fill Hartsdale FD and Fairview FD. Peekskill, Buchanan, Ossining, and Harrison have no public hydrant data.
 
