@@ -26,7 +26,7 @@ button,input,select{font:inherit;color:inherit}
 #profileHead b{color:var(--ink);font-size:13px}
 #profile{width:100%;height:178px}
 #profile svg{display:block;width:100%;height:100%}
-.brand{background:var(--ink);color:#fff;padding:14px 18px 12px}
+.brand{background:var(--ink);color:#fff;padding:13px 12px 13px 18px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}
 .brand h1{font-size:17px;margin:0;letter-spacing:.2px}
 .brand p{margin:2px 0 0;font-size:12px;color:#c5ccd3}
 .sec{padding:14px 18px 4px;border-bottom:1px solid var(--line)}
@@ -74,7 +74,7 @@ table.lay1 td{white-space:nowrap}
 .en .eng{width:28px;height:28px;border-radius:14px;font-size:11.5px;padding:0}
 .en b{display:block;font-size:14px;font-weight:600}
 .en small{font-size:12px;color:var(--muted)}
-.en .pd{text-align:right;line-height:1}
+.en .pd{text-align:center;line-height:1;min-width:44px;padding:5px 9px 4px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
 .en .pd b{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
 .en .pd span{display:block;font-size:10.5px;letter-spacing:.6px;color:var(--muted);margin-top:2px}
 /* setup lines: always shown. One section is open at a time. */
@@ -118,9 +118,17 @@ td.n,th.n{text-align:right}
 .warn.bad{border-color:var(--red);background:var(--red-soft)}
 .eng{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:22px;padding:0 6px;border-radius:11px;color:#fff;font-size:12px;font-weight:700}
 .eng.S{background:var(--blue)} .eng.R{background:var(--amber)} .eng.A{background:var(--red)}
-details{margin-bottom:10px}
-details>summary{cursor:pointer;font-weight:600;padding:4px 0}
-details ul{margin:6px 0 0;padding-left:18px;color:var(--muted);font-size:12.5px}
+/* desktop: the header stays in view, so the gear is always there */
+@media (min-width:901px){.brand{position:sticky;top:0;z-index:5}}
+#btnSettings{width:36px;height:36px;padding:0;border:1px solid #4a525b;border-radius:6px;background:transparent;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer}
+#btnSettings[aria-pressed=true]{background:#fff;border-color:#fff;color:var(--ink)}
+#btnSettings:focus-visible{outline:2px solid #fff;outline-offset:2px}
+/* One class on #side picks the view: the planner or the settings. */
+#side.set>:not(.brand):not(#setView),#side:not(.set) #setView{display:none}
+.bk{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;border-bottom:1px solid var(--line);color:var(--muted)}
+.bk button{border:0;background:none;padding:6px 0;font:inherit;font-weight:700;color:var(--blue);cursor:pointer}
+#setView .btn{display:block;width:100%;margin-bottom:8px}
+#setView ul{margin:6px 0 10px;padding-left:18px;color:var(--muted);font-size:12.5px}
 .hint{font-size:12px;color:var(--muted);margin:-4px 0 10px}
 .empty{color:var(--muted);font-size:13px;padding:4px 0 12px}
 /* map markers */
@@ -207,7 +215,36 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.16 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><div><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.17 &middot; Planning aid only. Verify on site.</p></div>
+      <button type="button" id="btnSettings" aria-label="Settings" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    <div id="setView">
+      <div class="bk"><button type="button" id="btnSettingsBack">&larr; Back to the plan</button><span>Settings</span></div>
+      <div class="sec">
+        <h2>My defaults</h2>
+        <p class="hint">A new route starts with these values. Select the fire district for each new route.</p>
+        <button class="btn" id="btnSaveDefaults">Save as my defaults</button>
+        <button class="btn" id="btnResetDefaults">Reset to YHFD defaults</button>
+        <button class="btn" id="btnCopyDefaults">Save a copy of this page with my defaults</button>
+        <p class="hint" id="defaultsStatus" style="margin:0 0 10px"></p>
+      </div>
+      <div class="sec">
+        <h2>Rules this page uses</h2>
+        <ul>
+        <li>Friction loss: one rule, C x (GPM/100)&sup2; for each 100 ft. C is 0.08 for 5 inch hose and 0.2 for 4 inch hose. Dual 3 inch lines use 0.8 on half of the flow in one line.</li>
+        <li>PDP: always rounds up to the next 5 PSI. A demand of 31 PSI gives 35. A demand of 30 PSI stays 30. The minimum is 50 PSI.</li>
+        <li>Climb: 0.5 PSI for each foot, as the chart shows.</li>
+        <li>The hose keeps a minimum of 10 PSI at each point on the route.</li>
+        <li>LDH limit: 200 PSI. The page warns when a downhill run goes above it.</li>
+        <li>3 inch hose limit: 250 PSI.</li>
+        <li>Hose load: one engine lays each hose section. No section is longer than the supply hose on one engine.</li>
+        <li>Reverse lay: each engine starts at the attack end of its section and lays hose back to its pump position.</li>
+        <li>Forward lay: each engine starts at the source end of its section and lays hose to its position.</li>
+        <li>Ground heights: USGS 3DEP LiDAR, 1 metre grid, read every 25 ft.</li>
+        <li>Hydrants: Westchester County GIS, dated October 2015, and Town of Greenburgh, 2026. The data has no flow values.</li>
+        <li>Not included: the flow the water source can give, appliance loss, and attack line pressures.</li>
+      </ul>
+      </div>
+    </div>
 
     <div class="sec" data-k="dist">
       <button type="button" class="su" aria-expanded="false"><i>District</i><span></span><u>Select</u></button>
@@ -285,31 +322,6 @@ body.card #profile{height:1.47in}
       </div>
       <input type="file" id="fileOpen" accept=".json,application/json" hidden>
       <label class="f">Notes for the card<input type="text" id="planNotes" placeholder="Example: gate code, turnaround, low wires"></label>
-    </div>
-    <div class="sec">
-      <h2>My defaults</h2>
-      <div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:0 0 14px">
-        <p class="hint" style="margin:0 0 8px">A new route starts with these values. Select the fire district for each new route.</p>
-        <div class="row"><button class="btn" id="btnSaveDefaults">Save as my defaults</button><button class="btn" id="btnResetDefaults">Reset to YHFD defaults</button></div>
-        <button class="btn" id="btnCopyDefaults" style="width:100%">Save a copy of this page with my defaults</button>
-        <p class="hint" id="defaultsStatus" style="margin:8px 0 0"></p>
-      </div>
-      <details><summary>Rules this page uses</summary>
-        <ul>
-          <li>Friction loss: one rule, C x (GPM/100)&sup2; for each 100 ft. C is 0.08 for 5 inch hose and 0.2 for 4 inch hose. Dual 3 inch lines use 0.8 on half of the flow in one line.</li>
-          <li>PDP: always rounds up to the next 5 PSI. A demand of 31 PSI gives 35. A demand of 30 PSI stays 30. The minimum is 50 PSI.</li>
-          <li>Climb: 0.5 PSI for each foot, as the chart shows.</li>
-          <li>The hose keeps a minimum of 10 PSI at each point on the route.</li>
-          <li>LDH limit: 200 PSI. The page warns when a downhill run goes above it.</li>
-          <li>3 inch hose limit: 250 PSI.</li>
-          <li>Hose load: one engine lays each hose section. No section is longer than the supply hose on one engine.</li>
-          <li>Reverse lay: each engine starts at the attack end of its section and lays hose back to its pump position.</li>
-          <li>Forward lay: each engine starts at the source end of its section and lays hose to its position.</li>
-          <li>Ground heights: USGS 3DEP LiDAR, 1 metre grid, read every 25 ft.</li>
-          <li>Hydrants: Westchester County GIS, dated October 2015, and Town of Greenburgh, 2026. The data has no flow values.</li>
-          <li>Not included: the flow the water source can give, appliance loss, and attack line pressures.</li>
-        </ul>
-      </details>
     </div>
   </aside>
 
@@ -1164,7 +1176,19 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   window.addEventListener('afterprint', function () { if (titleBefore !== null) { document.title = titleBefore; titleBefore = null; } });
   window.addEventListener('beforeprint', function () { if (document.body.classList.contains('card')) {
       if (titleBefore === null) titleBefore = document.title; document.title = cardFileName(); map.invalidateSize(); if (state.points.length > 1) map.fitBounds(routeBounds(), { padding: [20, 20], maxZoom: 19 }); } });
-  $('btnCard').onclick = function () { setCard(true); };
+  // Settings view: the planner scroll position is saved and restored. Focus goes to Back, then to the gear.
+  var setScroll = { t: 0, y: 0 };
+  function setSettings(on) {
+    var s = $('side'); if (on === s.classList.contains('set')) return;
+    if (on) { setScroll = { t: s.scrollTop, y: window.scrollY }; s.classList.add('set'); s.scrollTop = 0; window.scrollTo(0, 0); }
+    else { s.classList.remove('set'); s.scrollTop = setScroll.t; window.scrollTo(0, setScroll.y); }
+    $('btnSettings').setAttribute('aria-pressed', String(on));
+    $(on ? 'btnSettingsBack' : 'btnSettings').focus({ preventScroll: true });
+  }
+  $('btnSettings').onclick = function () { setSettings(!$('side').classList.contains('set')); };
+  $('btnSettingsBack').onclick = function () { setSettings(false); };
+  $('setView').onkeydown = function (e) { if (e.key === 'Escape') setSettings(false); };
+  $('btnCard').onclick = function () { setSettings(false); setCard(true); };
   $('btnBack').onclick = function () { setCard(false); };
   $('btnPrint').onclick = function () { window.print(); };
 

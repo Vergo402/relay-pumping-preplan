@@ -42,7 +42,12 @@ errors = []; fails = []
 def ok(name, cond, info=''):
     print(('PASS ' if cond else 'FAIL ') + name + ('  -> ' + str(info) if info != '' else ''))
     if not cond: fails.append(name)
+def to_set(q):  # v0.17: show the Settings view (My defaults, the rules list). Safe to call twice.
+    if not q.evaluate("document.getElementById('side').classList.contains('set')"): q.click('#btnSettings')
+def to_plan(q):  # v0.17: go back to the planner view. Safe to call twice.
+    if q.evaluate("document.getElementById('side').classList.contains('set')"): q.click('#btnSettingsBack')
 def open_sec(q, key):  # v0.16: one setup section is open at a time. Click its line (if closed) before a check uses a control inside.
+    to_plan(q)
     q.evaluate("k => { const s=document.querySelector('#side .sec[data-k=' + k + ']'); if (!s.querySelector('.bd').classList.contains('op')) s.firstElementChild.click(); }", key)
 def pick(q, d='253'):  # v0.16: a new page has no district. Select one (default Yorktown Hgts FD).
     open_sec(q, 'dist'); q.select_option('#setDistrict', d); q.wait_for_timeout(300)
@@ -269,7 +274,7 @@ with sync_playwright() as p:
     ok('a fresh page starts at 185 PSI and 1,000 ft', st['cap']==185 and st['hosePerEngine']==1000 and q.input_value('#setCap')=='185' and q.input_value('#setHosePer')=='1000', (st['cap'], st['hosePerEngine']))
     ok('status reads Defaults in use: YHFD, with the summary', q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', q.inner_text('#defaultsStatus'))
     ok('the hose hint has no placeholder wording', 'placeholder' not in q.text_content('#side').lower() and q.text_content('#side').count('These are your defaults. Change them for this plan if necessary.')==1)
-    setall(q); q.click('#btnSaveDefaults')
+    setall(q); to_set(q); q.click('#btnSaveDefaults')
     ok('Save as my defaults: status says yours with the new summary', q.inner_text('#defaultsStatus')=='Saved in this browser. Defaults in use: yours ('+VSUM+').', q.inner_text('#defaultsStatus'))
     q.evaluate("localStorage.removeItem('yhfd-relay-pilot-v1')"); q.reload(); q.wait_for_timeout(900)  # no autosave: only the saved defaults can give these values
     ok('reload: the saved defaults give 200 PSI and 1,500 ft, and the status says yours', inputs(q)==['','4','200','50','5','1500'] and q.inner_text('#defaultsStatus')=='Defaults in use: yours ('+VSUM+').', (inputs(q), q.inner_text('#defaultsStatus')))
@@ -282,6 +287,7 @@ with sync_playwright() as p:
     pick(q); open_sec(q, 'addr'); q.fill('#geoText', '100 Test Hill Rd'); open_sec(q, 'addr'); q.click('#geoForm button'); q.wait_for_timeout(500); draft(q)  # a live route, so the copy check proves the route is left out
     try: q.wait_for_function('window.__relay.state.draft === true', timeout=8000)
     except Exception: pass
+    to_set(q)
     with q.expect_download() as dl: q.click('#btnCopyDefaults')
     dl.value.save_as('out/copy.html'); cp = pathlib.Path('out/copy.html').read_text(encoding='utf-8')
     ok('Save a copy: file name and status', dl.value.suggested_filename=='Relay Pumping Calculator (my defaults).html' and q.inner_text('#defaultsStatus')=='Saved "Relay Pumping Calculator (my defaults).html". Look in your Downloads folder. That copy starts with: '+VSUM+'.', q.inner_text('#defaultsStatus'))
@@ -292,10 +298,11 @@ with sync_playwright() as p:
     q2 = fresh(); q2.goto(pathlib.Path('out/copy.html').resolve().as_uri()); q2.wait_for_timeout(900)
     ok('the copy opens in a new browser with the copied values and says this file', inputs(q2)==['','4','200','50','5','1500'] and q2.inner_text('#defaultsStatus')=='Defaults in use: this file ('+VSUM+').', (inputs(q2), q2.inner_text('#defaultsStatus')))
     ok('in the copy, the Reset button reads Reset to the file defaults', q2.inner_text('#btnResetDefaults')=='Reset to the file defaults', q2.inner_text('#btnResetDefaults'))
+    to_set(q2)
     with q2.expect_download() as dl2: q2.click('#btnCopyDefaults')
     dl2.value.save_as('out/copy2.html')
     ok('the copy can make a further copy with the same values', json.loads(blk(pathlib.Path('out/copy2.html').read_text(encoding='utf-8'), 'user-defaults'))==VALS)
-    q.click('#btnResetDefaults'); q.wait_for_timeout(400)
+    to_set(q); q.click('#btnResetDefaults'); q.wait_for_timeout(400)
     ok('Reset removes the browser key, returns 185 PSI and 1,000 ft, and the status says YHFD', q.evaluate(LS, 'yhfd-relay-defaults-v1') is None and inputs(q)==['253','5','185','20','10','1000'] and q.inner_text('#defaultsStatus')=='Defaults in use: YHFD (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', (inputs(q), q.inner_text('#defaultsStatus')))
     # ---- v0.5 phase: hydrant count line and the reason for no draft ----
     v = fresh(); load(v)
@@ -360,10 +367,10 @@ with sync_playwright() as p:
     x.click('#btnBack'); x.wait_for_timeout(300)
     open_sec(x, 'lay'); x.select_option('#setHose', '5'); x.wait_for_timeout(300)
     ok('the hint hides again for 5 inch', not x.is_visible('#dualHint'))
-    open_sec(x, 'lay'); x.select_option('#setHose', '3'); x.wait_for_timeout(200); x.click('#btnSaveDefaults'); x.evaluate("localStorage.removeItem('yhfd-relay-pilot-v1')"); x.reload(); x.wait_for_timeout(900); open_sec(x, 'lay')
+    open_sec(x, 'lay'); x.select_option('#setHose', '3'); x.wait_for_timeout(200); to_set(x); x.click('#btnSaveDefaults'); x.evaluate("localStorage.removeItem('yhfd-relay-pilot-v1')"); x.reload(); x.wait_for_timeout(900); open_sec(x, 'lay')
     ok('saved defaults accept hose 3: the select, the hint, and the summary', x.input_value('#setHose')=='3' and x.is_visible('#dualHint') and x.inner_text('#defaultsStatus')=='Defaults in use: yours (dual 3 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).', x.inner_text('#defaultsStatus'))
     # drag S and A with the edit handles hidden
-    open_sec(x, 'lay'); x.select_option('#setHose', '5'); x.click('#btnResetDefaults'); pick(x)
+    open_sec(x, 'lay'); x.select_option('#setHose', '5'); to_set(x); x.click('#btnResetDefaults'); pick(x)
     open_sec(x, 'addr'); x.fill('#geoText', '100 Test Hill Rd'); open_sec(x, 'addr'); x.click('#geoForm button'); x.wait_for_timeout(500); draft(x)
     try: x.wait_for_function('window.__relay.state.draft === true', timeout=8000); x.wait_for_selector('#flowTable', timeout=8000); x.wait_for_timeout(300)
     except Exception: pass
@@ -456,19 +463,19 @@ with sync_playwright() as p:
     open_sec(k9, 'route'); k9.click('#btnFinish'); k9.wait_for_selector('#flowTable', timeout=8000); open_sec(k9, 'lay'); k9.select_option('#sourceType', ''); k9.click('#btnCard'); k9.wait_for_timeout(500)
     ok('a card with no source type: the Water source fact reads Not selected', k9.evaluate('window.__relay.state.sourceType')=='' and k9.inner_text('#cardHead .facts4 div:nth-child(1) b')=='Not selected' and k9.inner_text('#cardHead .facts4 div:nth-child(1) span').lower()=='water source', k9.inner_text('#cardHead .facts4 div:nth-child(1)'))
     # order of the sidebar sections
-    heads = y.evaluate("[...document.querySelectorAll('#side .sec')].map(s => s.querySelector('h2, .su i').textContent)")
-    ok('sidebar sections are in the accepted order (v0.16: the four setup sections show their line label)', heads==['District','1. Address','2. Lay','3. Route','4. Read the result','Keep the plan','My defaults'], heads)
+    heads = y.evaluate("[...document.querySelectorAll('#side > .sec')].map(s => s.querySelector('h2, .su i').textContent)")
+    ok('sidebar sections are in the accepted order (v0.16: the four setup sections show their line label)', heads==['District','1. Address','2. Lay','3. Route','4. Read the result','Keep the plan'], heads)
     inside = y.evaluate("(() => { const sec = id => document.getElementById(id).closest('.sec').querySelector('h2, .su i').textContent; return {six:['sourceType','layRev','setHose','setHosePer','setCap','setRes','setSlack'].map(sec), btns:['btnDraft','btnDraw','btnUndo','btnFinish','btnClear'].map(sec), status:document.getElementById('status').previousElementSibling.dataset.k + '>' + document.getElementById('status').nextElementSibling.querySelector('h2').textContent, res:sec('results'), defs:['btnSaveDefaults','btnResetDefaults','btnCopyDefaults','defaultsStatus'].map(sec), name:sec('planName')}; })()")
-    ok('the settings are inside step 2 (before step 3), the buttons in step 3, the status block between step 3 and step 4, the result in step 4, My defaults at the bottom', set(inside['six'])=={'2. Lay'} and set(inside['btns'])=={'3. Route'} and inside['status']=='route>4. Read the result' and inside['res']=='4. Read the result' and set(inside['defs'])=={'My defaults'} and inside['name']=='1. Address', inside)
-    ok('the five settings sit in three rows in the mockup order', y.evaluate("[...document.querySelectorAll('#setHose,#setHosePer,#setCap,#setRes,#setSlack')].map(e => e.id).join()")=='setHose,setHosePer,setCap,setRes,setSlack' and y.evaluate("[...document.querySelectorAll('#side .sec')][2].querySelectorAll('.row').length")==3)
+    ok('the settings are inside step 2 (before step 3), the buttons in step 3, the status block between step 3 and step 4, the result in step 4, My defaults in the Settings view', set(inside['six'])=={'2. Lay'} and set(inside['btns'])=={'3. Route'} and inside['status']=='route>4. Read the result' and inside['res']=='4. Read the result' and set(inside['defs'])=={'My defaults'} and inside['name']=='1. Address', inside)
+    ok('the five settings sit in three rows in the mockup order', y.evaluate("[...document.querySelectorAll('#setHose,#setHosePer,#setCap,#setRes,#setSlack')].map(e => e.id).join()")=='setHose,setHosePer,setCap,setRes,setSlack' and y.evaluate("[...document.querySelectorAll('#side > .sec')][2].querySelectorAll('.row').length")==3)
     ok('no page errors in the v0.9 phase', not [e for e in errors[e9:] if 'Failed to load resource' not in e], errors[e9:][:3])
     # ---- v0.10 phase: one friction rule, PDP rounds up, six defaults. Old saved values with basis must load. ----
     e10 = len(errors)
     GATE['roads'] = False; GATE['addr'] = C
     t10 = fresh(); load(t10)
-    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.16' in t10.inner_text('.brand'))
+    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.17' in t10.inner_text('.brand'))
     ok('v0.16: the status line lists five values (no district)', t10.inner_text('#defaultsStatus')=='Defaults in use: YHFD (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==5, t10.inner_text('#defaultsStatus'))
-    t10.click('#side details summary'); rules = t10.inner_text('#side details')
+    to_set(t10); rules = t10.inner_text('#setView ul')
     ok('v0.10: the rules list states the one friction rule and the round-up rule', 'one rule' in rules and '0.08' in rules and 'rounds up to the next 5 PSI' in rules and 'chart table' not in rules.lower() and 'formula option' not in rules.lower(), rules[:200])
     PLAN = {'name':'Old plan','notes':'','sourceType':'Hydrant','sourceHydrant':None,'flow':750,'manual':{},
             'points':[{'lat':C[0],'lng':C[1]},{'lat':C[0]+0.004,'lng':C[1]+0.002}],
@@ -725,6 +732,72 @@ with sync_playwright() as p:
     u.click('#btnFinish'); u.wait_for_timeout(900); u.locator('.mid').first.dispatch_event('click'); u.wait_for_timeout(900); clear(u); u.wait_for_timeout(500)
     ok('v0.16 F: Clear route hides the box', u.evaluate(UDT) is None)
     u.close()
+    # ---- v0.17 phase: the Settings view behind the gear in the header ----
+    e17 = len(errors); GATE['roads'] = True; GATE['addr'] = ADDR2; GATE['road'] = None
+    g = fresh(); g.set_viewport_size({'width':1280,'height':800}); load(g)
+    open_sec(g, 'addr'); g.fill('#geoText', '100 Test Hill Rd'); g.click('#geoForm button'); g.wait_for_timeout(600); draft(g); g.wait_for_selector('#flowTable', timeout=8000); g.wait_for_timeout(500)
+    VIS = "s => !!document.querySelector(s) && getComputedStyle(document.querySelector(s)).display != 'none' && document.querySelector(s).getClientRects().length > 0"
+    PRESS = "document.getElementById('btnSettings').getAttribute('aria-pressed')"
+    ACT = "document.activeElement && document.activeElement.id"
+    last = g.evaluate("[...document.querySelectorAll('#side > .sec')].pop().querySelector('h2').textContent")
+    # proof: fails when the gear is missing or pressed, or when My defaults or the rules list stay in the planner
+    ok('v0.17 a: planner view: the gear is in the header with aria-pressed false, My defaults and the rules list are not visible, the last planner section is Keep the plan', g.evaluate(VIS, '.brand #btnSettings') and g.evaluate(PRESS)=='false' and g.get_attribute('#btnSettings','aria-label')=='Settings' and not g.evaluate(VIS, '#btnSaveDefaults') and not g.evaluate(VIS, '#setView ul') and last=='Keep the plan', (last, g.evaluate(PRESS)))
+    gb = g.evaluate("(() => { const b=document.getElementById('btnSettings'), r=b.getBoundingClientRect(), h=document.querySelector('.brand').getBoundingClientRect(); return [r.width, r.height, Math.abs((r.top+r.bottom)/2-(h.top+h.bottom)/2) < 1, r.right <= h.right]; })()")
+    ok('v0.17: the gear is a 36 x 36 button, centred in the header, with an inline SVG icon', gb==[36,36,True,True] and g.evaluate("document.querySelectorAll('#btnSettings svg').length")==1 and g.evaluate("document.getElementById('btnSettings').tagName")=='BUTTON', gb)
+    SNAP17 = "(() => { const s=document.getElementById('side'); return JSON.stringify([window.__relay.state.points, document.getElementById('results').innerHTML.length, [...document.querySelectorAll('#side .sec[data-k] .bd.op')].map(b=>b.parentNode.dataset.k), s.scrollTop, window.__relay.map.getCenter(), window.__relay.map.getZoom()]); })()"
+    open_sec(g, 'lay'); g.evaluate("document.getElementById('side').scrollTop = 150"); g.wait_for_timeout(300)
+    before = g.evaluate(SNAP17)
+    ok('v0.17: the check has a real planner scroll to keep (the sidebar scrolls)', json.loads(before)[3] > 0, json.loads(before)[3])
+    g.evaluate("document.getElementById('btnSettings').click()"); g.wait_for_timeout(200)  # a script click: the gear scrolls away with the sidebar, and a real click would scroll it back to 0
+    boxes = g.evaluate("['btnSaveDefaults','btnResetDefaults','btnCopyDefaults'].map(i => { const r=document.getElementById(i).getBoundingClientRect(); return [r.left, r.width, r.top, r.bottom]; })")
+    stacked = len({round(b[0]) for b in boxes})==1 and len({round(b[1]) for b in boxes})==1 and all(boxes[i][3] <= boxes[i+1][2] for i in range(2))
+    # proof: fails when the buttons sit in one row (same top, different left), or when the rules list is closed or has a different count
+    ok('v0.17 b: gear click: Settings view shows Back, My defaults (three buttons stacked, same left edge and width), the status line, and the open rules list of 12 items; planner sections are hidden; aria-pressed true; focus on Back',
+       g.evaluate(VIS, '#btnSettingsBack') and g.text_content('#setView h2')=='My defaults' and stacked and g.evaluate(VIS, '#defaultsStatus') and g.evaluate(VIS, '#setView ul') and g.locator('#setView ul li').count()==12 and g.evaluate("document.querySelector('#setView details')")==None
+       and not any(g.evaluate(VIS, x) for x in ('#side .sec[data-k=dist]', '#btnCard', '#status', '#results', '#planNotes')) and g.evaluate(PRESS)=='true' and g.evaluate(ACT)=='btnSettingsBack' and g.evaluate("document.getElementById('side').scrollTop")==0 and g.evaluate(VIS, '.brand'), (boxes, g.evaluate(ACT)))
+    g.focus('#btnSettingsBack'); tabs = []
+    for _ in range(8): g.keyboard.press('Tab'); tabs.append(g.evaluate("(() => { const a=document.activeElement, s=a.closest('#side'); return s ? (a.closest('#setView, .brand') ? 'ok' : 'planner:' + a.id) : 'outside'; })()"))
+    # proof: fails when a hidden planner control stays focusable (it would show as planner:id)
+    ok('v0.17: Tab in the Settings view never lands on a hidden planner control', not [t for t in tabs if t.startswith('planner')] and tabs[:3]==['ok','ok','ok'], tabs)
+    def back_via(how):
+        g.evaluate("document.getElementById('btnSettings').click()") if g.evaluate(PRESS)=='false' else None
+        g.wait_for_timeout(150)
+        if how=='back': g.click('#btnSettingsBack')
+        elif how=='gear': g.evaluate("document.getElementById('btnSettings').click()")
+        else: g.focus('#btnSettingsBack'); g.keyboard.press('Escape')
+        g.wait_for_timeout(200)
+        now = g.evaluate(SNAP17)
+        if now != before: print('SNAP DIFF', how, before[-200:], now[-200:])
+        return now==before and g.evaluate(PRESS)=='false' and g.evaluate(ACT)=='btnSettings' and g.evaluate(VIS, '#btnCard') and not g.evaluate(VIS, '#btnSaveDefaults')
+    # proof: fails when a way back does not restore the same route, result, open section, scroll and map, or does not focus the gear
+    r1 = back_via('back'); r2 = back_via('gear'); r3 = back_via('esc')
+    ok('v0.17 c: Back, the gear, and Escape each return to the planner with the gear focused; route points, result, open section, scroll position, and map are the same as before', r1 and r2 and r3, (r1, r2, r3))
+    # proof: fails when Escape pressed outside the Settings view (focus on the page) closes it, since the handler lives on the view only
+    g.click('#btnSettings'); g.focus('#btnSettings'); g.keyboard.press('Escape'); g.wait_for_timeout(100)
+    ok('v0.17: Escape with focus on the gear (outside the Settings view) does nothing', g.evaluate(PRESS)=='true')
+    g.click('#btnSettings'); g.wait_for_timeout(100)
+    # d: the defaults checks above run through to_set(). Here, Save and Reset from the Settings view show the same status text.
+    to_set(g); g.click('#btnSaveDefaults'); sv = g.inner_text('#defaultsStatus'); g.click('#btnResetDefaults'); g.wait_for_timeout(300); rs = g.inner_text('#defaultsStatus')
+    ok('v0.17 d: Save as my defaults and Reset work from the Settings view (status text, browser key)', sv.startswith('Saved in this browser. Defaults in use: yours (') and rs.startswith('Defaults in use: YHFD (') and g.evaluate(LS, 'yhfd-relay-defaults-v1') is None, (sv, rs))
+    to_plan(g)
+    g.click('#btnSettings'); g.evaluate("document.getElementById('btnCard').click()"); g.wait_for_timeout(500)  # the button is hidden in Settings, so click it by script
+    cardv = g.evaluate("document.body.classList.contains('card')") and g.evaluate(VIS, '#cardBody') and not g.evaluate(VIS, '#side')
+    g.click('#btnBack'); g.wait_for_timeout(300)
+    # proof: fails when Make card leaves the set class on #side (the planner view is then not shown after Back to planner)
+    ok('v0.17 f: Make card while Settings is open shows the card; Back to planner shows the planner view (gear not pressed)', cardv and not g.evaluate("document.body.classList.contains('card')") and g.evaluate(VIS, '#btnCard') and not g.evaluate(VIS, '#btnSaveDefaults') and g.evaluate(PRESS)=='false')
+    pd = g.evaluate("(() => { const c=getComputedStyle(document.querySelector('.en .pd')), bg=getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(); const t=document.createElement('i'); t.style.background=bg; document.body.appendChild(t); const want=getComputedStyle(t).backgroundColor; t.remove(); return [c.borderTopWidth, c.borderTopStyle, c.borderTopLeftRadius, c.backgroundColor==want]; })()")
+    # proof: fails when the border, radius, or background of the PDP box changes
+    ok('v0.17 g: .en .pd has a 1 px solid border, a 6 px radius, and the --bg background', pd==['1px','solid','6px',True], pd)
+    g.close()
+    m = fresh(); m.set_viewport_size({'width':390,'height':800}); load(m)
+    inh = m.evaluate("(() => { const b=document.getElementById('btnSettings').getBoundingClientRect(), h=document.querySelector('.brand').getBoundingClientRect(); return b.left >= h.left && b.right <= h.right && b.top >= h.top && b.bottom <= h.bottom && document.documentElement.scrollWidth <= 390; })()")
+    m.click('#btnSettings'); m.wait_for_timeout(200)
+    sw = m.evaluate(VIS, '#btnSaveDefaults') and not m.evaluate(VIS, '#btnCard') and m.evaluate(ACT)=='btnSettingsBack' and m.evaluate(VIS, '#btnSettings')
+    m.click('#btnSettingsBack'); m.wait_for_timeout(200)
+    # proof: fails when the gear leaves the header or the page scrolls sideways at 390 px, or when the switch does not work on a phone
+    ok('v0.17 e: at 390 px the gear is inside the header (no sideways scroll), the switch opens Settings with the gear still visible, and Back returns', inh and sw and m.evaluate(VIS, '#btnCard') and m.evaluate(ACT)=='btnSettings', (inh, sw))
+    m.close()
+    ok('no page errors in the v0.17 phase', not [e for e in errors[e17:] if 'Failed to load resource' not in e], errors[e17:][:3])
     ok('no page errors in the v0.16 Undo phase', not [e for e in errors[e16u:] if 'Failed to load resource' not in e], errors[e16u:][:3])
     ok('no page errors in the v0.16 phase', not [e for e in errors[e16:] if 'Failed to load resource' not in e], errors[e16:][:3])
     ok('no page errors in the v0.15 phase', not [e for e in errors[e15:] if 'Failed to load resource' not in e], errors[e15:][:3])
