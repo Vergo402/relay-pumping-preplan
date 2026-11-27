@@ -3,8 +3,8 @@
 This repo is one HTML page that plans a long supply line lay for Yorktown Heights Fire District (YHFD). A repo is a project folder that Git tracks. Git saves each version of the files.
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
-Status: pilot v0.10. Alex approved the v0.2 direction. No field check is done yet.
-The history of each version, v0.3 to v0.10, is in `docs/handoff-2026-11-24.md`.
+Status: pilot v0.13. Alex approved the v0.2 direction. No field check is done yet.
+The history of each version, v0.3 to v0.13, is in `docs/handoff-2026-11-24.md`.
 The GitHub repo is private. Its name is yhfd-relay-calculator.
 
 ## Files
@@ -20,8 +20,8 @@ The GitHub repo is private. Its name is yhfd-relay-calculator.
 | `scripts/fetch_greenburgh_hydrants.py` | Gets the town hydrants again from the Town of Greenburgh. |
 | `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
 | `tests/test_core.js` | 70 math checks: against the chauffeur chart, for the road draft, and for dual 3 inch lines. Runs in Node. |
-| `tests/test_ui.py` | 135 page checks in Chrome through Playwright. No internet needed. |
-| `package.json` | Version 0.10.0. It holds the `build`, `test`, and `test:ui` commands. |
+| `tests/test_ui.py` | 151 page checks in Chrome through Playwright. No internet needed. |
+| `package.json` | Version 0.13.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
 | `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
 | `dist/` | Build output. Git ignores it. |
@@ -46,10 +46,10 @@ No Playwright browser download is necessary. The page test uses the installed Go
 |---|---|
 | `python3 build.py` | Writes `dist/YHFD Relay Pumping Calculator.html`. |
 | `npm test` | Builds, then runs the 70 math checks. |
-| `npm run test:ui` | Builds, then runs the 135 page checks. It calls `.venv/bin/python`. |
+| `npm run test:ui` | Builds, then runs the 151 page checks. It calls `.venv/bin/python`. |
 
 Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-On 2026-11-27, 70 of 70 math checks and 135 of 135 page checks passed on macOS with Google Chrome 158.
+On 2026-11-27, 70 of 70 math checks and 151 of 151 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 
@@ -63,9 +63,8 @@ On 2026-11-27, 70 of 70 math checks and 135 of 135 page checks passed on macOS w
 8. After a build, check the SHA-256. The SHA-256 is a fingerprint of a file. It must equal the recorded value below.
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
-Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `5b67de1ed294185b72d01e1211851309bf4be45996f04183d09fa9d49bcd6667`
-This is the v0.10 build. Older values are in `docs/handoff-2026-11-24.md`.
-On 2026-11-27 the copy Alex uses in OneDrive is the v0.10 build, the same value.
+Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `ae3af779b165ae5c8d9cef03151e18520eb1a3f4ef1413182221c3ef8d35699e`
+This is the v0.13 build. Older values are in `docs/handoff-2026-11-24.md`. On 2026-11-27 the copy Alex uses in OneDrive is the v0.10 build.
 Claude replaced that copy seven times (v0.3, v0.4, and v0.6 to v0.10), each on a direct request from Alex. Rule 3 still applies.
 
 ## Hydraulic rules
@@ -158,6 +157,15 @@ Decisions for v0.10 (Alex, 2026-11-27):
 - A PDP always rounds up to the next 5 PSI.
 - A card printed to PDF gets the file name `YY-MM-DD_Plan Name_Address`. The plan file keeps the found address.
 - The page has one friction rule and no selector. Claude read the answer from Alex as a yes to this. Alex has not said the word yes.
+
+Decisions for v0.11 to v0.13 (Alex, 2026-11-27):
+
+- A card block shows a flow only when the flow needs 5 relay engines or fewer.
+- With 6 or more relay engines, the block says "Not practical as a relay" and gives the real count. It shows no PDP and no arrows.
+- The limit is a fixed value, `CARD_MAX_RELAYS`. It is not a setting. The planner screen still shows all engines.
+- v0.12: the card map fits the route with 20 px of padding. The card shows the engine markers at 70% size. The mockup is in `docs/mockups/`.
+- v0.13: when a route result exists, the four setup sections fold to one line each. Each engine row shows a large PDP. A phone scrolls to the result.
+- All three came from an Impeccable critique of the main page. The report is in `.impeccable/critique/`. Two more items are open in the handoff notes.
 
 ## Data sources
 

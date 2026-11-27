@@ -69,6 +69,29 @@ table.wrap td{white-space:normal}
 .fact span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
 .fact b{font-size:17px;font-variant-numeric:tabular-nums}
 .fact small{display:block;color:var(--muted);font-size:11.5px}
+.fx{display:grid;grid-template-columns:repeat(4,auto);justify-content:space-between;background:var(--bg);border-radius:6px;padding:7px 10px;margin-bottom:10px}
+.fx b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
+.fx span{font-size:11px;color:var(--muted)}
+.en{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.en:last-child{border-bottom:0}
+.en .eng{width:28px;height:28px;border-radius:14px;font-size:11.5px;padding:0}
+.en b{display:block;font-size:14px;font-weight:600}
+.en small{font-size:12px;color:var(--muted)}
+.en .pd{text-align:right;line-height:1}
+.en .pd b{font-size:30px;font-weight:700;font-variant-numeric:tabular-nums}
+.en .pd b.in{font-size:17px}
+.en .pd span{display:block;font-size:10.5px;letter-spacing:.6px;color:var(--muted);margin-top:2px}
+/* folded setup: a summary row replaces each section while a result shows */
+.su{display:none;grid-template-columns:74px minmax(0,1fr) auto;gap:8px;align-items:center;width:calc(100% + 36px);margin:0 -18px;padding:9px 18px;border:0;border-bottom:1px solid var(--line);background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.su i{font-style:normal;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.su span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.su u{text-decoration:none;color:var(--blue);font-size:12.5px;font-weight:600}
+.sec.hasres{padding-top:0}
+.sec.hasres>.su{display:grid}
+.sec.hasres>h2{display:none}
+.sec.hasres:not(.fold)>.su{margin-bottom:12px}
+.sec.hasres.fold{padding-bottom:0;border-bottom:0}
+.sec.hasres.fold>:not(.su){display:none!important}
 table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 th,td{text-align:left;padding:6px 5px;white-space:nowrap;border-bottom:1px solid var(--line);vertical-align:top}
 th{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);font-weight:600}
@@ -112,6 +135,7 @@ body.card #cardBar span{flex:1;font-size:13px;color:#c5ccd3}
 body.card #cardHead,body.card #cardBody{display:block}
 body.card #main{display:block}
 body.card #map{height:3.15in;border:1px solid #333}
+body.card .em{transform:scale(.7)}
 body.card #profileWrap{border:1px solid #333;border-top:0;height:1.75in}
 body.card #profile{height:1.47in}
 #cardHead{border-bottom:3px solid var(--ink);margin-bottom:8px;padding-bottom:6px}
@@ -129,6 +153,9 @@ body.card #profile{height:1.47in}
 #cardBody .fl span{display:block;font-size:11px;margin-top:1px}
 #cardBody .fl small{display:block;font-size:10px;color:#444;margin-top:6px;line-height:1.3}
 #cardBody .g{display:grid;padding:7px 0 8px}
+#cardBody .np{padding:10px 14px}
+#cardBody .np b{display:block;font-size:19px;font-weight:700}
+#cardBody .np span{display:block;font-size:12px;margin-top:4px}
 #cardBody .e{grid-row:1;text-align:center;padding:0 2px}
 #cardBody .e i{display:block;font-style:normal;font-size:9.5px;letter-spacing:.6px;text-transform:uppercase;color:#444}
 #cardBody .e b{display:block;font-size:19px;line-height:1.15;font-weight:700}
@@ -166,22 +193,25 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.10 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.13 &middot; Planning aid only. Verify on site.</p></div>
 
-    <div class="sec">
+    <div class="sec" data-k="dist">
+      <button type="button" class="su" aria-expanded="false"><i>District</i><span></span><u>Change</u></button>
       <h2>Fire district</h2>
       <select id="setDistrict" aria-label="Fire district" style="width:100%;margin-bottom:6px"></select>
       <p class="hint" id="distHint"></p>
       <p class="note-box" id="distCount"></p>
     </div>
 
-    <div class="sec">
+    <div class="sec" data-k="addr">
+      <button type="button" class="su" aria-expanded="false"><i>1. Address</i><span></span><u>Change</u></button>
       <h2>1. Find the address</h2>
       <form class="row" id="geoForm"><input type="text" id="geoText" placeholder="Street address" aria-label="Address" style="flex:3"><button class="btn" type="submit">Go</button></form>
       <label class="f">Plan name<input type="text" id="planName" placeholder="Example: 123 Hilltop Rd, long driveway"></label>
     </div>
 
-    <div class="sec">
+    <div class="sec" data-k="lay">
+      <button type="button" class="su" aria-expanded="false"><i>2. Lay</i><span></span><u>Change</u></button>
       <h2>2. Set up the lay</h2>
       <label class="f">Water source type<select id="sourceType"><option value="">Select the type</option><option>Hydrant</option><option>Draft site</option><option>Tanker dump site</option><option>Other</option></select></label>
       <div class="hint" style="margin:0 0 4px">Supply line lay</div>
@@ -202,7 +232,8 @@ body.card #profile{height:1.47in}
       <p class="hint">These are your defaults. Change them for this plan if necessary.</p>
     </div>
 
-    <div class="sec">
+    <div class="sec" data-k="route">
+      <button type="button" class="su" aria-expanded="false"><i>3. Route</i><span></span><u>Edit</u></button>
       <h2>3. Make the route</h2>
       <div class="row">
         <button class="btn primary" id="btnDraft">Draft route by road</button>
@@ -526,7 +557,8 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   var COUNTY = 'https://giswww.westchestergov.com/arcgis/rest/services';
   var USGS_SAMPLES = 'https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/getSamples';
   var EPQS = 'https://epqs.nationalmap.gov/v1/json';
-  var FLOWS = [500, 750, 1000, 1250, 1500, 2000], CARD_FLOWS = [500, 1250, 2000], cardPrevFlow = 0, M2FT = 3.280839895, STORE = 'yhfd-relay-pilot-v1';
+  // A card block shows a flow only when it needs 5 relay engines or fewer (Alex, 2026-11-27).
+  var FLOWS = [500, 750, 1000, 1250, 1500, 2000], CARD_FLOWS = [500, 1250, 2000], CARD_MAX_RELAYS = 5, cardPrevFlow = 0, M2FT = 3.280839895, STORE = 'yhfd-relay-pilot-v1';
   var DEFAULTS = { hose: 5, cap: 185, residual: 20, slack: 10, hosePerEngine: 1000, lay: null, district: 253 };
   var LAY = {
     reverse: { name: 'Reverse lay', hint: 'Trace from the attack engine back to the water source.',
@@ -832,13 +864,15 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   }
   function engName(i, total) { return i === 0 ? 'Source' : 'Relay ' + i; }
   function engineRows(r) {
+    function row(cls, mark, name, line, big, label, over) {
+      return '<div class="en"><span class="eng ' + cls + '">' + mark + '</span><div><b>' + name + '</b><small>' + line + '</small></div>' +
+        '<div class="pd"><b' + (label === 'INTAKE' ? ' class="in"' : '') + (over ? ' style="color:var(--red)"' : '') + '>' + big + '</b><span>' + label + '</span></div></div>';
+    }
     var rows = r.segs.map(function (g, i) {
-      return '<tr><td><span class="eng ' + (i === 0 ? 'S' : 'R') + '">' + (i === 0 ? 'S' : 'R' + i) + '</span> ' + engName(i) + '</td><td class="n">' + fmt(g.at) + ' ft</td><td class="n">' + sign(g.climb) + ' ft</td><td class="n">' +
-        fmt(up100(g.hose)) + ' ft</td><td class="n"><b' + (g.over ? ' style="color:var(--red)"' : '') + '>' + g.pdp + '</b></td></tr>';
+      return row(i === 0 ? 'S' : 'R', i === 0 ? 'S' : 'R' + i, engName(i), (i === 0 ? 'at the source' : 'at ' + fmt(g.at) + ' ft') + ' &middot; lays ' + fmt(up100(g.hose)) + ' ft &middot; climb ' + sign(g.climb) + ' ft', g.pdp, 'PDP', g.over);
     }).join('');
     var last = r.segs[r.segs.length - 1], total = state.profile.h[state.profile.n - 1];
-    rows += '<tr><td><span class="eng A">A</span> Attack</td><td class="n">' + fmt(total) + ' ft</td><td class="n" colspan="3">intake ' + Math.round(last.intake) + ' PSI</td></tr>';
-    return rows;
+    return rows + row('A', 'A', 'Attack', 'at ' + fmt(total) + ' ft', Math.round(last.intake) + ' PSI', 'INTAKE');
   }
   // the lays in the order the engines make them
   function layPlan(r) {
@@ -877,19 +911,19 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     $('btnCard').disabled = $('btnSave').disabled = !p;
     if (!p) { el.innerHTML = '<div class="empty">No route yet.</div>'; return; }
     var st = RelayCore.stats(p), s = state.settings, r = state.results[state.flow], hoseLay = up100(st.hoseFt);
-    var h = '<div class="facts">' +
-      '<div class="fact"><span>Hose to lay</span><b>' + fmt(hoseLay) + ' ft</b><small>' + fmt(st.mapFt) + ' ft on the map, plus ' + s.slack + '% slack</small></div>' +
-      '<div class="fact"><span>Climb, source to attack</span><b>' + sign(st.net) + ' ft</b><small>' + fmt(st.startZ) + ' ft to ' + fmt(st.endZ) + ' ft</small></div>' +
-      '<div class="fact"><span>Steepest grade</span><b>' + Math.round(Math.abs(st.grade) * 100) + '%</b><small>over 100 ft, near ' + fmt(st.gradeAt) + ' ft</small></div>' +
-      '<div class="fact"><span>Supply line lay</span><b>' + (s.lay ? LAY[s.lay].name : 'Not selected') + '</b><small>' + (s.lay === 'reverse' ? 'attack engine back to the source' : s.lay === 'forward' ? 'source to the attack engine' : 'select it in step 2') + '</small></div></div>';
+    var h = '<div class="fx">' +
+      '<div title="' + fmt(st.mapFt) + ' ft on the map, plus ' + s.slack + '% slack"><b>' + fmt(hoseLay) + ' ft</b><span>hose to lay</span></div>' +
+      '<div title="Climb, source to attack: ' + fmt(st.startZ) + ' ft to ' + fmt(st.endZ) + ' ft"><b>' + sign(st.net) + ' ft</b><span>climb</span></div>' +
+      '<div title="Steepest grade over 100 ft, near ' + fmt(st.gradeAt) + ' ft"><b>' + Math.round(Math.abs(st.grade) * 100) + '%</b><span>steepest</span></div>' +
+      '<div title="Supply line lay: ' + (s.lay === 'reverse' ? 'attack engine back to the source' : s.lay === 'forward' ? 'source to the attack engine' : 'select it in step 2') + '"><b>' + (s.lay ? LAY[s.lay].name.replace(' lay', '') : 'Not selected') + '</b><span>lay</span></div></div>';
     h += '<table id="flowTable"><thead><tr><th>Flow</th><th class="n">FL/100 ft</th><th>Layout</th><th class="n">Top PDP</th></tr></thead><tbody>';
     FLOWS.forEach(function (q) {
       var x = state.results[q];
       h += '<tr data-q="' + q + '" class="' + (q === state.flow ? 'sel' : '') + '"><td><b>' + fmt(q) + '</b> GPM</td><td class="n">' + (Math.round(x.fl100 * 10) / 10) + ' PSI</td><td>' + verdict(x) + '</td><td class="n"><b>' + x.maxPdp + '</b></td></tr>';
     });
     h += '</tbody></table>';
+    h += '<h3 class="sub">Engines at ' + fmt(state.flow) + ' GPM</h3>' + engineRows(r);
     h += '<div class="budget"><b>' + fmt(state.flow) + ' GPM pressure demand:</b> friction ' + Math.round(r.frictionAll) + ' + climb ' + Math.round(r.climbAll) + ' + intake ' + s.residual + ' = <b>' + Math.round(r.frictionAll + r.climbAll + s.residual) + ' PSI</b>. One engine gives ' + s.cap + ' PSI and lays a maximum of ' + fmt(s.hosePerEngine) + ' ft.</div>';
-    h += '<h3 class="sub">Engines at ' + fmt(state.flow) + ' GPM</h3><table><thead><tr><th>Engine</th><th class="n">Position</th><th class="n">Climb</th><th class="n">Hose out</th><th class="n">PDP</th></tr></thead><tbody>' + engineRows(r) + '</tbody></table>';
     h += layBlock(r);
     h += warnings(r, st);
     el.innerHTML = h;
@@ -994,8 +1028,9 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     var h = '';
     CARD_FLOWS.forEach(function (q) {
       var r = state.results[q], n = r.segs.length;
-      h += '<div class="blk"><div class="fl"><b>' + fmt(q) + '</b><span>GPM</span><small>' + (n === 1 ? 'Source engine alone' : (n - 1) + ' relay engine' + (n > 2 ? 's' : '')) + '</small>' + (q === state.flow ? '<small>On the map</small>' : '') + '</div>' +
-        '<div class="g" style="grid-template-columns:repeat(' + (2 * n + 2) + ',1fr)">';
+      h += '<div class="blk"><div class="fl"><b>' + fmt(q) + '</b><span>GPM</span><small>' + (n === 1 ? 'Source engine alone' : (n - 1) + ' relay engine' + (n > 2 ? 's' : '')) + '</small>' + (q === state.flow ? '<small>On the map</small>' : '') + '</div>';
+      if (n - 1 > CARD_MAX_RELAYS) { h += '<div class="np"><b>Not practical as a relay</b><span>This flow needs ' + (n - 1) + ' relay engines. This card shows a maximum of ' + CARD_MAX_RELAYS + '.</span></div></div>'; return; }
+      h += '<div class="g" style="grid-template-columns:repeat(' + (2 * n + 2) + ',1fr)">';
       r.segs.forEach(function (g, k) {
         h += '<div class="e" style="grid-column:' + (2 * k + 1) + '/span 2"><i>' + (k === 0 ? 'Source' : 'Relay ' + k) + '</i><b><small>PDP</small>' + g.pdp + '</b><u>' + (k === 0 ? 'at the source' : 'at ' + fmt(g.at) + ' ft') + '</u>' +
           (g.over ? '<u class="ov">Over limit</u>' : '') + '</div>';
@@ -1029,7 +1064,8 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     // Keep the card on one letter page: 10.1 in of content at 96 px per inch. A long table makes the map shorter, down to 1.8 in.
     $('map').style.height = '';
     if (on) { var over = $('right').scrollHeight - 57.6 - 960; if (over > 0) $('map').style.height = Math.max(172.8, 302.4 - over) + 'px'; }
-    setTimeout(function () { map.invalidateSize(); if (on && state.points.length > 1) map.fitBounds(routeBounds(), { padding: [45, 45], maxZoom: 19 }); renderProfile(); }, 60);
+    // The card map fits the route with 20 px of padding (Alex, 2026-11-27).
+    setTimeout(function () { map.invalidateSize(); if (on && state.points.length > 1) map.fitBounds(routeBounds(), { padding: [20, 20], maxZoom: 19 }); renderProfile(); }, 60);
   }
   // The browser takes the PDF file name from the page title, so the title changes only while the card prints.
   function cardFileName() {
@@ -1042,7 +1078,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   var titleBefore = null;
   window.addEventListener('afterprint', function () { if (titleBefore !== null) { document.title = titleBefore; titleBefore = null; } });
   window.addEventListener('beforeprint', function () { if (document.body.classList.contains('card')) {
-      if (titleBefore === null) titleBefore = document.title; document.title = cardFileName(); map.invalidateSize(); if (state.points.length > 1) map.fitBounds(routeBounds(), { padding: [45, 45], maxZoom: 19 }); } });
+      if (titleBefore === null) titleBefore = document.title; document.title = cardFileName(); map.invalidateSize(); if (state.points.length > 1) map.fitBounds(routeBounds(), { padding: [20, 20], maxZoom: 19 }); } });
   $('btnCard').onclick = function () { setCard(true); };
   $('btnBack').onclick = function () { setCard(false); };
   $('btnPrint').onclick = function () { window.print(); };
@@ -1107,7 +1143,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   if (has(fileDefaults)) $('btnResetDefaults').textContent = 'Reset to the file defaults';
   function bind(id, fn) { $(id).addEventListener('change', fn); }
   var autoName = '';
-  $('planName').addEventListener('input', function () { state.name = this.value; autosave(); });
+  $('planName').addEventListener('input', function () { state.name = this.value; autosave(); renderFold(); });
   $('planNotes').addEventListener('input', function () { state.notes = this.value; autosave(); });
   bind('setDistrict', function () { applyDistrict(this.value, true); });
   bind('sourceType', function () { state.sourceType = this.value; awaitSrc = false; autosave(); });
@@ -1204,7 +1240,28 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     } catch (err) { setStatus('The address search did not answer. Move the map by hand. (' + err.message + ')', 'err'); }
   });
 
-  function render() { renderResults(); renderEngines(); renderProfile(); if (document.body.classList.contains('card')) renderCard(); $('btnDraw').textContent = state.drawing ? 'Tracing...' : (state.points.length ? 'Add points' : 'Trace by hand'); renderLay(); }
+  function render() { renderResults(); renderFold(); renderEngines(); renderProfile(); if (document.body.classList.contains('card')) renderCard(); $('btnDraw').textContent = state.drawing ? 'Tracing...' : (state.points.length ? 'Add points' : 'Trace by hand'); renderLay(); }
+  // Folded setup. open[k] is a manual choice. It stays until the next no-result to result change or Clear.
+  var fold = { had: false, open: {} };
+  var HOSE_TXT = { 5: '5 inch', 4: '4 inch', 3: 'Dual 3 inch' };
+  function renderFold() {
+    var has = !!state.profile, s = state.settings, hy = state.sourceHydrant;
+    var txt = { dist: district.properties.name, addr: state.name || (found && found.label) || 'No address',
+      lay: (state.sourceType || 'No source type') + ' \u00b7 ' + (s.lay ? LAY[s.lay].name.replace(' lay', '') : 'No lay') + ' \u00b7 ' + HOSE_TXT[s.hose] + ' \u00b7 ' + s.cap + ' PSI',
+      route: state.draft ? 'Draft by road from ' + (hy ? 'hydrant ' + (hy.num || '(no number)') : (state.sourceType || 'the source').toLowerCase()) : 'Traced by hand, ' + state.points.length + ' points' };
+    if (has && !fold.had) {
+      fold.open = {};
+      if (window.matchMedia('(max-width:900px)').matches) $('results').parentNode.scrollIntoView(); // phone: show the result
+    }
+    if (!has) fold.open = {};
+    fold.had = has;
+    Array.prototype.forEach.call(document.querySelectorAll('#side .sec[data-k]'), function (sec) {
+      var k = sec.getAttribute('data-k'), b = sec.firstElementChild, shut = has && !fold.open[k];
+      sec.classList.toggle('hasres', has); sec.classList.toggle('fold', shut);
+      b.children[1].textContent = txt[k]; b.children[2].textContent = shut ? (k === 'route' ? 'Edit' : 'Change') : 'Close'; b.setAttribute('aria-expanded', String(!shut));
+      b.onclick = function () { fold.open[k] = shut; renderFold(); };
+    });
+  }
   var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(renderProfile, 150); });
 
   syncInputs(); drawRoute(); render();
