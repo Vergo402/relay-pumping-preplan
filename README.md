@@ -1,6 +1,6 @@
 # YHFD Relay Pumping Calculator
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.5. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.6. No field check is done yet.
 
 ## What the tool does
 
@@ -50,7 +50,7 @@ The repo has two test sets. Each command builds the page first.
 | Command | Checks | Result |
 |---|---|---|
 | `npm test` | 49 math checks. 36 are against the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI. 13 are for the road draft. | 49 of 49 pass. |
-| `npm run test:ui` | 55 page checks in Chrome through Playwright. | 55 of 55 pass. |
+| `npm run test:ui` | 60 page checks in Chrome through Playwright. | 60 of 60 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
@@ -87,7 +87,8 @@ The user can drag a relay engine. The page then shows the PDPs for that position
 
 - The page does not know the flow a hydrant or draft site can give.
 - It does not include appliance loss or attack line pressures.
-- The hydrant data is from 2015. The county dates it October 5, 2015.
+- The county hydrant data is from 2015. The county dates it October 5, 2015.
+- The Town of Greenburgh hydrant data is from 2026. It shows no licence text. Ask the town before you share the page outside YHFD.
 - A forward lay needs one more engine at the water source. That engine lays no supply hose. The page says this in a note. It does not add it to an engine count.
 - The page stores the last plan in the browser. A saved plan file (JSON) is the durable copy.
 - No field check is done yet.
@@ -100,6 +101,7 @@ The user can drag a relay engine. The page then shows the PDPs for that position
 
 - Ground height: USGS 3DEP, with `https://epqs.nationalmap.gov/v1/json` as the fallback.
 - Hydrants: Westchester County GIS, layer 147 of the DataHub_Infrastructure service. 22,499 hydrants. No flow values.
+- Hydrants in the Town of Greenburgh: the town water layer `WaterDistributionSystem_V3`, layer 32. 1,813 hydrants in service. The build adds the 1,378 that are not in the county list. No flow values.
 - Fire districts and roads: Westchester County GIS.
 - Street map, aerial photo 2025, 2 ft contours, driveways, buildings, and address search: Westchester County GIS.
 - Topo map: USGS, `https://basemap.nationalmap.gov/arcgis/rest/services/USGSTopo/MapServer`

@@ -147,7 +147,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.5 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.6 &middot; Planning aid only. Verify on site.</p></div>
 
     <div class="sec">
       <h2>Fire district</h2>
@@ -210,7 +210,7 @@ body.card #profile{height:1.47in}
           <li>Reverse lay: each engine starts at the attack end of its section and lays hose back to its pump position.</li>
           <li>Forward lay: each engine starts at the source end of its section and lays hose to its position.</li>
           <li>Ground heights: USGS 3DEP LiDAR, 1 metre grid, read every 25 ft.</li>
-          <li>Hydrants: Westchester County GIS, dated October 2015. The data has no flow values.</li>
+          <li>Hydrants: Westchester County GIS, dated October 2015, and Town of Greenburgh, 2026. The data has no flow values.</li>
           <li>Not included: the flow the water source can give, appliance loss, and attack line pressures.</li>
         </ul>
       </details>
@@ -582,16 +582,16 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     var bb = districtLayer.getBounds();
     hIn = hydrants.map(function (h) { return bb.contains([h[1], h[0]]) && RelayCore.pointInPolygon(h[0], h[1], district.geometry); });
     if (ctl) ctl.remove();
-    var ov = {}; ov[district.properties.name + ' line'] = districtLayer; ov['Hydrants (county data, 2015)'] = hydrantLayer; ov['Contours, 2 ft (zoom in close)'] = contours; ov['Driveways and buildings'] = plani;
+    var ov = {}; ov[district.properties.name + ' line'] = districtLayer; ov['Hydrants (county and town data)'] = hydrantLayer; ov['Contours, 2 ft (zoom in close)'] = contours; ov['Driveways and buildings'] = plani;
     ctl = L.control.layers(bases, ov, { collapsed: false, position: 'topright' }).addTo(map);
     $('setDistrict').value = district.properties.id;
     $('geoText').placeholder = 'Street address in ' + district.properties.name;
     if (fit !== false) map.fitBounds(bb, { padding: [10, 10] });
     drawHydrants();
-    var n = hIn.filter(Boolean).length, few = n < MIN_HYD; // few hydrants: the 2015 list may be incomplete
+    var n = hIn.filter(Boolean).length, town = hydrants.some(function (h, i) { return hIn[i] && h[3] === 'TOG'; }), few = n < MIN_HYD; // few hydrants: the 2015 list may be incomplete
     $('distCount').className = 'note-box' + (few ? ' warn' : '');
-    $('distCount').textContent = 'County data: ' + (n ? n === 1 ? '1 hydrant' : n.toLocaleString('en-US') + ' hydrants' : 'no hydrants') + ' in this district' +
-      (few ? '. The county list is from 2015 and can be incomplete. Set the water source from a hydrant or a draft site that you know.' : ' (2015).');
+    $('distCount').textContent = (town ? 'Hydrant data: ' : 'County data: ') + (n ? n === 1 ? '1 hydrant' : n.toLocaleString('en-US') + ' hydrants' : 'no hydrants') + ' in this district' +
+      (few ? '. The county list is from 2015 and can be incomplete. Set the water source from a hydrant or a draft site that you know.' : (town ? ' (county 2015, Town of Greenburgh 2026).' : ' (2015).'));
     if (user) { setStatus('District set to ' + district.properties.name + '. Enter an address.'); autosave(); }
   }
   $('setDistrict').innerHTML = districts.map(function (f) { return '<option value="' + f.properties.id + '">' + esc(f.properties.name) + '</option>'; }).join('');
@@ -634,7 +634,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   map.on('click', function (e) {
     if (state.drawing) { addPoint(e.latlng); return; }
     var h = nearestHydrant(e.latlng, 10);
-    if (h) L.popup().setLatLng([h[1], h[0]]).setContent('<b>Hydrant ' + esc(h[2] || '(no number)') + '</b><br>District code: ' + esc(h[3]) + '<br>County data, 2015. No flow value.').openOn(map);
+    if (h) L.popup().setLatLng([h[1], h[0]]).setContent('<b>Hydrant ' + esc(h[2] || '(no number)') + '</b><br>' + (h[3] === 'TOG' ? 'Town of Greenburgh data, 2026.<br>No flow value.' : 'District code: ' + esc(h[3]) + '<br>County data, 2015. No flow value.')).openOn(map);
   });
 
   /* ---------- route drawing ---------- */
@@ -966,7 +966,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     h += '</tbody></table><div class="notes"><b>Notes:</b> ' + esc(state.notes) + '</div>';
     h += '<div class="foot">Rules: ' + s.hose + '" LDH, friction loss from the YHFD chauffeur chart (' + (s.basis === 'chart' ? 'chart table' : 'formula') + '), 0.5 PSI for each foot of climb, maximum PDP ' + s.cap + ' PSI, intake ' + s.residual + ' PSI, hose slack ' + s.slack + '%, one engine lays each section, maximum ' + fmt(s.hosePerEngine) + ' ft. ' +
       (s.lay === 'reverse' ? 'Reverse lay: each engine starts at the attack end of its section, lays hose back to its position, and pumps there. ' : s.lay === 'forward' ? 'Forward lay: each engine starts at the source end of its section and lays hose to its position. One more engine pumps at the source. ' : '') +
-      'Ground heights: USGS 3DEP LiDAR. Hydrants: Westchester County GIS, 2015. This card does not show the flow the water source can give. Planning aid only. The pump operator sets pressures from the gauges on scene.</div>';
+      'Ground heights: USGS 3DEP LiDAR. Hydrants: Westchester County GIS, 2015, and Town of Greenburgh, 2026. This card does not show the flow the water source can give. Planning aid only. The pump operator sets pressures from the gauges on scene.</div>';
     $('cardBody').innerHTML = h;
   }
   function routeBounds() { return L.latLngBounds(state.points.map(function (p) { return [p.lat, p.lng]; })); }
@@ -1080,7 +1080,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
       }
     } catch (err) { res = null; why = 'fail'; }
     if (token !== geoToken || state.drawing || state.points.length) return;
-    if (!res) { setStatus('Found: ' + label + '. No road draft: ' + { fail: 'the road data did not answer', road: 'no road is near this address', hydrant: 'the county data has no hydrant in 1 mile by road' }[why] + '. Trace the route by hand.'); return; }
+    if (!res) { setStatus('Found: ' + label + '. No road draft: ' + { fail: 'the road data did not answer', road: 'no road is near this address', hydrant: 'the hydrant data has no hydrant in 1 mile by road' }[why] + '. Trace the route by hand.'); return; }
     var h = res.hydrant;
     state.points = res.points; state.sourceHydrant = { num: h[2], code: h[3] }; $('sourceType').value = state.sourceType = 'Hydrant'; state.manual = {}; state.draft = true;
     drawRoute(); map.fitBounds(routeBounds(), { padding: [60, 60], maxZoom: 19 });

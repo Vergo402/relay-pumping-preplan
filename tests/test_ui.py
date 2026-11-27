@@ -212,9 +212,28 @@ with sync_playwright() as p:
         GATE['road'] = None; return v.inner_text('#status')
     FAR = [[C[1], C[0]+0.05], [C[1]+0.002, C[0]+0.05]]   # a road about 3.4 miles from every stand-in hydrant
     t = why((C[0]+0.05, C[1]+0.001), FAR)
-    ok('no hydrant in 1 mile by road: the status gives that reason', t=='Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. No road draft: the county data has no hydrant in 1 mile by road. Trace the route by hand.', t)
+    ok('no hydrant in 1 mile by road: the status gives that reason', t=='Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. No road draft: the hydrant data has no hydrant in 1 mile by road. Trace the route by hand.', t)
     t = why((C[0]+0.01, C[1]), None)   # about 3,600 ft north of the stand-in road
     ok('no road within 500 ft: the status gives that reason', t=='Found: 100 TEST HILL RD, YORKTOWN HEIGHTS. No road draft: no road is near this address. Trace the route by hand.', t)
+    # ---- v0.6 phase: Town of Greenburgh hydrants (code TOG) ----
+    def tog_page(rows):
+        f = pathlib.Path('out/test_tog.html')
+        f.write_text(re.sub(r'(id="hydrant-data">).*?(</script>)', lambda m: m.group(1) + json.dumps(fake + rows) + m.group(2), src, count=1, flags=re.S), encoding='utf-8')
+        w = fresh(); w.goto(f.resolve().as_uri()); w.wait_for_timeout(700); return w
+    TOG = [[C[1]+0.0005, C[0]+0.0005, '6001', 'TOG']] + [[C[1]+0.0005+i*0.0001, C[0]-0.0005, 'G-%d' % i, 'TOG'] for i in range(59)]
+    w = tog_page(TOG[:1])
+    ok('count line with 1 stand-in TOG row inside the district: Hydrant data prefix, warning sentence unchanged', (w.inner_text('#distCount'), w.get_attribute('#distCount', 'class'))==('Hydrant data: 4 hydrants in this district. ' + NOTE, 'note-box warn'), w.inner_text('#distCount'))
+    w = tog_page(TOG)
+    ok('count line with 60 stand-in TOG rows: Hydrant data prefix, county and town ending, no warning', (w.inner_text('#distCount'), w.get_attribute('#distCount', 'class'))==('Hydrant data: 63 hydrants in this district (county 2015, Town of Greenburgh 2026).', 'note-box'), (w.inner_text('#distCount'), w.get_attribute('#distCount', 'class')))
+    ok('layer control names the hydrant layer "Hydrants (county and town data)"', 'Hydrants (county and town data)' in w.inner_text('.leaflet-control-layers') and 'county data, 2015' not in w.inner_text('.leaflet-control-layers'), w.inner_text('.leaflet-control-layers'))
+    def pop(row):
+        w.evaluate('window.__relay.map.setView([%f,%f],18,{animate:false})' % (row[1], row[0])); w.wait_for_timeout(300)
+        w.evaluate('window.__relay.map.fire("click",{latlng:{lat:%f,lng:%f}})' % (row[1], row[0])); w.wait_for_timeout(300)
+        return w.inner_text('.leaflet-popup-content')
+    t = pop(TOG[0])
+    ok('town hydrant popup gives the number, the town source, and no flow value', t=='Hydrant 6001\nTown of Greenburgh data, 2026.\nNo flow value.', t)
+    t = pop(fake[0])
+    ok('county hydrant popup is unchanged', t=='Hydrant T-101\nDistrict code: YKTWN\nCounty data, 2015. No flow value.', t)
     ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])
     bad = [e for e in errors if 'Failed to load resource' not in e]
     ok('no console errors except the aborted requests', not bad, bad[:3])

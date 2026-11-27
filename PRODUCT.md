@@ -42,15 +42,16 @@ A paper chart gives the pressure for a hose length. It does not know the hill or
 ## Capabilities and Constraints
 
 - The tool stays one HTML file. No server, no login, and no hosting.
-- The tool uses free public data only: Westchester County GIS and USGS. No paid service and no account key.
+- The tool uses free public data only: Westchester County GIS, Town of Greenburgh GIS, and USGS. No paid service and no account key.
 - The hydraulic rules come from the YHFD chauffeur reference chart. They apply to all districts in the page.
 - The tool is a planning aid. Each screen and each card tells the user to verify on site.
 - The page does not know the flow of a hydrant or a draft site. The hydrant data is from 2015.
 - The road draft uses hydrants only. It makes no draft when no hydrant is in 1 mile by road.
 - A change to the hydraulic rules, the defaults, or the data needs approval from Alex.
 - Terms: supply line, reverse lay, forward lay, relay engine, attack engine, water source, PDP, LDH, GPM, PSI, chauffeur.
-- Status: pilot v0.5. No field check is done yet.
+- Status: pilot v0.6. No field check is done yet.
 - The county hydrant list is not complete for some districts. The page shows the count for the selected district and warns below 50.
+- The page adds the Town of Greenburgh hydrants (2026). They fill Hartsdale FD and Fairview FD. Peekskill, Buchanan, Ossining, and Harrison have no public hydrant data.
 
 - The built-in start values are the YHFD values: 1,000 ft of hose on each engine and 185 PSI maximum PDP. A YHFD engine carries 1,500 ft, and the department maximum is 200 PSI.
 - A user can set their own start values. The values stay in the browser or in a saved copy of the page.
@@ -65,6 +66,7 @@ A paper chart gives the pressure for a hose length. It does not know the hill or
 
 - The YHFD chauffeur reference chart (PDF) is the source of the hydraulic values. The math checks in `tests/test_core.js` compare the page with it.
 - County data: 60 fire district boundaries and 22,499 hydrants, in `data/`.
+- Town of Greenburgh data: 1,813 hydrants, in `data/`.
 - An accepted mockup for v0.3 is in `docs/mockups/`.
 - No field check results, no user feedback from other members, and no photos exist yet. Do not invent them.
 

@@ -3,10 +3,11 @@
 This repo is one HTML page that plans a long supply line lay for Yorktown Heights Fire District (YHFD). A repo is a project folder that Git tracks. Git saves each version of the files.
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
-Status: pilot v0.5. Alex approved the v0.2 direction. No field check is done yet.
+Status: pilot v0.6. Alex approved the v0.2 direction. No field check is done yet.
 v0.3 adds a fire district picker for 60 Westchester districts and a road draft. The hydraulic rules are still the YHFD rules.
 v0.4 adds 185 PSI as the default maximum PDP and a "My defaults" box. A user can keep their own start values in the browser or in a saved copy of the page.
 v0.5 shows the county hydrant count for the selected district. It warns when the count is below 50, and the no-draft status gives the reason.
+v0.6 adds the Town of Greenburgh hydrants. They fill Hartsdale FD (417 hydrants) and Fairview FD (678).
 The GitHub repo is private. Its name is yhfd-relay-calculator.
 
 ## Files
@@ -14,14 +15,16 @@ The GitHub repo is private. Its name is yhfd-relay-calculator.
 | Path | Content |
 |---|---|
 | `src/calculator.html` | The page source. Markup, styles, and two scripts: `core` (hydraulics) and `appjs` (map and screen). |
-| `build.py` | Puts Leaflet, the district boundary, and the hydrant list into one HTML file. |
+| `build.py` | Puts Leaflet, the district boundary, and the hydrant list into one HTML file. It adds a town hydrant only when no county hydrant is in 50 ft (1,378 added). |
 | `data/fire-districts.geojson` | 60 named Westchester fire district boundaries. Yorktown Hgts FD is id 253. |
 | `data/hydrants.json` | 22,499 hydrants, all of Westchester County. 823 have the YHFD code `YKTWN`. The county list is not complete: Hartsdale FD has 3, Fairview FD 24, Peekskill FD 1. |
+| `data/hydrants-greenburgh.json` | 1,813 Town of Greenburgh hydrants in service, with the code `TOG`. |
 | `scripts/fetch_hydrants.py` | Gets the hydrant list again from the county. |
+| `scripts/fetch_greenburgh_hydrants.py` | Gets the town hydrants again from the Town of Greenburgh. |
 | `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
 | `tests/test_core.js` | 49 math checks: 36 against the chauffeur chart and 13 for the road draft. Runs in Node. |
-| `tests/test_ui.py` | 55 page checks in Chrome through Playwright. No internet needed. |
-| `package.json` | Version 0.5.0. It holds the `build`, `test`, and `test:ui` commands. |
+| `tests/test_ui.py` | 60 page checks in Chrome through Playwright. No internet needed. |
+| `package.json` | Version 0.6.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
 | `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
 | `dist/` | Build output. Git ignores it. |
@@ -46,10 +49,10 @@ No Playwright browser download is necessary. The page test uses the installed Go
 |---|---|
 | `python3 build.py` | Writes `dist/YHFD Relay Pumping Calculator.html`. |
 | `npm test` | Builds, then runs the 49 math checks. |
-| `npm run test:ui` | Builds, then runs the 55 page checks. It calls `.venv/bin/python`. |
+| `npm run test:ui` | Builds, then runs the 60 page checks. It calls `.venv/bin/python`. |
 
 Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-On 2026-11-26, 49 of 49 math checks and 55 of 55 page checks passed on macOS with Google Chrome 158.
+On 2026-11-26, 49 of 49 math checks and 60 of 60 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 
@@ -63,8 +66,8 @@ On 2026-11-26, 49 of 49 math checks and 55 of 55 page checks passed on macOS wit
 8. After a build, check the SHA-256. The SHA-256 is a fingerprint of a file. It must equal the recorded value below.
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
-Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `53160474532b59cd8a433e202782c25fe5a89353ebf57c912d5a66f79baa3332`
-This is the v0.5 build. On 2026-11-26 the copy Alex uses in OneDrive is the v0.4 build (`bc20308410d7842a70e7d4f1246dee7f77da2314918be2c45611566eb6a97c15`).
+Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `64ad6939217b90d76a5e0f95e50516bced66a497ffdf12c0e09dcb7efe8f3825`
+This is the v0.6 build. The v0.5 value was `53160474532b59cd8a433e202782c25fe5a89353ebf57c912d5a66f79baa3332`. On 2026-11-26 the copy Alex uses in OneDrive is the v0.4 build (`bc20308410d7842a70e7d4f1246dee7f77da2314918be2c45611566eb6a97c15`).
 Claude replaced that copy two times (v0.3 and v0.4), each on a direct request from Alex. Rule 3 still applies.
 The v0.2 value was `21e80ce837c58ff39c76c82a0030220d7f9b859dc50db28cb6cfe615406c2e09`.
 
@@ -117,6 +120,12 @@ Decisions for v0.4 (Alex, 2026-11-26):
 - Clear sets the settings back to the defaults. A plan file keeps its own settings.
 - A saved copy uses its own browser storage keys.
 
+Decisions for v0.6 (Alex, 2026-11-26):
+
+- Add the Town of Greenburgh hydrants to the page. Keep all county hydrants.
+- Research on 2026-11-26 found no public hydrant data for Peekskill, Buchanan, Ossining, or Harrison. OpenStreetMap is not useful.
+- Croton Falls FD and South Salem FD say that they have no standard hydrants. Their zero count is correct.
+
 ## Data sources
 
 In the table, `...` means the county server base: `https://giswww.westchestergov.com/arcgis/rest/services`
@@ -125,6 +134,7 @@ In the table, `...` means the county server base: `https://giswww.westchestergov
 |---|---|---|
 | Ground height | USGS 3DEP `https://elevation.nationalmap.gov/arcgis/rest/services/3DEPElevation/ImageServer/getSamples` | 1 metre LiDAR grid here. Values in metres. Fallback: `https://epqs.nationalmap.gov/v1/json`. |
 | Hydrants | `https://giswww.westchestergov.com/arcgis/rest/services/DataHub_Infrastructure/MapServer/147` | County date: October 5, 2015. No flow values. |
+| Hydrants, Town of Greenburgh | `https://services5.arcgis.com/7CI4QzLwCwxDf9WB/arcgis/rest/services/WaterDistributionSystem_V3/FeatureServer/32` | Owner: Town of Greenburgh GIS. Edited 2026-11-24. No flow values that the page can use. No licence text. |
 | Street map | `.../WestchesterCountyBasemap_WGS84/MapServer` | Tiles. |
 | Aerial photo 2025 | `.../MappingWestchesterCounty_AerialPhoto2025/MapServer/export` | Image export. |
 | 2 ft contours | `.../2FtContours_WGS84/MapServer` | Tiles from zoom 18 only. |
