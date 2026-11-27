@@ -59,6 +59,7 @@ CARD = """() => { const up=n=>Math.ceil((n-0.5)/100)*100, st=window.__relay.stat
 # Every card block, with a count of its engine (.e), section (.s), and grid (.g) elements.
 CARD_ALL = "[...document.querySelectorAll('#cardBody .blk')].map(b => ({label:b.querySelector('.fl b').textContent, text:b.innerText, np:!!b.querySelector('.np'), e:b.querySelectorAll('.e').length, s:b.querySelectorAll('.s').length, g:b.querySelectorAll('.g').length, relays:window.__relay.state.results[+b.querySelector('.fl b').textContent.replace(',','')].segs.length-1}))"
 CARDMAP = "[...document.querySelectorAll('#cardBody .blk')].map(b => b.querySelector('.fl').innerText.includes('On the map') ? b.querySelector('.fl b').textContent : '').filter(Boolean)"
+LAYROWS = "(() => { const t=[...document.querySelectorAll('#results table')].filter(t=>t.querySelector('th').textContent=='Lay')[0]; return {heads:[...t.querySelectorAll('th')].map(h=>h.textContent), rows:[...t.querySelectorAll('tbody tr')].map(r=>({cells:[...r.cells].map(c=>c.textContent), h:r.getBoundingClientRect().height}))}; })()"
 UP = [(4,3),(120,-90),(160,-220),(60,-300)]   # source (hydrant at the centre) first, then uphill
 with sync_playwright() as p:
     chrome = os.environ.get('CHROME_PATH')
@@ -92,7 +93,9 @@ with sync_playwright() as p:
     ok('reverse: route runs uphill in water order', rev['net']>100, round(rev['net']))
     ok('every section within 1,000 ft, no flags', all(max(r['secs'])<=1000 and not r['over'] and not r['overHose'] for r in rev['res']))
     txt = pg.inner_text('#results'); i = txt.find('Hose lay order'); print('LAY BLOCK (reverse):', txt[i:i+420].replace('\n',' | '))
-    ok('reverse lay order: first lay starts at the attack engine, last pumps as Source', 'reverse lay' in txt and txt.find('The attack engine to')>0 and txt.find('Pumps as Source')>txt.find('The attack engine to'))
+    lo = pg.evaluate(LAYROWS); nr = len(lo['rows']); rr = lo['rows']  # v0.15: the lay order table has From, To, and Then pumps as columns
+    ok('reverse lay order: first lay starts at the attack engine, last pumps as Source', 'reverse lay' in txt and rr[0]['cells'][1:3]==['Attack','Relay %d' % (nr-1)] and rr[-1]['cells'][4]=='Source' and rr[-1]['cells'][2]=='Water source')
+    ok('v0.15: reverse lay table has 5 headers and one-line rows with short From, To, and Then cells', lo['heads']==['Lay','From','To','Hose','Then pumps as'] and nr>=2 and all(r['h']<34 for r in rr) and [r['cells'][0] for r in rr]==[str(i+1) for i in range(nr)] and all(rr[i]['cells'][2]==rr[i+1]['cells'][1] and rr[i]['cells'][4]==rr[i]['cells'][2].replace('Water source','Source') for i in range(nr-1)) and all(r['cells'][3].endswith(' ft') for r in rr), lo)
     pg.screenshot(path='out/v2_reverse.png')
     ov = pg.evaluate("(() => { const e=document.getElementById('side'); const t=[...e.querySelectorAll('table')].map(x=>x.scrollWidth); return {side:e.clientWidth, tables:t, inner:e.clientWidth-36}; })()")
     ok('sidebar tables fit the panel', all(w <= ov['inner']+1 for w in ov['tables']), ov)
@@ -100,7 +103,9 @@ with sync_playwright() as p:
     # ---- switch the same route to forward lay ----
     unfold(pg); pg.click('#layFwd'); pg.wait_for_timeout(200); fw = pg.evaluate(SNAP); txt = pg.inner_text('#results'); i = txt.find('Hose lay order'); print('LAY BLOCK (forward):', txt[i:i+470].replace('\n',' | '))
     ok('switch to forward keeps the hydraulics', fw['res']==rev['res'] and fw['lay']=='forward')
-    ok('forward lay order: first lay starts at the water source, last stops at the attack engine', txt.find('The water source to')>0 and 'Stops at the attack engine' in txt)
+    lf = pg.evaluate(LAYROWS); fr = lf['rows']; nf = len(fr)
+    ok('forward lay order: first lay starts at the water source, last stops at the attack engine', fr[0]['cells'][1]=='Water source' and fr[-1]['cells'][2]=='Attack' and fr[-1]['cells'][4]=='Stops at Attack')
+    ok('v0.15: forward lay rows carry the short From, To, and Then cells and stay on one line', lf['heads']==['Lay','From','To','Hose','Then pumps as'] and nf==nr and all(r['h']<34 for r in fr) and all(fr[i]['cells'][2]==fr[i+1]['cells'][1] and fr[i]['cells'][4]==fr[i]['cells'][2] for i in range(nf-1)) and [r['cells'][3] for r in fr]==[r['cells'][3] for r in reversed(rr)], lf)
     pg.locator('#flowTable tbody tr').nth(2).click(); pg.wait_for_timeout(200)
     rel = pg.locator('.em.R').first; rb = rel.bounding_box(); pg.mouse.move(rb['x']+15, rb['y']+15); pg.mouse.down(); pg.mouse.move(rb['x']-60, rb['y']+90, steps=8); pg.mouse.up(); pg.wait_for_timeout(300)
     d = pg.evaluate(SNAP)['res'][2]; ok('hand move that makes a long section raises the hose warning', d['overHose'] and 'longer than 1,000 ft' in pg.inner_text('#results'), d)
@@ -448,7 +453,7 @@ with sync_playwright() as p:
     e10 = len(errors)
     GATE['roads'] = False; GATE['addr'] = C
     t10 = fresh(); t10.goto(test_html.resolve().as_uri()); t10.wait_for_timeout(700)
-    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.14', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.inner_text('#side') and 'Pilot v0.14' in t10.inner_text('.brand'))
+    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.inner_text('#side') and 'Pilot v0.15' in t10.inner_text('.brand'))
     ok('v0.10: the status line lists six values', t10.inner_text('#defaultsStatus')=='Defaults in use: YHFD (Yorktown Hgts FD, 5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==6, t10.inner_text('#defaultsStatus'))
     t10.click('#side details summary'); rules = t10.inner_text('#side details')
     ok('v0.10: the rules list states the one friction rule and the round-up rule', 'one rule' in rules and '0.08' in rules and 'rounds up to the next 5 PSI' in rules and 'chart table' not in rules.lower() and 'formula option' not in rules.lower(), rules[:200])
@@ -573,6 +578,18 @@ with sync_playwright() as p:
         ok('v0.14: %s on a focused row selects it, keeps focus on it, and sets aria-selected' % key, st['flow']==q and st['focus']==str(q) and st['aria']==['true:%d' % q] and st['y']==y0, st)
     ok('v0.14: the result holds no pressure demand text', 'pressure demand' not in k14.inner_text('#results').lower() and k14.locator('#results .budget').count()==0)
     k14.close()
+    # ---- v0.15 phase: the lay table is short, the sidebar starts at the top, the layer list is closed on a phone ----
+    e15 = len(errors); GATE['addr'] = ADDR2
+    w = fresh(); w.set_viewport_size({'width':1440,'height':900}); w.goto(test_html.resolve().as_uri()); w.wait_for_timeout(700)
+    ok('v0.15: at 1440 px the layer control is open at load', 'leaflet-control-layers-expanded' in w.get_attribute('.leaflet-control-layers', 'class'))
+    w.fill('#geoText', '100 Test Hill Rd'); w.click('#geoForm button'); w.wait_for_timeout(600); draft(w); w.wait_for_selector('#flowTable', timeout=8000); w.wait_for_timeout(500)
+    ok('v0.15: at 1440 px the sidebar scrollTop is 0 after a road draft', w.evaluate("document.getElementById('side').scrollTop")==0, w.evaluate("document.getElementById('side').scrollTop"))
+    ok('v0.15: no element uses the class fact or facts', w.evaluate("document.querySelectorAll('.fact, .facts').length")==0)
+    w.close()
+    n15 = fresh(); n15.set_viewport_size({'width':390,'height':800}); n15.goto(test_html.resolve().as_uri()); n15.wait_for_timeout(700)
+    ok('v0.15: at 390 px the layer control starts collapsed', 'leaflet-control-layers-expanded' not in n15.get_attribute('.leaflet-control-layers', 'class'))
+    n15.close()
+    ok('no page errors in the v0.15 phase', not [e for e in errors[e15:] if 'Failed to load resource' not in e], errors[e15:][:3])
     ok('no page errors in the v0.14 phase', not [e for e in errors[e14:] if 'Failed to load resource' not in e], errors[e14:][:3])
     ok('no page errors in the v0.13 phase', not [e for e in errors[e13:] if 'Failed to load resource' not in e], errors[e13:][:3])
     ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])

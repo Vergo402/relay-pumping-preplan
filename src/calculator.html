@@ -55,6 +55,7 @@ input:focus,select:focus,button:focus-visible{outline:2px solid var(--blue);outl
 .seg button:disabled{opacity:.55;cursor:default}
 .sub{font-size:12.5px;margin:14px 0 4px}
 table.wrap td{white-space:normal}
+table.lay1 td{white-space:nowrap}
 .note{font-size:12.5px;color:var(--muted);margin:6px 0 10px}
 .steps{margin:0 0 10px;padding-left:20px;color:var(--ink)}
 .steps li{margin-bottom:3px}
@@ -64,11 +65,6 @@ table.wrap td{white-space:normal}
 .note-box{font-size:12.5px;border-radius:6px;padding:8px 10px;margin:8px 0 0;background:var(--bg);color:var(--muted)}
 .note-box.warn{background:var(--amber-soft);color:#6b4300}
 #status.ok{background:var(--green-soft);color:var(--green)}
-.facts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
-.fact{background:var(--bg);border-radius:6px;padding:8px 10px}
-.fact span{display:block;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
-.fact b{font-size:17px;font-variant-numeric:tabular-nums}
-.fact small{display:block;color:var(--muted);font-size:11.5px}
 .fx{display:grid;grid-template-columns:repeat(4,auto);justify-content:space-between;background:var(--bg);border-radius:6px;padding:7px 10px;margin-bottom:10px}
 .fx b{display:block;font-size:15px;font-variant-numeric:tabular-nums}
 .fx span{font-size:11px;color:var(--muted)}
@@ -197,7 +193,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.14 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><h1>YHFD Relay Pumping Calculator</h1><p>Pilot v0.15 &middot; Planning aid only. Verify on site.</p></div>
 
     <div class="sec" data-k="dist">
       <button type="button" class="su" aria-expanded="false"><i>District</i><span></span><u>Change</u></button>
@@ -645,6 +641,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   map.on('moveend', drawHydrants);
   // user: true when the user changed the choice; fit: move the map to the district
   var MIN_HYD = 50; // below this count the page warns about the county list
+  var PHONE = window.matchMedia('(max-width:900px)').matches; // read once at load
   function applyDistrict(id, user, fit) {
     district = districts.filter(function (f) { return f.properties.id === +id; })[0] || districts.filter(function (f) { return f.properties.id === 253; })[0] || districts[0];
     state.settings.district = district.properties.id;
@@ -653,7 +650,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     hIn = hydrants.map(function (h) { return bb.contains([h[1], h[0]]) && RelayCore.pointInPolygon(h[0], h[1], district.geometry); });
     if (ctl) ctl.remove();
     var ov = {}; ov[district.properties.name + ' line'] = districtLayer; ov['Hydrants (county and town data)'] = hydrantLayer; ov['Contours, 2 ft (zoom in close)'] = contours; ov['Driveways and buildings'] = plani;
-    ctl = L.control.layers(bases, ov, { collapsed: false, position: 'topright' }).addTo(map);
+    ctl = L.control.layers(bases, ov, { collapsed: PHONE, position: 'topright' }).addTo(map);
     $('setDistrict').value = district.properties.id;
     $('geoText').placeholder = 'Street address in ' + district.properties.name;
     if (fit !== false) map.fitBounds(bb, { padding: [10, 10] });
@@ -900,16 +897,17 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   function layPlan(r) {
     var segs = r.segs, n = segs.length, lay = state.settings.lay, out = [], k;
     function pos(i) { return i === 0 ? 'the water source' : (i === n ? 'the attack engine' : 'the Relay ' + i + ' position'); }
+    function sh(i) { return i === 0 ? 'Water source' : (i === n ? 'Attack' : 'Relay ' + i); } // short names for the sidebar table
     function cap1(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
-    if (lay === 'reverse') for (k = n - 1; k >= 0; k--) out.push({ path: cap1(pos(k + 1)) + ' to ' + pos(k), ft: up100(segs[k].hose), then: 'Pumps as ' + (k === 0 ? 'Source' : 'Relay ' + k), over: segs[k].overHose });
-    else if (lay === 'forward') for (k = 0; k < n; k++) out.push({ path: cap1(pos(k)) + ' to ' + pos(k + 1), ft: up100(segs[k].hose), then: k === n - 1 ? 'Stops at the attack engine' : 'Pumps as Relay ' + (k + 1), over: segs[k].overHose });
+    if (lay === 'reverse') for (k = n - 1; k >= 0; k--) out.push({ path: cap1(pos(k + 1)) + ' to ' + pos(k), ft: up100(segs[k].hose), then: 'Pumps as ' + (k === 0 ? 'Source' : 'Relay ' + k), from: sh(k + 1), to: sh(k), next: k === 0 ? 'Source' : 'Relay ' + k, over: segs[k].overHose });
+    else if (lay === 'forward') for (k = 0; k < n; k++) out.push({ path: cap1(pos(k)) + ' to ' + pos(k + 1), ft: up100(segs[k].hose), then: k === n - 1 ? 'Stops at the attack engine' : 'Pumps as Relay ' + (k + 1), from: sh(k), to: sh(k + 1), next: k === n - 1 ? 'Stops at Attack' : 'Relay ' + (k + 1), over: segs[k].overHose });
     return out;
   }
   function layBlock(r) {
     var lay = state.settings.lay;
     if (!lay) return '<h3 class="sub">Hose lay order</h3><p class="note">Select Reverse lay or Forward lay to see which engine lays each section.</p>';
-    var h = '<h3 class="sub">Hose lay order: ' + LAY[lay].name.toLowerCase() + ', ' + fmt(state.flow) + ' GPM</h3><table class="wrap"><thead><tr><th>Lay</th><th>Engine lays from</th><th class="n">Hose</th><th>Then</th></tr></thead><tbody>';
-    layPlan(r).forEach(function (x, i) { h += '<tr><td>' + (i + 1) + '</td><td>' + x.path + '</td><td class="n" style="white-space:nowrap"><b' + (x.over ? ' style="color:var(--red)"' : '') + '>' + fmt(x.ft) + ' ft</b></td><td>' + x.then + '</td></tr>'; });
+    var h = '<h3 class="sub">Hose lay order: ' + LAY[lay].name.toLowerCase() + ', ' + fmt(state.flow) + ' GPM</h3><table class="wrap lay1"><thead><tr><th>Lay</th><th>From</th><th>To</th><th class="n">Hose</th><th>Then pumps as</th></tr></thead><tbody>';
+    layPlan(r).forEach(function (x, i) { h += '<tr><td>' + (i + 1) + '</td><td>' + x.from + '</td><td>' + x.to + '</td><td class="n" style="white-space:nowrap"><b' + (x.over ? ' style="color:var(--red)"' : '') + '>' + fmt(x.ft) + ' ft</b></td><td>' + x.next + '</td></tr>'; });
     h += '</tbody></table><p class="note">' + (lay === 'reverse'
       ? 'Each engine starts at the attack end of its section. It lays hose back to its position and pumps there.'
       : 'Each engine starts at the source end of its section. One more engine goes to the water source to pump. It lays no supply hose. The attack engine can make the last lay on its way in.') + '</p>';
@@ -1278,6 +1276,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     if (has && !fold.had) {
       fold.open = {};
       if (window.matchMedia('(max-width:900px)').matches) $('results').parentNode.scrollIntoView(); // phone: show the result
+      else $('side').scrollTop = 0; // desktop: show the title
     }
     if (!has) fold.open = {};
     fold.had = has;
