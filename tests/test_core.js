@@ -13,6 +13,9 @@ const flat=L=>route(L,()=>500);
 const S=(p,gpm,cap,basis='chart',res=20,hose=5,man)=>C.solve(p,{gpm,hose,basis,cap,residual:res},man);
 ok('FL chart 5in', C.flPer100(5,500,'chart')===2&&C.flPer100(5,750,'chart')===5&&C.flPer100(5,1000,'chart')===10);
 ok('FL formula 5in', Math.abs(C.flPer100(5,750,'formula')-4.5)<1e-9&&Math.abs(C.flPer100(5,1000,'formula')-8)<1e-9&&Math.abs(C.flPer100(5,500,'formula')-2)<1e-9);
+// dual 3 inch lines: 6, 11.25, 20 on the chart; the formula gives 0.8 x (half flow / 100)^2, so 5, 11.25, 20
+ok('FL dual 3in chart', C.flPer100(3,500,'chart')===6&&C.flPer100(3,750,'chart')===11.25&&C.flPer100(3,1000,'chart')===20);
+ok('FL dual 3in formula', Math.abs(C.flPer100(3,500,'formula')-5)<1e-9&&Math.abs(C.flPer100(3,750,'formula')-11.25)<1e-9&&Math.abs(C.flPer100(3,1000,'formula')-20)<1e-9&&Math.abs(C.flPer100(3,750,'formula')-0.8*Math.pow(750/2/100,2))<1e-9);
 ok('FL 4in', C.flPer100(4,1000,'chart')===20&&Math.abs(C.flPer100(4,750,'formula')-11.25)<1e-9);
 let p=flat(2600), r=S(p,750,150);
 ok('flat 2600ft 750gpm cap150 chart: no relay, PDP 150', r.relays.length===0&&r.maxPdp===150&&!r.over, `relays ${r.relays.length} pdp ${r.maxPdp} hose ${p.h[p.n-1].toFixed(1)}`);
@@ -30,6 +33,11 @@ r=S(hill,750,200); ok('example 750gpm cap200: PDP ~155, no relay', r.relays.leng
 r=S(hill,750,150); ok('example 750gpm cap150: 1 relay', r.relays.length===1&&!r.over, `pdps ${r.segs.map(s=>s.pdp)}`);
 r=S(hill,1000,200); ok('example 1000gpm cap200: 1 relay (230 needed)', r.relays.length===1&&!r.over, `pdps ${r.segs.map(s=>s.pdp)} demand ${(r.frictionAll+r.climbAll+20).toFixed(0)}`);
 r=S(hill,500,150); ok('example 500gpm cap150: no relay, PDP 110', r.relays.length===0&&r.maxPdp===110, `pdp ${r.maxPdp}`);
+// hose pressure limit: 250 PSI for dual 3 inch, 200 for 5 inch. A downhill run with the pump at idle (50 PSI) builds hose pressure from the drop.
+{ const mid=route(1000,x=>900-0.45*x), steep=route(1000,x=>900-0.8*x), m3=S(mid,500,150,'chart',20,3), m5=S(mid,500,150,'chart',20,5), t3=S(steep,500,150,'chart',20,3);
+  ok('hose limits: 250 for hose 3, 200 for hose 5 and 4', C.hoseMax(3)===250&&C.hoseMax(5)===200&&C.hoseMax(4)===200&&C.LDH_MAX===200);
+  ok('hose limit: a run between 200 and 250 PSI flags hose 5 but not hose 3', m5.overLdh===true&&m3.overLdh===false&&m3.peak>201&&m3.peak<250, `hose5 peak ${Math.round(m5.peak)} hose3 peak ${Math.round(m3.peak)}`);
+  ok('hose limit: a run above 250 PSI flags hose 3 too', t3.overLdh===true&&t3.peak>251, `peak ${Math.round(t3.peak)}`); }
 // intake at each receiving engine >= residual, every hose point >= 10
 function check(p,r,res){ let good=true; r.segs.forEach(s=>{ if(s.intake<res-1.01) good=false; }); r.line.forEach(pt=>{ if(pt[1]<C.LINE_MIN-1.01) good=false; }); return good; }
 ok('pressures hold on example', check(hill,S(hill,1000,200),20)&&check(hill,S(hill,750,150),20));
@@ -86,7 +94,7 @@ const roads=[{name:'Left Rd',path:[LL(500,400),LL(500,0)]},{name:'Bottom Rd',pat
 const AD=P(620,300), H1=HY(500,400,'H-1'), H2=HY(610,100,'H-2'), H3=HY(700,300,'H-3'), H5=HY(330,100,'H-5');
 let d=C.draftRoute(AD,[H1,H2,H3],roads,{});
 ok('draftRoute: picks the hydrant that is shortest by road, not by straight line', d&&d.hydrant[2]==='H-2'&&Math.abs(d.roadFt-200)<2, d&&`${d.hydrant[2]} roadFt ${d.roadFt.toFixed(1)}`);
-ok('  water order: first point is the hydrant, last point is the address', d&&d.points[0].lat===H2[1]&&d.points[0].lng===H2[0]&&d.points[d.points.length-1].lat===AD.lat&&d.points[d.points.length-1].lng===AD.lng&&d.points.length>=3, d&&`${d.points.length} points`);
+ok('  water order: first point is the hydrant, last point is the road point near the address (20 ft, short driveway)', d&&d.points[0].lat===H2[1]&&d.points[0].lng===H2[0]&&C.distFt(d.points[d.points.length-1],P(600,300))<1&&d.points.length>=3, d&&`${d.points.length} points`);
 ok('  the hydrant on a disconnected road is not selected', d&&d.hydrant[2]!=='H-3'&&C.draftRoute(AD,[H3],roads,{})===null);
 ok('  a hydrant more than 150 ft from a road is ignored', C.draftRoute(AD,[H5],roads,{})===null&&C.draftRoute(AD,[H2,H5],roads,{}).hydrant[2]==='H-2'&&C.draftRoute(AD,[H5],roads,{hydMaxFt:200})!==null);
 ok('  an address more than 500 ft from a road gives null', C.draftRoute(P(620,1200),[H1,H2],roads,{})===null&&C.draftRoute(P(620,1200),[H1,H2],roads,{addrMaxFt:1000})!==null);
@@ -96,4 +104,15 @@ let o={}; C.draftRoute(P(620,1200),[H1,H2],roads,o);
 ok('  the reason is road when no road is near the address', o.why==='road', o.why);
 o={}; C.draftRoute(AD,[H3],roads,o);
 ok('  the reason is hydrant when no hydrant joins by road', o.why==='hydrant', o.why);
+// short driveway: an address closer than 100 ft to the road gives a draft that ends on the road
+d=C.draftRoute(AD,[H1,H2,H3],roads,{});
+ok('draftRoute: address 20 ft from the road ends on the road, shortDrive is true', d&&d.shortDrive===true&&C.distFt(d.points[d.points.length-1],P(600,300))<1&&C.distFt(d.points[d.points.length-1],AD)>15, d&&JSON.stringify(d.points[d.points.length-1]));
+const AD99=P(699.5,150), AD100=P(702,150), AD150=P(750,50);
+const R2=[{name:'Right Rd',path:[LL(600,0),LL(600,300)]},{name:'Bottom Rd',path:[LL(500,0),LL(600,0)]}];
+d=C.draftRoute(P(698.5,150),[H2],R2,{});
+ok('  98.5 ft from the road: shortDrive is true', d&&d.shortDrive===true&&C.distFt(d.points[d.points.length-1],P(600,150))<1, d&&`${d.shortDrive}`);
+d=C.draftRoute(P(702,150),[H2],R2,{});
+ok('  102 ft from the road: the address point stays, shortDrive is false', d&&d.shortDrive===false&&C.distFt(d.points[d.points.length-1],P(702,150))<0.5, d&&`${d.shortDrive}`);
+d=C.draftRoute(AD150,[H2],roads,{});
+ok('  150 ft from the road: the address point stays', d&&d.shortDrive===false&&C.distFt(d.points[d.points.length-1],AD150)<0.5, d&&`${d.shortDrive} ${d.points.length} points`);
 console.log(fails?`\n${fails} FAILED`:'\nALL PASS'); process.exit(fails?1:0);

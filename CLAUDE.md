@@ -3,11 +3,12 @@
 This repo is one HTML page that plans a long supply line lay for Yorktown Heights Fire District (YHFD). A repo is a project folder that Git tracks. Git saves each version of the files.
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
-Status: pilot v0.6. Alex approved the v0.2 direction. No field check is done yet.
+Status: pilot v0.7. Alex approved the v0.2 direction. No field check is done yet.
 v0.3 adds a fire district picker for 60 Westchester districts and a road draft. The hydraulic rules are still the YHFD rules.
 v0.4 adds 185 PSI as the default maximum PDP and a "My defaults" box. A user can keep their own start values in the browser or in a saved copy of the page.
 v0.5 shows the county hydrant count for the selected district. It warns when the count is below 50, and the no-draft status gives the reason.
 v0.6 adds the Town of Greenburgh hydrants. They fill Hartsdale FD (417 hydrants) and Fairview FD (678).
+v0.7 adds dual 3 inch supply lines, a road draft that stops on the road for a short driveway, and S and A markers that the user can drag.
 The GitHub repo is private. Its name is yhfd-relay-calculator.
 
 ## Files
@@ -22,9 +23,9 @@ The GitHub repo is private. Its name is yhfd-relay-calculator.
 | `scripts/fetch_hydrants.py` | Gets the hydrant list again from the county. |
 | `scripts/fetch_greenburgh_hydrants.py` | Gets the town hydrants again from the Town of Greenburgh. |
 | `scripts/fetch_districts.py` | Gets the district boundaries again from the county. |
-| `tests/test_core.js` | 49 math checks: 36 against the chauffeur chart and 13 for the road draft. Runs in Node. |
-| `tests/test_ui.py` | 60 page checks in Chrome through Playwright. No internet needed. |
-| `package.json` | Version 0.6.0. It holds the `build`, `test`, and `test:ui` commands. |
+| `tests/test_core.js` | 58 math checks: against the chauffeur chart, for the road draft, and for dual 3 inch lines. Runs in Node. |
+| `tests/test_ui.py` | 74 page checks in Chrome through Playwright. No internet needed. |
+| `package.json` | Version 0.7.0. It holds the `build`, `test`, and `test:ui` commands. |
 | `docs/handoff-2026-11-24.md` | The handoff notes: open items and history. |
 | `docs/mockups/` | The mockups that Alex accepted. A build must match its mockup. |
 | `dist/` | Build output. Git ignores it. |
@@ -48,11 +49,11 @@ No Playwright browser download is necessary. The page test uses the installed Go
 | Command | Result |
 |---|---|
 | `python3 build.py` | Writes `dist/YHFD Relay Pumping Calculator.html`. |
-| `npm test` | Builds, then runs the 49 math checks. |
-| `npm run test:ui` | Builds, then runs the 60 page checks. It calls `.venv/bin/python`. |
+| `npm test` | Builds, then runs the 58 math checks. |
+| `npm run test:ui` | Builds, then runs the 74 page checks. It calls `.venv/bin/python`. |
 
 Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
-On 2026-11-26, 49 of 49 math checks and 60 of 60 page checks passed on macOS with Google Chrome 158.
+On 2026-11-26, 58 of 58 math checks and 74 of 74 page checks passed on macOS with Google Chrome 158.
 
 ## Rules
 
@@ -66,9 +67,11 @@ On 2026-11-26, 49 of 49 math checks and 60 of 60 page checks passed on macOS wit
 8. After a build, check the SHA-256. The SHA-256 is a fingerprint of a file. It must equal the recorded value below.
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
-Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `64ad6939217b90d76a5e0f95e50516bced66a497ffdf12c0e09dcb7efe8f3825`
-This is the v0.6 build. The v0.5 value was `53160474532b59cd8a433e202782c25fe5a89353ebf57c912d5a66f79baa3332`. On 2026-11-26 the copy Alex uses in OneDrive is the v0.4 build (`bc20308410d7842a70e7d4f1246dee7f77da2314918be2c45611566eb6a97c15`).
-Claude replaced that copy two times (v0.3 and v0.4), each on a direct request from Alex. Rule 3 still applies.
+Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `40fcf9d939d3ec409fe6474a6486e4fda0ac77139e8e18321b1f537fb1493870`
+This is the v0.7 build. The v0.5 value was `53160474532b59cd8a433e202782c25fe5a89353ebf57c912d5a66f79baa3332`.
+On 2026-11-26 the copy Alex uses in OneDrive is the v0.6 build (`64ad6939217b90d76a5e0f95e50516bced66a497ffdf12c0e09dcb7efe8f3825`).
+Claude replaced that copy three times (v0.3, v0.4, and v0.6), each on a direct request from Alex.
+The v0.4 value was `bc20308410d7842a70e7d4f1246dee7f77da2314918be2c45611566eb6a97c15`. Rule 3 still applies.
 The v0.2 value was `21e80ce837c58ff39c76c82a0030220d7f9b859dc50db28cb6cfe615406c2e09`.
 
 ## Hydraulic rules
@@ -78,6 +81,9 @@ All values come from the YHFD chauffeur reference chart (PDF).
 - Friction loss, 5 inch hose, PSI for each 100 ft: 2 at 500 GPM, 5 at 750 GPM, 10 at 1,000 GPM.
 - Friction loss, 4 inch hose: 5, 10, and 20.
 - Formula option: `C x (GPM/100)^2 x (ft/100)`, with C = 0.08 for 5 inch and 0.2 for 4 inch.
+- Dual 3 inch lines: the chart says to divide the total flow in half and to calculate for one 3 inch line (C = 0.8).
+- Friction loss, dual 3 inch lines, at the total flow: 6, 11.25, and 20. The chart has no 375 GPM row, so 11.25 is the formula value (Alex, 2026-11-26).
+- Maximum pressure for 3 inch hose: 250 PSI (Alex, 2026-11-26). This value is not in the chart.
 - Climb: 0.5 PSI for each foot.
 - Maximum LDH pressure: 200 PSI. The page warns when a downhill run goes above it.
 - Minimum pressure in the hose at each point: 10 PSI.
@@ -125,6 +131,14 @@ Decisions for v0.6 (Alex, 2026-11-26):
 - Add the Town of Greenburgh hydrants to the page. Keep all county hydrants.
 - Research on 2026-11-26 found no public hydrant data for Peekskill, Buchanan, Ossining, or Harrison. OpenStreetMap is not useful.
 - Croton Falls FD and South Salem FD say that they have no standard hydrants. Their zero count is correct.
+
+Decisions for v0.7 (Alex, 2026-11-26):
+
+- Dual 3 inch lines are a supply hose option. YHFD does not carry dual 3 inch lines. Other departments can.
+- With dual lines, the hose setting means the length of dual line that one engine lays. The page does no division.
+- When the address point is less than 100 ft from the road, the road draft stops on the road.
+- The user can drag the S and A markers. S snaps to a hydrant in 75 ft.
+- The chart is in the YHFD folder: `Operations/Apparatus & Equipment/yhfd-chauffeur-reference-chart.pdf`. Read only.
 
 ## Data sources
 

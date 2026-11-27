@@ -1,6 +1,6 @@
 # YHFD Relay Pumping Calculator
 
-This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.6. No field check is done yet.
+This tool is an aid to plan a long supply hose lay with relay engines. It is pilot v0.7. No field check is done yet.
 
 ## What the tool does
 
@@ -49,8 +49,8 @@ The repo has two test sets. Each command builds the page first.
 
 | Command | Checks | Result |
 |---|---|---|
-| `npm test` | 49 math checks. 36 are against the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI. 13 are for the road draft. | 49 of 49 pass. |
-| `npm run test:ui` | 60 page checks in Chrome through Playwright. | 60 of 60 pass. |
+| `npm test` | 58 math checks. They cover the chauffeur chart, with the chart Max Relay Distance values at 150 and 200 PSI, the road draft, and dual 3 inch lines. | 58 of 58 pass. |
+| `npm run test:ui` | 74 page checks in Chrome through Playwright. | 74 of 74 pass. |
 
 The page test needs no internet. It answers map, address, and ground height requests with stand-in data. The stand-in ground is a smooth slope.
 The page test needs Google Chrome. Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome.
@@ -87,6 +87,8 @@ The user can drag a relay engine. The page then shows the PDPs for that position
 
 - The page does not know the flow a hydrant or draft site can give.
 - It does not include appliance loss or attack line pressures.
+- Dual 3 inch lines use the chart rule: half of the flow in each line. The 250 PSI limit for 3 inch hose is not from the chart.
+- When the address is less than 100 ft from the road, the draft stops on the road. Drag the A marker to move the attack engine.
 - The county hydrant data is from 2015. The county dates it October 5, 2015.
 - The Town of Greenburgh hydrant data is from 2026. It shows no licence text. Ask the town before you share the page outside YHFD.
 - A forward lay needs one more engine at the water source. That engine lays no supply hose. The page says this in a note. It does not add it to an engine count.

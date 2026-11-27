@@ -22,7 +22,9 @@ PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4
 GATE = {'roads': False, 'addr': C, 'road': None}  # road: a stand-in road to use in place of ROAD
 # One road, TEST HILL RD: west to east past T-101, north 0.003 degrees, then east to the address. T-102 is 100 ft off the road and is the nearest by road.
 ROAD = [[C[1], C[0]], [C[1]+0.00237, C[0]], [C[1]+0.00237, C[0]+0.003], [C[1]+0.0035, C[0]+0.003]]
-ADDR2 = (C[0]+0.0031, C[1]+0.0035)
+# ADDR2 is about 110 ft from the road end, so the draft keeps the address point. ADDR_SHORT is about 36 ft from the road end.
+ADDR2 = (C[0]+0.0033, C[1]+0.0035)
+ADDR_SHORT = (C[0]+0.0031, C[1]+0.0035)
 def handle(route):
     req = route.request; u = req.url
     if 'getSamples' in u:
@@ -127,6 +129,8 @@ with sync_playwright() as p:
     ok('road draft with an empty route (hydrant T-102 by road): draft set, source hydrant, status ok', dr['draft'] is True and dr['n']>=3 and dr['hyd'] and dr['hyd']['num']=='T-102' and dr['cls']=='ok' and dr['text'].startswith('Draft route: hydrant'), dr['text'])
     ok('  first point is hydrant T-102 and last point is the address', dr['first'] and abs(dr['first']['lat']-(C[0]+0.001))<1e-9 and abs(dr['first']['lng']-(C[1]+0.002))<1e-9 and abs(dr['last']['lat']-ADDR2[0])<1e-9 and abs(dr['last']['lng']-ADDR2[1])<1e-9, (dr['first'], dr['last']))
     ok('  the results table appears for the draft', pg.locator('#flowTable').count()==1 and pg.is_visible('#flowTable'))
+    dl = pg.evaluate("(() => { let d=0, y=0; window.__relay.map.eachLayer(l => { if (l.options && l.options.color==='#ffd21f') { y++; if (l.options.dashArray) d++; } }); return [y, d]; })()")
+    ok('  a long driveway keeps the dashed last leg', dl==[2,1], dl)
     pg.screenshot(path='out/v3_draft.png')
     n0 = dr['n']; pg.locator('.mid').nth(2).click(); pg.wait_for_timeout(500)
     a = pg.evaluate('({n:window.__relay.state.points.length, draft:window.__relay.state.draft})')
@@ -234,6 +238,54 @@ with sync_playwright() as p:
     ok('town hydrant popup gives the number, the town source, and no flow value', t=='Hydrant 6001\nTown of Greenburgh data, 2026.\nNo flow value.', t)
     t = pop(fake[0])
     ok('county hydrant popup is unchanged', t=='Hydrant T-101\nDistrict code: YKTWN\nCounty data, 2015. No flow value.', t)
+    # ---- v0.7 phase: dual 3 inch lines, short driveway draft, drag S and A ----
+    e7 = len(errors)
+    x = fresh(); x.goto(test_html.resolve().as_uri()); x.wait_for_timeout(700)
+    ok('hose list has Dual 3 inch lines after 4 inch, and the dual hint is hidden for 5 inch', x.evaluate("[...document.querySelectorAll('#setHose option')].map(o => o.value + ':' + o.textContent)")==['5:5 inch LDH','4:4 inch LDH','3:Dual 3 inch lines'] and not x.is_visible('#dualHint'))
+    GATE['roads'] = True; GATE['addr'] = ADDR_SHORT; GATE['road'] = None
+    x.fill('#geoText', '100 Test Hill Rd'); x.click('#geoForm button')
+    try: x.wait_for_function('window.__relay.state.draft === true', timeout=8000); x.wait_for_selector('#flowTable', timeout=8000); x.wait_for_timeout(300)
+    except Exception: pass
+    SHORT_TXT = 'Draft route: hydrant T-102 to 100 TEST HILL RD, YORKTOWN HEIGHTS. It follows Test Hill Rd. The driveway is shorter than 100 ft, so the draft stops on the road. Drag S or A to move them.'
+    sd = x.evaluate("(() => { const s=window.__relay.state, m=window.__relay.map; let dash=0, yellow=0; m.eachLayer(l => { if (l.options && l.options.color==='#ffd21f') { yellow++; if (l.options.dashArray) dash++; } }); return {draft:s.draft, last:s.points[s.points.length-1], dash, yellow, text:document.getElementById('status').textContent}; })()")
+    ok('short driveway: the draft ends at the road point, not the address', sd['draft'] is True and abs(sd['last']['lat']-(C[0]+0.003))<1e-6 and abs(sd['last']['lng']-ADDR_SHORT[1])<1e-6, sd['last'])
+    ok('  the status says the draft stops on the road (with the low hydrant caution)', sd['text']==SHORT_TXT + ' The county hydrant list can be incomplete here. A nearer hydrant can exist.', sd['text'])
+    ok('  no dashed leg is drawn', sd['yellow']==1 and sd['dash']==0, (sd['yellow'], sd['dash']))
+    # dual 3 inch lines
+    before = x.evaluate(SNAP)['res']; x.select_option('#setHose', '3'); x.wait_for_timeout(300)
+    after = x.evaluate(SNAP)['res']; fl = x.evaluate('[500,750,1000].map(q => window.__relay.state.results[q].fl100)')
+    ok('Dual 3 inch lines: friction is 6, 11.25, 20 PSI per 100 ft, the results change, and the hint shows', fl==[6,11.25,20] and after!=before and x.is_visible('#dualHint') and x.inner_text('#dualHint')=='For dual lines, enter the length of dual line that one engine lays.', (fl, before, after))
+    x.click('#layRev'); x.click('#btnCard'); x.wait_for_timeout(500)
+    foot = x.inner_text('#cardBody .foot')
+    ok('card footer says dual 3" lines, not 3" LDH', foot.startswith('Rules: dual 3" lines, friction loss') and '3" LDH' not in foot, foot[:60])
+    x.click('#btnBack'); x.wait_for_timeout(300)
+    x.select_option('#setHose', '5'); x.wait_for_timeout(300)
+    ok('the hint hides again for 5 inch', not x.is_visible('#dualHint'))
+    x.select_option('#setHose', '3'); x.wait_for_timeout(200); x.click('#btnSaveDefaults'); x.evaluate("localStorage.removeItem('yhfd-relay-pilot-v1')"); x.reload(); x.wait_for_timeout(900)
+    ok('saved defaults accept hose 3: the select, the hint, and the summary', x.input_value('#setHose')=='3' and x.is_visible('#dualHint') and x.inner_text('#defaultsStatus')=='Defaults in use: yours (Yorktown Hgts FD, dual 3 inch, chart, 185 PSI, 20 PSI, 10%, 1,000 ft).', x.inner_text('#defaultsStatus'))
+    # drag S and A with the edit handles hidden
+    x.select_option('#setHose', '5'); x.click('#btnResetDefaults')
+    x.fill('#geoText', '100 Test Hill Rd'); x.click('#geoForm button')
+    try: x.wait_for_function('window.__relay.state.draft === true', timeout=8000); x.wait_for_selector('#flowTable', timeout=8000); x.wait_for_timeout(300)
+    except Exception: pass
+    x.uncheck('#showHandles'); x.wait_for_timeout(200)
+    PT = "(() => { const s=window.__relay.state; return {n:s.points.length, first:s.points[0], last:s.points[s.points.length-1], draft:s.draft, hyd:s.sourceHydrant, hose:s.profile.h[s.profile.n-1]}; })()"
+    p0 = x.evaluate(PT)
+    ok('before the drag: handles are hidden and S and A have the Drag to move tooltip', x.locator('.vx').count()==0 and x.locator('.em.S').count()==1 and x.locator('.em.A').count()==1 and p0['draft'] is True)
+    def drag(sel, dx, dy):
+        bb = x.locator(sel).bounding_box(); x0, y0 = bb['x']+bb['width']/2, bb['y']+bb['height']/2
+        x.mouse.move(x0, y0); x.mouse.down(); x.mouse.move(x0+dx, y0+dy, steps=8); x.mouse.up(); x.wait_for_timeout(300)
+        try: x.wait_for_function("document.getElementById('status').textContent.startsWith('Route calculated')", timeout=8000)
+        except Exception: pass
+    x.hover('.em.A'); x.wait_for_timeout(300)
+    ok('hover on A shows the tooltip Drag to move', x.locator('.leaflet-tooltip').count()>=1 and x.inner_text('.leaflet-tooltip')=='Drag to move', x.locator('.leaflet-tooltip').count())
+    x.mouse.move(5, 5)
+    drag('.em.A', 70, -50); p1 = x.evaluate(PT)
+    ok('drag A: the last point moves, the draft flag clears, the source stays, and the route is recalculated', abs(p1['last']['lat']-p0['last']['lat'])+abs(p1['last']['lng']-p0['last']['lng'])>0.0002 and p1['draft'] is False and p1['first']==p0['first'] and p1['hose']!=p0['hose'] and p1['n']==p0['n'], (p0['last'], p1['last'], p0['hose'], p1['hose']))
+    drag('.em.S', -80, 60); p2 = x.evaluate(PT)
+    ok('drag S: the first point moves, the last stays, and the route is recalculated', abs(p2['first']['lat']-p1['first']['lat'])+abs(p2['first']['lng']-p1['first']['lng'])>0.0002 and p2['last']==p1['last'] and p2['hose']!=p1['hose'], (p1['first'], p2['first'], p1['hose'], p2['hose']))
+    ok('  the moved S no longer counts as a hydrant source', p2['hyd'] is None and x.inner_text('#sourceType')!='' , p2['hyd'])
+    GATE['addr'] = C; GATE['roads'] = False
     ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])
     bad = [e for e in errors if 'Failed to load resource' not in e]
     ok('no console errors except the aborted requests', not bad, bad[:3])
