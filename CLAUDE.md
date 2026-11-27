@@ -4,7 +4,7 @@ This repo is one HTML page that plans a long supply line lay for Yorktown Height
 The user traces a hose route on a map. The page reads the ground height along the route. It then shows the hose, the climb, the relay engines, and the pump discharge pressure (PDP) for each engine.
 The plan has three parts: Find, Calculate, and Carry. Only Calculate is built. This repo holds Calculate.
 Status: pilot v0.19. Alex approved the v0.2 direction. No field check is done yet. The history of each version, v0.3 to v0.19, is in `docs/handoff-2026-11-24.md`.
-The GitHub repo is private. Its name is relay-pumping-preplan (renamed from yhfd-relay-calculator on 2026-11-27). The folder on this Mac keeps the old name.
+The GitHub repo is public (Alex, 2026-11-27). Its name is relay-pumping-preplan (renamed from yhfd-relay-calculator). The folder on this Mac keeps the old name. Live page: https://vergo402.github.io/relay-pumping-preplan/ . `.github/workflows/pages.yml` builds and publishes it after each push to main. Do not put secrets or personal data in this repo.
 
 ## Files
 
