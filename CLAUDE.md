@@ -62,7 +62,7 @@ Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome. On 202
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
 Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `38d9d21e40a84505c63c7ae47ed35a56d53b8cc4b5d53895a2d1b078ea49b964`
-This is the v0.17 build. Older values are in `docs/handoff-2026-11-24.md`. On 2026-11-27 the copy Alex uses in OneDrive is the v0.16 build. Claude replaced that copy eleven times (v0.3, v0.4, v0.6 to v0.10, and v0.13 to v0.16), each on a direct request from Alex. Rule 3 still applies.
+This is the v0.17 build. Older values are in `docs/handoff-2026-11-24.md`. On 2026-11-27 the copy Alex uses in OneDrive is the v0.17 build. Claude replaced that copy twelve times (v0.3, v0.4, v0.6 to v0.10, and v0.13 to v0.17), each on a direct request from Alex. Rule 3 still applies.
 
 ## Hydraulic rules
 
