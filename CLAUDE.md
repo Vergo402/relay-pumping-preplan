@@ -65,8 +65,8 @@ On 2026-11-27, 70 of 70 math checks and 135 of 135 page checks passed on macOS w
 
 Recorded SHA-256 of `dist/YHFD Relay Pumping Calculator.html`: `5b67de1ed294185b72d01e1211851309bf4be45996f04183d09fa9d49bcd6667`
 This is the v0.10 build. Older values are in `docs/handoff-2026-11-24.md`.
-On 2026-11-27 the copy Alex uses in OneDrive is the v0.9 build (`68a96646c4a4b8edbb1a20a60d2abd503ddd6899814985ceebcf806987034683`).
-Claude replaced that copy six times (v0.3, v0.4, and v0.6 to v0.9), each on a direct request from Alex. Rule 3 still applies.
+On 2026-11-27 the copy Alex uses in OneDrive is the v0.10 build, the same value.
+Claude replaced that copy seven times (v0.3, v0.4, and v0.6 to v0.10), each on a direct request from Alex. Rule 3 still applies.
 
 ## Hydraulic rules
 
