@@ -148,6 +148,14 @@ td.n,th.n{text-align:right}
 .bk button{border:0;background:none;padding:6px 0;font:inherit;font-weight:700;color:var(--blue);cursor:pointer}
 #setView .btn{display:block;width:100%;margin-bottom:8px}
 #setView ul{margin:6px 0 10px;padding-left:18px;color:var(--muted);font-size:12.5px}
+/* v0.25: the map layer list title and close button. The closed list is the 44 px layers button. */
+.lh{display:flex;justify-content:space-between;align-items:center;margin:-2px -4px 4px 0}
+.lh b{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted)}
+.lx{position:relative;width:30px;height:30px;border:0;border-radius:6px;background:none;font-size:22px;line-height:1;color:var(--ink);cursor:pointer}
+.lx::after{content:'';position:absolute;inset:-7px}
+.lx:hover{background:#eef1f4}
+.lx:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.leaflet-control-layers-toggle{width:44px;height:44px}
 /* v0.23: the report form in Settings. A helper on Google Apps Script makes the GitHub issue. */
 #setView [hidden]{display:none}
 #repText{display:block;width:100%;box-sizing:border-box;margin-top:3px;border:1px solid #b9c1c9;border-radius:6px;padding:7px 9px;font:inherit;color:var(--ink);resize:vertical;min-height:92px}
@@ -187,6 +195,15 @@ body.card .leaflet-tooltip{display:none!important}
 body.card .ud{display:none}
 body.card #cardBar{display:flex;gap:8px;position:fixed;top:0;left:0;right:0;background:var(--ink);padding:9px 14px;z-index:2000;align-items:center;color:#fff}
 body.card #cardBar span{flex:1;font-size:13px;color:#c5ccd3}
+/* v0.25: the card map flow selector in the dark bar, and the flow tag on the card map */
+body.card #cardBar span.cm{flex:none;font-size:12px}
+#cardFlows{margin:0}
+#cardFlows button{background:none;color:#fff;border-color:#7a838c;min-height:34px;padding:6px 12px;white-space:nowrap}
+#cardFlows button:hover{background:#2c333a}
+#cardFlows button.on{background:#fff;color:var(--ink);border-color:#fff}
+#cardFlows button:focus-visible{outline:2px solid #ffd21f;outline-offset:2px}
+.mtag{display:none;background:#fff;border:1px solid #111;padding:2px 6px;font-weight:700;font-size:12px;color:#111}
+body.card .mtag{display:block}
 body.card #cardHead,body.card #cardBody{display:block}
 body.card #main{display:block}
 body.card #map{height:3.15in;border:1px solid #333}
@@ -244,11 +261,11 @@ body.card #profile{height:1.47in}
 </style>
 </head>
 <body>
-<div id="cardBar"><b>Pre-plan card preview</b><span>Check the map view. Move or zoom the map if needed. Then print.</span>
+<div id="cardBar"><b>Card preview</b><span></span><span class="cm">Map shows</span><div class="seg" id="cardFlows" role="group" aria-label="Flow on the card map"><button type="button" data-q="500">500 GPM</button><button type="button" data-q="1250">1,250 GPM</button><button type="button" data-q="2000">2,000 GPM</button></div>
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><div><h1>Relay Pumping Pre-plan</h1><p>Pilot v0.24 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><div><h1>Relay Pumping Pre-plan</h1><p>Pilot v0.25 &middot; Planning aid only. Verify on site.</p></div>
       <button type="button" id="btnSettings" aria-label="Settings" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div id="setView">
       <div class="bk"><button type="button" id="btnSettingsBack">&larr; Back to the plan</button><span>Settings</span></div>
@@ -719,6 +736,25 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   // user: true when the user changed the choice; fit: move the map to the district
   var MIN_HYD = 50; // below this count the page warns about the county list
   var PHONE = window.matchMedia('(max-width:900px)').matches; // read once at load
+  // v0.25: the layer list has a title and a close button. The layers button opens it again.
+  // collapsed: false keeps Leaflet from opening on hover and closing on a map click. This page sets open or closed itself.
+  // The district change builds a new list, so layersOpen keeps the state.
+  var layersOpen = !PHONE;
+  function layerUi() {
+    var c = ctl.getContainer(), sec = c.querySelector('.leaflet-control-layers-list'), link = c.querySelector('.leaflet-control-layers-toggle');
+    var hd = L.DomUtil.create('div', 'lh'); hd.innerHTML = '<b>Map layers</b><button type="button" class="lx" aria-label="Close the map layer list">&times;</button>';
+    sec.insertBefore(hd, sec.firstChild);
+    link.title = 'Map layers'; link.setAttribute('aria-label', 'Open the map layer list');
+    function set(open, focus) {
+      layersOpen = open; if (open) ctl.expand(); else ctl.collapse();
+      link.setAttribute('aria-expanded', String(open));
+      if (focus) (open ? hd.lastChild : link).focus();
+    }
+    hd.lastChild.onclick = function () { set(false, true); };
+    L.DomEvent.on(link, 'click', function () { set(true, true); });
+    c.addEventListener('keydown', function (e) { if (e.key === 'Escape' && layersOpen) { e.stopPropagation(); set(false, true); } });
+    set(layersOpen, false);
+  }
   function applyDistrict(id, user, fit) {
     district = id ? districts.filter(function (f) { return f.properties.id === +id; })[0] || null : null; // no district: the map shows all districts
     state.settings.district = district ? district.properties.id : null;
@@ -727,7 +763,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     hIn = hydrants.map(function (h) { return !!district && bb.contains([h[1], h[0]]) && RelayCore.pointInPolygon(h[0], h[1], district.geometry); });
     if (ctl) ctl.remove();
     var ov = {}; ov[(district ? district.properties.name : 'District') + ' line'] = districtLayer; ov['Hydrants (county and town data)'] = hydrantLayer; ov['Contours, 2 ft (zoom in close)'] = contours; ov['Driveways and buildings'] = plani;
-    ctl = L.control.layers(bases, ov, { collapsed: PHONE, position: 'topright' }).addTo(map);
+    ctl = L.control.layers(bases, ov, { collapsed: false, position: 'topright' }).addTo(map); layerUi();
     $('setDistrict').value = district ? district.properties.id : '';
     $('geoText').placeholder = district ? 'Street address in ' + district.properties.name : 'Street address';
     if (fit !== false) map.fitBounds(bb, { padding: [10, 10] });
@@ -1199,7 +1235,18 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
       (s.lay === 'reverse' ? 'Reverse lay: each engine starts at the attack end of its section, lays hose back to its position, and pumps there. ' : s.lay === 'forward' ? 'Forward lay: each engine starts at the source end of its section and lays hose to its position. One more engine pumps at the source. ' : '') +
       'Ground heights: USGS 3DEP LiDAR. Hydrants: Westchester County GIS, 2015, and Town of Greenburgh, 2026. This card does not show the flow the water source can give. Planning aid only. The pump operator sets pressures from the gauges on scene.</div>';
     $('cardBody').innerHTML = h;
+    [].forEach.call($('cardFlows').children, function (b) { var on = +b.getAttribute('data-q') === state.flow; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); });
+    mapTag.getContainer().textContent = 'Map: ' + fmt(state.flow) + ' GPM';
   }
+  // v0.25: the card map shows the flow from the selector. The tag prints on the map. Back to planner gives the planner flow again.
+  var mapTag = L.control({ position: 'bottomright' });
+  mapTag.onAdd = function () { return L.DomUtil.create('div', 'mtag'); };
+  mapTag.addTo(map);
+  $('cardFlows').onclick = function (e) {
+    var q = +(e.target.getAttribute && e.target.getAttribute('data-q')); if (!q || q === state.flow) return;
+    if (!cardPrevFlow) cardPrevFlow = state.flow;
+    state.flow = q; render(); setTimeout(renderProfile, 60);
+  };
   function routeBounds() { return L.latLngBounds(state.points.map(function (p) { return [p.lat, p.lng]; })); }
   function setCard(on) {
     // The card map shows one flow from CARD_FLOWS. Use 1,250 GPM for the card when the selected flow is not on the card. Dragged relays stay in state.manual.
