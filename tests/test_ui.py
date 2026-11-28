@@ -179,7 +179,6 @@ with sync_playwright() as p:
     pg.click('#btnBack'); pg.wait_for_timeout(200)
     pg.evaluate("window.__relay.state.settings.lay = 'reverse'")
     pg.locator('#flowTable tbody tr').nth(2).click(); pg.wait_for_timeout(200)
-    pg.reload(); pg.wait_for_selector('#flowTable', timeout=8000); ok('reload keeps the route and its lay', pg.evaluate('window.__relay.state.settings.lay')=='reverse')
     # ---- v0.11: a card flow that needs 6 or more relay engines is "Not practical as a relay" ----
     # At 150 PSI maximum PDP and 1,000 ft on each engine, the engine counts for 500, 1,250, and 2,000 GPM are 2, 3, and 7 relays.
     view = pg.evaluate('[window.__relay.map.getCenter(), window.__relay.map.getZoom()]')
@@ -261,8 +260,6 @@ with sync_playwright() as p:
     while pg.evaluate('window.__relay.state.points.length')>2: pg.locator('.vx').nth(1).click(button='right'); pg.wait_for_timeout(400)
     pg.locator('.vx').nth(0).dispatch_event('contextmenu'); pg.wait_for_timeout(400)  # the source engine icon covers this handle
     ok('with 2 points left, right-click removes nothing', pg.evaluate('window.__relay.state.points.length')==2)
-    open_sec(pg, 'dist'); pg.select_option('#setDistrict', '226'); pg.wait_for_timeout(300); pg.reload(); pg.wait_for_timeout(1000)
-    ok('reload keeps the fire district in the saved plan', pg.evaluate('window.__relay.state.settings.district')==226 and pg.input_value('#setDistrict')=='226', (pg.evaluate('window.__relay.state.settings.district'), pg.input_value('#setDistrict')))
     open_sec(pg, 'dist'); pg.select_option('#setDistrict', '253'); pg.wait_for_timeout(300)
     # ---- v0.4 phase: Maximum PDP 185, and "My defaults". Each part uses a new browser context, so storage starts empty. ----
     e0 = len(errors)
@@ -485,7 +482,7 @@ with sync_playwright() as p:
     e10 = len(errors)
     GATE['roads'] = False; GATE['addr'] = C
     t10 = fresh(); load(t10)
-    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.23' in t10.inner_text('.brand'))
+    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.24' in t10.inner_text('.brand'))
     ok('v0.19: the name is Relay Pumping Pre-plan in the tab and the header, and the page text does not say YHFD', t10.title()=='Relay Pumping Pre-plan' and t10.inner_text('.brand h1')=='Relay Pumping Pre-plan' and 'YHFD' not in t10.evaluate("document.getElementById('side').textContent + document.getElementById('cardHead').textContent"), t10.title())
     ok('v0.16: the status line lists five values (no district)', t10.inner_text('#defaultsStatus')=='Defaults in use: built-in (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==5, t10.inner_text('#defaultsStatus'))
     to_set(t10); rules = t10.inner_text('#setView ul')
@@ -502,7 +499,7 @@ with sync_playwright() as p:
         t10.evaluate("p => localStorage.setItem('yhfd-relay-pilot-v1', JSON.stringify(p))", PLAN)
         t10.evaluate("""d => localStorage.setItem('yhfd-relay-defaults-v1', JSON.stringify(d))""", {'district':226,'hose':4,'basis':bs,'cap':200,'residual':50,'slack':5,'hosePerEngine':1500})
         t10.reload(); t10.wait_for_timeout(900)
-        ok('v0.10: an old autosave and an old saved default with basis '+bs+' load and the five values apply (the old district in the default is ignored)', t10.evaluate('window.__relay.state.points.length')==2 and t10.input_value('#setCap')=='185' and t10.inner_text('#defaultsStatus')=='Defaults in use: yours (4 inch, 200 PSI, 50 PSI, 5%, 1,500 ft).' and t10.evaluate('window.__relay.state.settings.district')==253, t10.inner_text('#defaultsStatus'))
+        ok('v0.24: old saved work with basis '+bs+' does not load and the page removes it; the old saved default still gives the five values (its old district is ignored)', t10.evaluate('window.__relay.state.points.length')==0 and t10.evaluate("localStorage.getItem('yhfd-relay-pilot-v1')") is None and t10.input_value('#setCap')=='200' and t10.inner_text('#defaultsStatus')=='Defaults in use: yours (4 inch, 200 PSI, 50 PSI, 5%, 1,500 ft).' and t10.input_value('#setDistrict')=='', (t10.evaluate('window.__relay.state.points.length'), t10.input_value('#setCap'), t10.input_value('#setDistrict')))
     # ---- v0.10 card file name: the browser takes the PDF name from the page title ----
     t11 = fresh(); load(t11)
     GATE['roads'] = False; GATE['addr'] = C
@@ -535,8 +532,6 @@ with sync_playwright() as p:
     open_sec(t11, 'addr'); t11.fill('#planName', ''); ok('card name: with neither plan name nor address it is the date and Relay pre-plan', t11.evaluate(NAME) == today + '_Relay pre-plan', t11.evaluate(NAME))
     t11.set_input_files('#fileOpen', files=[{'name':'p.json','mimeType':'application/json','buffer':json.dumps(saved).encode()}]); t11.wait_for_timeout(600)
     ok('plan file round trip: the card name holds the address again and the pin shows', t11.evaluate(NAME) == today + '_Drill A_100 TEST HILL RD, YORKTOWN HEIGHTS' and t11.locator('.pin').count() == 1, t11.evaluate(NAME))
-    t11.reload(); t11.wait_for_timeout(900)
-    ok('autosave keeps the address after a reload', t11.evaluate(NAME).endswith('_100 TEST HILL RD, YORKTOWN HEIGHTS') and t11.locator('.pin').count() == 1, t11.evaluate(NAME))
     del saved['addr']; t11.set_input_files('#fileOpen', files=[{'name':'q.json','mimeType':'application/json','buffer':json.dumps(saved).encode()}]); t11.wait_for_timeout(600)
     ok('an old plan file without an address loads with no error and no pin', t11.evaluate(NAME) == today + '_Drill A' and t11.locator('.pin').count() == 0 and 'could not open' not in t11.inner_text('#status'), t11.inner_text('#status'))
     ok('no page errors in the v0.10 phase', not [e for e in errors[e10:] if 'Failed to load resource' not in e], errors[e10:][:3])
@@ -863,12 +858,17 @@ with sync_playwright() as p:
     ans23[0] = '{"ok":false,"why":"limit"}'; r23.click('#btnRepSend'); r23.wait_for_timeout(400)
     ok('v0.23: at the daily limit the page says to send again tomorrow', 'maximum number of reports for today. Send again tomorrow. Your text is still here.' in r23.inner_text('#repBad'), r23.inner_text('#repBad'))
     ans23[0] = '{"ok":true,"number":14,"url":"https://github.com/Vergo402/relay-pumping-preplan/issues/14"}'; r23.click('#btnRepSend'); r23.wait_for_timeout(400); g23 = r23.evaluate(REP); body23 = json.loads(sent23[-1])
-    ok('v0.23: the page sends the type, text, name, version, and browser, and no address or route', sorted(body23)==['browser','kind','name','text','version','website'] and (body23['kind'], body23['text'], body23['name'], body23['version'], body23['website'])==('problem','The auto route went to the wrong side of the road.','Test Person','v0.23','') and 'Chrome' in body23['browser'], body23)
+    ok('v0.23: the page sends the type, text, name, version, and browser, and no address or route', sorted(body23)==['browser','kind','name','text','version','website'] and (body23['kind'], body23['text'], body23['name'], body23['version'], body23['website'])==('problem','The auto route went to the wrong side of the road.','Test Person','v0.24','') and 'Chrome' in body23['browser'], body23)
     ok('v0.23: a good send shows the report number and the issue link, and hides the form', g23['ok'] and g23['more'] and not g23['form'] and r23.inner_text('#repOk').startswith('✓ Sent. Report number 14.') and r23.get_attribute('#repLink','href')=='https://github.com/Vergo402/relay-pumping-preplan/issues/14' and r23.evaluate("document.activeElement.id")=='btnRepMore', (g23, r23.inner_text('#repOk')))
     r23.click('#btnRepMore'); m23 = r23.evaluate(REP)
     ok('v0.23: Send one more gives an empty form again', m23['form'] and not (m23['ok'] or m23['bad'] or m23['alt']) and m23['text']=='' and m23['count']=='0 of 1,000' and m23['send']=='Send report', m23)
     src23 = test_html.read_text()
     ok('v0.23: the page holds no GitHub key', not re.search(r'github_pat_|gh[pousr]_[A-Za-z0-9]{20}|Bearer ', src23) and src23.count('script.google.com/macros/s/')==1)
+    # ---- v0.24: the page always starts empty. It saves no work in the browser. ----
+    n24 = fresh(); load(n24, None); open_sec(n24, 'addr'); n24.fill('#planName', 'Night drill'); n24.fill('#planNotes', 'Gate code 1234'); open_sec(n24, 'lay'); n24.select_option('#sourceType', 'Draft site'); n24.click('#layRev'); n24.wait_for_timeout(200)
+    ok('v0.24: the page saves no work in the browser storage', n24.evaluate("Object.keys(localStorage).filter(k => k.indexOf('pilot') >= 0).length")==0 and n24.evaluate(ROWS20)[0][0]=='ok')
+    n24.reload(); n24.wait_for_timeout(900); e24 = n24.evaluate("[document.getElementById('setDistrict').value, document.getElementById('planName').value, document.getElementById('planNotes').value, document.getElementById('sourceType').value, window.__relay.state.points.length, document.getElementById('status').innerText]")
+    ok('v0.24: after a reload the page is empty: no district, name, notes, source type, or route; all four rows are red; the start message shows', e24==['','','','',0,'Select the fire district first. Then find the address in step 1.'] and [x[0] for x in n24.evaluate(ROWS20)]==['req','req','req','req'], e24)
     ok('no page errors in the v0.14 phase', not [e for e in errors[e14:] if 'Failed to load resource' not in e], errors[e14:][:3])
     ok('no page errors in the v0.13 phase', not [e for e in errors[e13:] if 'Failed to load resource' not in e], errors[e13:][:3])
     ok('no page errors in the v0.4 phase', not [e for e in errors[e0:] if 'Failed to load resource' not in e], errors[e0:][:3])

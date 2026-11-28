@@ -248,7 +248,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><div><h1>Relay Pumping Pre-plan</h1><p>Pilot v0.23 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><div><h1>Relay Pumping Pre-plan</h1><p>Pilot v0.24 &middot; Planning aid only. Verify on site.</p></div>
       <button type="button" id="btnSettings" aria-label="Settings" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div id="setView">
       <div class="bk"><button type="button" id="btnSettingsBack">&larr; Back to the plan</button><span>Settings</span></div>
@@ -737,7 +737,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     $('distCount').className = 'note-box' + (few ? ' warn' : '');
     $('distCount').textContent = (town ? 'Hydrant data: ' : 'County data: ') + (n ? n === 1 ? '1 hydrant' : n.toLocaleString('en-US') + ' hydrants' : 'no hydrants') + ' in this district' +
       (few ? '. The county list is from 2015 and can be incomplete. Set the water source from a hydrant or a draft site that you know.' : (town ? ' (county 2015, Town of Greenburgh 2026).' : ' (2015).'));
-    if (user) { if (district) setStatus('District set to ' + district.properties.name + '. Enter an address.'); autosave(); }
+    if (user) { if (district) setStatus('District set to ' + district.properties.name + '. Enter an address.'); }
     renderFold();
   }
   $('setDistrict').innerHTML = '<option value="">Select district</option>' + districts.map(function (f) { return '<option value="' + f.properties.id + '">' + esc(f.properties.name) + '</option>'; }).join('');
@@ -773,7 +773,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   }
   function setLay(v) {
     if (state.drawing) return;
-    state.settings.lay = v; renderLay(); render(); autosave();
+    state.settings.lay = v; renderLay(); render();
     if (!state.points.length) setStatus(LAY[v].name + ' selected. Select Auto draw route, or Manually draw route.');
   }
   map.on('click', function (e) {
@@ -916,7 +916,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     state.sourceType = ''; awaitSrc = false; found = null; if (geoMarker) { map.removeLayer(geoMarker); geoMarker = null; }
     state.settings.district = null; fold.open = null; // a new route starts with no district
     useDefaults(false); // and with the defaults
-    setDrawing(false); engineGroup.clearLayers(); render(); setStatus('Route cleared. Select Reverse lay or Forward lay to start again.'); autosave();
+    setDrawing(false); engineGroup.clearLayers(); render(); setStatus('Route cleared. Select Reverse lay or Forward lay to start again.');
   };
   document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && state.drawing && state.points.length > 1 && !/INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) finish(); });
   function finish() { if (state.points.length < 2) return; snapSource(); setDrawing(false); compute(); }
@@ -987,7 +987,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     state.profile = RelayCore.buildProfile(state.samples, state.elevFt, s.slack / 100);
     state.results = {};
     FLOWS.forEach(function (q) { state.results[q] = RelayCore.solve(state.profile, { gpm: q, hose: s.hose, cap: s.cap, residual: s.residual, maxSeg: s.hosePerEngine }, state.manual[q]); });
-    render(); autosave();
+    render();
   }
 
   /* ---------- results ---------- */
@@ -1297,7 +1297,6 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
     syncInputs(); setDrawing(false);
     if (state.points.length > 1) { map.fitBounds(routeBounds(), { padding: [60, 60], maxZoom: 19 }); compute(); } else { render(); if (!quiet) setStatus('Plan opened. It has no route.'); }
   }
-  function autosave() { try { localStorage.setItem(STORE, JSON.stringify(planData())); } catch (e) { /* storage is optional */ } }
   $('btnSave').onclick = function () {
     var blob = new Blob([JSON.stringify(planData(), null, 1)], { type: 'application/json' }), a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = 'Relay Pre-Plan - ' + (state.name || 'unnamed').replace(/[\\/:*?"<>|]+/g, ' ').trim() + '.json';
@@ -1329,7 +1328,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   };
   $('btnResetDefaults').onclick = function () {
     try { localStorage.removeItem(DKEY); } catch (e) { /* storage is optional */ }
-    useDefaults(true); state.manual = {}; recalc(); autosave(); showDefaults();
+    useDefaults(true); state.manual = {}; recalc(); showDefaults();
   };
   $('btnCopyDefaults').onclick = function () {
     var d = current(), name = 'Relay Pumping Pre-plan (my defaults).html', a = document.createElement('a');
@@ -1342,10 +1341,10 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   if (has(fileDefaults)) $('btnResetDefaults').textContent = 'Reset to the file defaults';
   function bind(id, fn) { $(id).addEventListener('change', fn); }
   var autoName = '';
-  $('planName').addEventListener('input', function () { state.name = this.value; autosave(); renderFold(); });
-  $('planNotes').addEventListener('input', function () { state.notes = this.value; autosave(); });
+  $('planName').addEventListener('input', function () { state.name = this.value; renderFold(); });
+  $('planNotes').addEventListener('input', function () { state.notes = this.value; });
   bind('setDistrict', function () { applyDistrict(this.value, true); });
-  bind('sourceType', function () { state.sourceType = this.value; awaitSrc = false; autosave(); renderFold(); });
+  bind('sourceType', function () { state.sourceType = this.value; awaitSrc = false; renderFold(); });
   bind('setHose', function () { state.settings.hose = +this.value; $('dualHint').hidden = state.settings.hose !== 3; state.manual = {}; recalc(); });
   bind('setCap', function () { state.settings.cap = +this.value; state.manual = {}; recalc(); });
   bind('setRes', function () { state.settings.residual = +this.value; state.manual = {}; recalc(); });
@@ -1436,7 +1435,7 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
       var label = c.address.replace(/, NY.*$/i, '');
       // A new search replaces a plan name that an earlier search set. It keeps a name that the user typed.
       if (!state.name || state.name === autoName) { state.name = autoName = label; $('planName').value = state.name; }
-      found = { lat: c.location.y, lng: c.location.x, label: label }; awaitSrc = false; autosave();
+      found = { lat: c.location.y, lng: c.location.x, label: label }; awaitSrc = false;
       setStatus('Found: ' + label + '. Check step 2. Then select Auto draw route, or Manually draw route.');
     } catch (err) { setStatus('The address search did not answer. Move the map by hand. (' + err.message + ')', 'err'); }
   });
@@ -1474,7 +1473,8 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   var rz; window.addEventListener('resize', function () { clearTimeout(rz); rz = setTimeout(renderProfile, 150); });
 
   syncInputs(); drawRoute(); render();
-  try { var saved = localStorage.getItem(STORE); if (saved) { var d = JSON.parse(saved); if (d && d.points && d.points.length > 1) loadPlan(d, true); else if (d) { state.settings = Object.assign({}, effDefaults(), d.settings || {}, { lay: null }); state.sourceType = d.sourceType || ''; restoreAddr(d.addr); syncInputs(); renderLay(); } } } catch (e) { /* storage is optional */ }
+  // v0.24: the page always starts empty. This line removes the work that an older version saved in this browser.
+  try { localStorage.removeItem(STORE); } catch (e) { /* storage is optional */ }
   showDefaults();
   window.__relay = { state: state, map: map, cardFileName: cardFileName, found: function () { return found; } };
 })();
