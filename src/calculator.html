@@ -148,6 +148,20 @@ td.n,th.n{text-align:right}
 .bk button{border:0;background:none;padding:6px 0;font:inherit;font-weight:700;color:var(--blue);cursor:pointer}
 #setView .btn{display:block;width:100%;margin-bottom:8px}
 #setView ul{margin:6px 0 10px;padding-left:18px;color:var(--muted);font-size:12.5px}
+/* v0.23: the report form in Settings. A helper on Google Apps Script makes the GitHub issue. */
+#setView [hidden]{display:none}
+#repText{display:block;width:100%;box-sizing:border-box;margin-top:3px;border:1px solid #b9c1c9;border-radius:6px;padding:7px 9px;font:inherit;color:var(--ink);resize:vertical;min-height:92px}
+#repText.req{border-color:var(--red);background:var(--red-soft)}
+.rn{display:flex;justify-content:space-between}
+.trap{position:absolute;left:-9999px}
+.rw{background:var(--amber-soft);border-radius:6px;padding:8px 10px;font-size:12.5px;margin:0 0 10px}
+.rb{border-radius:6px;padding:10px 12px;margin-bottom:10px;font-size:12.5px}
+.rb b{display:block;font-size:14px;margin-bottom:4px}
+.rb.ok{background:var(--green-soft);color:var(--muted)}
+.rb.ok b{color:var(--green)}
+.rb.bad{background:var(--red-soft)}
+.rb.bad b{color:var(--red)}
+#rep a{color:var(--blue)}
 .hint{font-size:12px;color:var(--muted);margin:-4px 0 10px}
 .empty{color:var(--muted);font-size:13px;padding:4px 0 12px}
 /* map markers */
@@ -234,7 +248,7 @@ body.card #profile{height:1.47in}
   <button class="btn" id="btnPrint">Print card</button><button class="btn" id="btnBack">Back to planner</button></div>
 <div id="app">
   <aside id="side">
-    <div class="brand"><div><h1>Relay Pumping Pre-plan</h1><p>Pilot v0.22 &middot; Planning aid only. Verify on site.</p></div>
+    <div class="brand"><div><h1>Relay Pumping Pre-plan</h1><p>Pilot v0.23 &middot; Planning aid only. Verify on site.</p></div>
       <button type="button" id="btnSettings" aria-label="Settings" aria-pressed="false"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065"/><circle cx="12" cy="12" r="3"/></svg></button></div>
     <div id="setView">
       <div class="bk"><button type="button" id="btnSettingsBack">&larr; Back to the plan</button><span>Settings</span></div>
@@ -245,6 +259,22 @@ body.card #profile{height:1.47in}
         <button class="btn" id="btnResetDefaults">Reset to built-in defaults</button>
         <button class="btn" id="btnCopyDefaults">Save a copy of this page with my defaults</button>
         <p class="hint" id="defaultsStatus" style="margin:0 0 10px"></p>
+      </div>
+      <div class="sec" id="rep">
+        <h2>Problems and ideas</h2>
+        <p class="hint" style="margin:0 0 8px">Tell the maker of this page. No account is necessary.</p>
+        <div id="repOk" class="rb ok" role="status" hidden><b>&#10003; Sent. Report number <span id="repNum"></span>.</b>Thank you. <span id="repSee">You can see it on GitHub: <a id="repLink" target="_blank" rel="noopener"></a></span></div>
+        <button type="button" class="btn" id="btnRepMore" hidden>Send one more</button>
+        <form id="repForm" novalidate>
+          <div id="repBad" class="rb bad" role="alert" hidden><b>Not sent.</b><span id="repWhy"></span></div>
+          <div class="seg" role="group" aria-label="Report type" style="margin-bottom:10px"><button type="button" id="repProb" class="on" aria-pressed="true">Problem</button><button type="button" id="repIdea" aria-pressed="false">Idea</button></div>
+          <label class="f"><span id="repAsk">What happened? What did you expect?</span><textarea id="repText" maxlength="1000" rows="4"></textarea></label>
+          <label class="f"><span class="rn"><span>Your name (optional)</span><span id="repCount">0 of 1,000</span></span><input type="text" id="repName" maxlength="80" autocomplete="off"></label>
+          <input type="text" id="repWeb" class="trap" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <p class="rw">This report is public on GitHub. Do not type an address or personal data. The page adds its version and your browser type.</p>
+          <button type="submit" class="btn primary" id="btnRepSend">Send report</button>
+          <p class="hint" id="repAlt" style="margin:0" hidden>Or <a href="https://github.com/Vergo402/relay-pumping-preplan/issues/new" target="_blank" rel="noopener">open the form on GitHub</a> (account necessary).</p>
+        </form>
       </div>
       <div class="sec">
         <h2>Rules this page uses</h2>
@@ -1208,6 +1238,46 @@ if (typeof module !== 'undefined') module.exports = RelayCore;
   $('btnSettings').onclick = function () { setSettings(!$('side').classList.contains('set')); };
   $('btnSettingsBack').onclick = function () { setSettings(false); };
   $('setView').onkeydown = function (e) { if (e.key === 'Escape') setSettings(false); };
+  // v0.23: the report form. The helper holds the GitHub key. This page holds no key.
+  var REPORT_URL = 'https://script.google.com/macros/s/AKfycbxzV7zz3nHZ2FsmibJf8qTZLPR4b2EnfNpsU0_Jpn6jVMlk8DMISoEQaNPj4q8WsZj04Q/exec';
+  var repKind = 'problem';
+  function repSet(k) {
+    repKind = k; var idea = k === 'idea';
+    $('repProb').classList.toggle('on', !idea); $('repProb').setAttribute('aria-pressed', String(!idea));
+    $('repIdea').classList.toggle('on', idea); $('repIdea').setAttribute('aria-pressed', String(idea));
+    $('repAsk').textContent = idea ? 'What do you want the page to do?' : 'What happened? What did you expect?';
+  }
+  function repShow(sent) { $('repForm').hidden = sent; $('repOk').hidden = !sent; $('btnRepMore').hidden = !sent; }
+  $('repProb').onclick = function () { repSet('problem'); };
+  $('repIdea').onclick = function () { repSet('idea'); };
+  $('repText').oninput = function () { this.classList.remove('req'); $('repCount').textContent = this.value.length.toLocaleString('en-US') + ' of 1,000'; };
+  $('btnRepMore').onclick = function () {
+    $('repText').value = ''; $('repText').oninput(); $('repBad').hidden = true; $('repAlt').hidden = true;
+    $('btnRepSend').textContent = 'Send report'; repShow(false); $('repText').focus();
+  };
+  $('repForm').onsubmit = function (e) {
+    e.preventDefault();
+    var t = $('repText'), b = $('btnRepSend');
+    if (!t.value.trim()) { t.classList.add('req'); t.focus(); return; }
+    b.disabled = true; b.textContent = 'Sending...'; $('repBad').hidden = true;
+    // text/plain: the browser then sends no preflight request, which the helper cannot answer
+    fetch(REPORT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({
+      kind: repKind, text: t.value, name: $('repName').value, website: $('repWeb').value,
+      version: (/v[0-9.]+/.exec(document.querySelector('.brand p').textContent) || [''])[0], browser: navigator.userAgent }) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) throw d;
+        var gh = typeof d.url === 'string' && d.url.indexOf('https://github.com/') === 0;
+        $('repNum').textContent = d.number; $('repSee').hidden = !gh;
+        if (gh) { $('repLink').href = d.url; $('repLink').textContent = 'issue ' + d.number; }
+        repShow(true); $('btnRepMore').focus();
+      })
+      .catch(function (d) {
+        $('repWhy').textContent = (d && d.why === 'limit' ? 'The page has its maximum number of reports for today. Send again tomorrow.' : 'Check the internet connection, then send again.') + ' Your text is still here.';
+        $('repBad').hidden = false; $('repAlt').hidden = false;
+      })
+      .then(function () { b.disabled = false; if (!$('repForm').hidden) b.textContent = $('repBad').hidden ? 'Send report' : 'Send again'; });
+  };
   $('btnCard').onclick = function () { setSettings(false); setCard(true); };
   $('btnBack').onclick = function () { setCard(false); };
   $('btnPrint').onclick = function () { window.print(); };

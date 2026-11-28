@@ -1,6 +1,6 @@
 {
   "name": "relay-pumping-preplan",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "private": true,
   "description": "Relay pumping pre-plan: one HTML page that plans a long supply line lay with relay engines.",
   "scripts": {
