@@ -6,7 +6,7 @@ Live page: https://vergo402.github.io/relay-pumping-preplan/
 
 ## What the tool does
 
-The tool is one HTML page, a web page in one file. A user selects one of 60 Westchester fire districts. The hydraulic rules come from the Yorktown Heights Fire District (YHFD) chauffeur chart.
+The tool is one HTML page, a web page in one file. A user selects one of 60 Westchester fire districts.
 The problem: long driveways that climb hills. Hose length and elevation loss make relay pumping hard to plan.
 
 You trace a hose route on a map. The page reads the ground height along the route. It then shows these items:
