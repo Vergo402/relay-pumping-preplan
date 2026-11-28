@@ -62,7 +62,7 @@ Set `CHROME_PATH` to the Chrome program if Playwright cannot find Chrome. On 202
 9. Change the recorded value only when Alex approved a source change. Then record the new value here.
 
 Recorded SHA-256 of `dist/Relay Pumping Pre-plan.html`: `f34620fbe82ee6d0d3c59feb4625d883ed69577882ddfd5c74cabdb5782387fe`
-This is the v0.23 build. Older values are in `docs/handoff-2026-11-24.md`. On 2026-11-27 the copy Alex uses in OneDrive is the v0.22 build, `Relay Pumping Pre-plan.html`. Claude replaced that copy seventeen times (v0.3, v0.4, v0.6 to v0.10, and v0.13 to v0.22), each on a direct request from Alex. Rule 3 still applies.
+This is the v0.23 build. Older values are in `docs/handoff-2026-11-24.md`. On 2026-11-27 the copy Alex uses in OneDrive is the v0.23 build, `Relay Pumping Pre-plan.html`. Claude replaced that copy eighteen times (v0.3, v0.4, v0.6 to v0.10, and v0.13 to v0.23), each on a direct request from Alex. Rule 3 still applies.
 
 ## Hydraulic rules
 
