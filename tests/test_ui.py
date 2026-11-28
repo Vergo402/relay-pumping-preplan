@@ -485,7 +485,7 @@ with sync_playwright() as p:
     e10 = len(errors)
     GATE['roads'] = False; GATE['addr'] = C
     t10 = fresh(); load(t10)
-    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.21' in t10.inner_text('.brand'))
+    ok('v0.10: the Friction loss values field is gone and the page says Pilot v0.15', t10.locator('#setBasis').count()==0 and 'Friction loss values' not in t10.text_content('#side') and 'Pilot v0.22' in t10.inner_text('.brand'))
     ok('v0.19: the name is Relay Pumping Pre-plan in the tab and the header, and the page text does not say YHFD', t10.title()=='Relay Pumping Pre-plan' and t10.inner_text('.brand h1')=='Relay Pumping Pre-plan' and 'YHFD' not in t10.evaluate("document.getElementById('side').textContent + document.getElementById('cardHead').textContent"), t10.title())
     ok('v0.16: the status line lists five values (no district)', t10.inner_text('#defaultsStatus')=='Defaults in use: built-in (5 inch, 185 PSI, 20 PSI, 10%, 1,000 ft).' and len(t10.inner_text('#defaultsStatus').split('(')[1].split(', '))==5, t10.inner_text('#defaultsStatus'))
     to_set(t10); rules = t10.inner_text('#setView ul')
@@ -826,6 +826,18 @@ with sync_playwright() as p:
     open_sec(v20, 'lay'); v20.select_option('#sourceType', 'Draft site'); t1 = v20.text_content('#btnDraft'); v20.select_option('#sourceType', 'Hydrant'); t2 = v20.text_content('#btnDraft')
     ok('v0.21: the auto button names the water source for a source that is not a hydrant', (t1, t2)==('Auto draw route to water source','Auto draw route to closest hydrant'), (t1, t2))
     ok('v0.21: the setting label reads Intake pressure residual', v20.evaluate("document.getElementById('setRes').parentNode.firstChild.textContent")=='Intake pressure residual')
+    # ---- v0.22: a "?" help mark on the Hose slack allowance label ----
+    QV = "(() => { const c = getComputedStyle(document.querySelector('#side .q .tip')); return [c.visibility, c.opacity]; })()"
+    q22 = v20.evaluate("(() => { const q = document.querySelector('#side .q'), s = document.getElementById('setSlack'); return [document.querySelectorAll('#side .q').length, q.parentNode === s.parentNode, q.getAttribute('role'), q.tabIndex, q.getAttribute('aria-label'), s.getAttribute('aria-label'), s.value, q.querySelector('.tip').textContent]; })()")
+    ok('v0.22: the Hose slack allowance label has one "?" help button with a name; the select keeps its name and value', q22[:7]==[1, True, 'button', 0, 'What is the hose slack allowance?', 'Hose slack allowance', '10'] and '10% adds 100 ft to each 1,000 ft.' in q22[7], q22)
+    ok('v0.22: the help text is hidden at the start', v20.evaluate(QV)==['hidden','0'], v20.evaluate(QV))
+    v20.focus('#side .q'); v20.wait_for_timeout(400); f22 = v20.evaluate(QV)
+    v20.evaluate("document.activeElement.blur()"); v20.wait_for_timeout(400); b22 = v20.evaluate(QV)
+    v20.hover('#side .q'); v20.wait_for_timeout(400); h22 = v20.evaluate(QV)
+    ok('v0.22: the help text shows on keyboard focus and on hover, and hides after', (f22, b22, h22)==(['visible','1'],['hidden','0'],['visible','1']), (f22, b22, h22))
+    v20.click('#side .q'); v20.wait_for_timeout(200)
+    ok('v0.22: a click on "?" keeps the help text open and does not change or focus the select', v20.evaluate(QV)==['visible','1'] and v20.evaluate("[document.getElementById('setSlack').value, document.activeElement.id]")==['10',''], v20.evaluate("[document.getElementById('setSlack').value, document.activeElement.id, document.activeElement.className]"))
+    v20.evaluate("document.activeElement.blur()"); v20.mouse.move(700, 500)
     v20.click('#layRev'); open_sec(v20, 'route'); v20.click('#btnDraw'); v20.wait_for_timeout(300)
     ok('v0.21: Manually draw route with no address opens step 1, marks the address field red, and gives the message', not v20.evaluate('window.__relay.state.drawing') and v20.inner_text('#status')=='Find the address in step 1 first. With no match, type a plan name.' and v20.evaluate("document.querySelector('#side .sec[data-k=addr] .bd').classList.contains('op') && document.getElementById('geoText').classList.contains('req') && document.activeElement.id==='geoText'"), v20.inner_text('#status'))
     named(v20); open_sec(v20, 'route'); v20.click('#btnDraw'); v20.wait_for_timeout(300)
